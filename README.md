@@ -27,18 +27,17 @@
 
 1. リポジトリをクローンして `PunctuationToggle.xcodeproj` を Xcode で開きます。
 2. 必要に応じて、Signing & Capabilities でバンドルID（`com.example.PunctuationToggle`）とチームを自分のものに変更します。
-3. Product → Archive、またはコマンドラインでビルドします。
+3. インストールスクリプトを実行します。
 
    ```sh
-   xcodebuild -project PunctuationToggle.xcodeproj -scheme PunctuationToggle \
-     -configuration Release -derivedDataPath build
-   cp -R build/Build/Products/Release/PunctuationToggle.app ~/Applications/
-   open ~/Applications/PunctuationToggle.app
+   ./install.sh
    ```
 
-4. システム設定 →「プライバシーとセキュリティ」→「アクセシビリティ」で PunctuationToggle を許可します。許可されるとメニューバーの「⚠︎」が「、。」に変わります。
+   Release ビルド、`~/Applications` へのコピー、古いアクセシビリティ許可のリセット、起動までを行います。
 
-> **注意:** アドホック署名（チーム未設定）でビルドし直すと、アクセシビリティの許可が一覧上はオンのまま無効になることがあります。その場合は一覧から一度削除して、もう一度追加してください。
+4. 表示されるダイアログから、システム設定 →「プライバシーとセキュリティ」→「アクセシビリティ」で PunctuationToggle をオンにします。許可されるとメニューバーの「⚠︎」が「、。」に変わります（再起動は不要です）。
+
+> **注意:** チームを設定せずにビルドするとアドホック署名になり、ビルドし直すたびに署名が変わります。そのため、アクセシビリティの許可が一覧上はオンのまま無効になり、右Commandに反応しなくなります。ビルドし直したときは必ず `./install.sh` を使うか、一覧から PunctuationToggle を削除してから許可し直してください。Xcode から Run したデバッグ版も同じ理由で、許可が引き継がれません。
 
 ## 仕組み
 
