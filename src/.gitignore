@@ -1,0 +1,6 @@
+bin/
+node_modules/
+test/test.txt
+*.class
+dotnet/bin/
+dotnet/obj/
