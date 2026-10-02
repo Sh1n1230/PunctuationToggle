@@ -7,27 +7,32 @@ namespace PunctuationToggle;
 /// Microsoft IME は入力欄にフォーカスが戻ったときにレジストリの設定を読み直すので、
 /// これで書き換えた句読点の設定が入力中のアプリにも反映される。
 /// </summary>
-sealed class FocusBouncer : IDisposable
+internal sealed class FocusBouncer : IDisposable
 {
-    [DllImport("user32.dll")]
-    static extern IntPtr GetForegroundWindow();
+    // フォーカスを戻すまでの時間。短すぎると IME が設定を読み直さないことがある。
+    private const int ReturnDelayMilliseconds = 50;
 
     [DllImport("user32.dll")]
-    static extern bool SetForegroundWindow(IntPtr hWnd);
+    private static extern IntPtr GetForegroundWindow();
 
     [DllImport("user32.dll")]
-    static extern uint GetWindowThreadProcessId(IntPtr hWnd, IntPtr lpdwProcessId);
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, IntPtr lpdwProcessId);
 
     [DllImport("kernel32.dll")]
-    static extern uint GetCurrentThreadId();
+    private static extern uint GetCurrentThreadId();
 
     [DllImport("user32.dll")]
-    static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, [MarshalAs(UnmanagedType.Bool)] bool fAttach);
 
-    // 画面外に置く、タスクバーにも Alt+Tab にも出ない 1px のウィンドウ
-    sealed class BounceWindow : Form
+    /// <summary>画面外に置く、タスクバーにも Alt+Tab にも出ない 1px の透明なウィンドウ。</summary>
+    private sealed class BounceWindow : Form
     {
-        const int WS_EX_TOOLWINDOW = 0x00000080;
+        private const int WS_EX_TOOLWINDOW = 0x00000080;
 
         public BounceWindow()
         {
@@ -42,52 +47,52 @@ sealed class FocusBouncer : IDisposable
         {
             get
             {
-                var cp = base.CreateParams;
-                cp.ExStyle |= WS_EX_TOOLWINDOW;
-                return cp;
+                var createParams = base.CreateParams;
+                createParams.ExStyle |= WS_EX_TOOLWINDOW;
+                return createParams;
             }
         }
     }
 
-    readonly BounceWindow window = new();
-    readonly System.Windows.Forms.Timer returnTimer = new() { Interval = 50 };
-    IntPtr returnTo;
+    private readonly BounceWindow bounceWindow = new();
+    private readonly System.Windows.Forms.Timer returnTimer = new() { Interval = ReturnDelayMilliseconds };
+    private IntPtr windowToReturnTo;
 
     public FocusBouncer()
     {
-        returnTimer.Tick += (_, _) => Return();
+        returnTimer.Tick += (_, _) => ReturnFocus();
     }
 
     public void Bounce()
     {
-        var target = GetForegroundWindow();
-        if (target == IntPtr.Zero || target == window.Handle)
+        var foregroundWindow = GetForegroundWindow();
+        if (foregroundWindow == IntPtr.Zero || foregroundWindow == bounceWindow.Handle)
         {
             return;
         }
-        returnTo = target;
+        windowToReturnTo = foregroundWindow;
 
-        // フォアグラウンドのスレッドに入力を接続すると、SetForegroundWindow の制限を受けない
-        var targetThread = GetWindowThreadProcessId(target, IntPtr.Zero);
-        var currentThread = GetCurrentThreadId();
-        AttachThreadInput(currentThread, targetThread, true);
-        window.Show();
-        SetForegroundWindow(window.Handle);
-        AttachThreadInput(currentThread, targetThread, false);
+        // 前面のウィンドウのスレッドに入力を接続すると、SetForegroundWindow の制限を受けない
+        var foregroundThreadId = GetWindowThreadProcessId(foregroundWindow, IntPtr.Zero);
+        var currentThreadId = GetCurrentThreadId();
+        AttachThreadInput(currentThreadId, foregroundThreadId, fAttach: true);
+        bounceWindow.Show();
+        SetForegroundWindow(bounceWindow.Handle);
+        AttachThreadInput(currentThreadId, foregroundThreadId, fAttach: false);
 
         returnTimer.Start();
     }
 
-    void Return()
+    private void ReturnFocus()
     {
         returnTimer.Stop();
-        SetForegroundWindow(returnTo);
-        window.Hide();
+        SetForegroundWindow(windowToReturnTo);
+        bounceWindow.Hide();
     }
 
     public void Dispose()
     {
         returnTimer.Dispose();
-        window.Dispose();
+        bounceWindow.Dispose();
     }
 }

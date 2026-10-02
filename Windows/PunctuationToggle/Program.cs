@@ -1,19 +1,39 @@
+using System.ComponentModel;
+
 namespace PunctuationToggle;
 
-static class Program
+internal static class Program
 {
     [STAThread]
-    static void Main()
+    private static void Main()
     {
-        // 二重起動すると右Ctrlで2回切り替わってしまうので防ぐ
-        using var mutex = new Mutex(true, @"Local\PunctuationToggle", out var createdNew);
-        if (!createdNew)
+        // 二重に起動すると切り替えキーで2回切り替わってしまうので防ぐ
+        using var mutex = new Mutex(initiallyOwned: true, @"Local\PunctuationToggle", out var isFirstInstance);
+        if (!isFirstInstance)
         {
             return;
         }
 
         ApplicationConfiguration.Initialize();
-        using var app = new TrayApp();
-        Application.Run(app);
+
+        TrayApplication application;
+        try
+        {
+            application = new TrayApplication();
+        }
+        catch (Win32Exception exception)
+        {
+            MessageBox.Show(
+                $"キーボードの監視を開始できませんでした。{Environment.NewLine}{exception.Message}",
+                "PunctuationToggle",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+            return;
+        }
+
+        using (application)
+        {
+            Application.Run(application);
+        }
     }
 }

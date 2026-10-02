@@ -1,0 +1,13 @@
+<Project>
+  <!-- Windows フォルダ以下のすべてのプロジェクトに共通の設定 -->
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <Version>1.1.0</Version>
+    <Authors>Sh1n1230</Authors>
+    <Copyright>© 2026 Sh1n1230. MIT License.</Copyright>
+    <Product>PunctuationToggle</Product>
+  </PropertyGroup>
+</Project>
