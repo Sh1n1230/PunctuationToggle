@@ -43,18 +43,19 @@ jobs:
       - name: 単体テスト
         run: dotnet test Windows/PunctuationToggle.sln -c Release --no-build
 
-      # Windows PowerShell 5.1 で、インストール・起動・アンインストールが通ることを確認する
+      # Windows PowerShell 5.1 で、インストール・起動・アンインストールが通ることを確認する。
+      # ここに書いたスクリプトは BOM なしで保存されて 5.1 では UTF-8 として読まれないため、ASCII の文字だけで書く。
       - name: インストールとアンインストール
         shell: powershell
         run: |
           .\Windows\install.ps1
           Start-Sleep -Seconds 5
           if (-not (Get-Process PunctuationToggle -ErrorAction SilentlyContinue)) {
-            throw 'PunctuationToggle が起動していません。'
+            throw 'PunctuationToggle is not running after installation.'
           }
           .\Windows\uninstall.ps1
           if (Test-Path (Join-Path $env:LOCALAPPDATA 'Programs\PunctuationToggle')) {
-            throw 'アンインストール後もファイルが残っています。'
+            throw 'Installed files remain after uninstallation.'
           }
 
   converters:

@@ -51,7 +51,11 @@ fn main() -> ExitCode {
 }
 
 /// 入力を1行ずつ（改行文字を含めて）読み、変換して書き出す。
-fn convert_stream(mut input: impl BufRead, output: impl Write, replacements: &Replacements) -> io::Result<()> {
+fn convert_stream(
+    mut input: impl BufRead,
+    output: impl Write,
+    replacements: &Replacements,
+) -> io::Result<()> {
     let mut writer = BufWriter::new(output);
     let mut line = String::new();
 

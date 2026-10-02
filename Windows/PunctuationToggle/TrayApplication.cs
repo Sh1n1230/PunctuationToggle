@@ -68,7 +68,7 @@ internal sealed class TrayApplication : ApplicationContext
         base.Dispose(disposing);
     }
 
-    // MARK: 入力の処理
+    // ---- 入力の処理 ----
 
     private bool HandleInput(KeyboardInput input)
     {
@@ -101,7 +101,7 @@ internal sealed class TrayApplication : ApplicationContext
         }
     }
 
-    // MARK: メニューとアイコン
+    // ---- メニューとアイコン ----
 
     private ContextMenuStrip CreateMenu()
     {
