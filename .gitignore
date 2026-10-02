@@ -2,3 +2,6 @@
 xcuserdata/
 build/
 DerivedData/
+bin/
+obj/
+*.user
