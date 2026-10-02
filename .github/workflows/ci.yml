@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    name: macOS アプリ
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 単体テスト
+        working-directory: macOS
+        run: swift test
+
+      - name: ビルド
+        working-directory: macOS
+        run: >
+          xcodebuild -project PunctuationToggle.xcodeproj -scheme PunctuationToggle
+          -configuration Release -destination "platform=macOS" -derivedDataPath build
+          CODE_SIGN_IDENTITY=- build
+
+  windows:
+    name: Windows アプリ
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: ビルド
+        run: dotnet build Windows/PunctuationToggle.sln -c Release
+
+      - name: 単体テスト
+        run: dotnet test Windows/PunctuationToggle.sln -c Release --no-build
+
+      # Windows PowerShell 5.1 で、インストール・起動・アンインストールが通ることを確認する
+      - name: インストールとアンインストール
+        shell: powershell
+        run: |
+          .\Windows\install.ps1
+          Start-Sleep -Seconds 5
+          if (-not (Get-Process PunctuationToggle -ErrorAction SilentlyContinue)) {
+            throw 'PunctuationToggle が起動していません。'
+          }
+          .\Windows\uninstall.ps1
+          if (Test-Path (Join-Path $env:LOCALAPPDATA 'Programs\PunctuationToggle')) {
+            throw 'アンインストール後もファイルが残っています。'
+          }
+
+  converters:
+    name: 変換コマンド（全言語）
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: converters
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: converters/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Mono と Native AOT のビルドに必要なパッケージ
+        run: sudo apt-get update && sudo apt-get install -y mono-devel clang zlib1g-dev
+
+      - name: ビルド
+        run: |
+          npm ci
+          make all csharp-dotnet
+
+      - name: テスト
+        run: REQUIRE_ALL=1 make test

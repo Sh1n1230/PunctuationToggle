@@ -1,0 +1,36 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{json,yml,yaml,ts,tsconfig}]
+indent_size = 2
+
+[*.{sh,ps1}]
+indent_size = 2
+
+[*.ps1]
+charset = utf-8-bom
+end_of_line = crlf
+indent_size = 4
+
+[*.sln]
+end_of_line = crlf
+
+[{Makefile,*.go}]
+indent_style = tab
+
+[*.{csproj,props}]
+indent_size = 2
+
+# テストデータは改行コードや末尾の改行の有無を含めてそのまま扱う
+[converters/tests/cases/**]
+charset = unset
+end_of_line = unset
+insert_final_newline = unset
+trim_trailing_whitespace = unset

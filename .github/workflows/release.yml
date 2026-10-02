@@ -1,0 +1,100 @@
+# v1.2.3 のようなタグを push すると、配布用のファイルをビルドして下書きのリリースを作る。
+# 内容を確認してから、GitHub のリリース画面で公開すること。
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  create-draft:
+    name: 下書きのリリースを作成
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: CHANGELOG からリリースノートを作成
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v version="$version" '
+            $0 ~ "^## \\[?" version "\\]?" { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "CHANGELOG.md に $version の項目がありません。" >&2
+            exit 1
+          fi
+
+      - name: 下書きを作成
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "$GITHUB_REF_NAME" --draft --verify-tag
+          --title "PunctuationToggle $GITHUB_REF_NAME" --notes-file release-notes.md
+
+  windows:
+    name: Windows 版
+    needs: create-draft
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        runtime: [win-x64, win-arm64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: テスト
+        run: dotnet test Windows/PunctuationToggle.sln -c Release
+
+      # .NET のランタイムが無い PC でも動くよう、ランタイムを含めた1つの exe にする
+      - name: ビルド
+        run: >
+          dotnet publish Windows/PunctuationToggle/PunctuationToggle.csproj -c Release
+          -r ${{ matrix.runtime }} --self-contained
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true -p:DebugType=none
+          -p:PublishDir=${{ github.workspace }}/publish/
+
+      - name: アップロード
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $archive = "PunctuationToggle-$env:GITHUB_REF_NAME-${{ matrix.runtime }}.zip"
+          Copy-Item LICENSE publish/
+          Compress-Archive -Path publish/* -DestinationPath $archive
+          gh release upload $env:GITHUB_REF_NAME $archive
+
+  macos:
+    name: macOS 版
+    needs: create-draft
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: テスト
+        working-directory: macOS
+        run: swift test
+
+      # 開発者IDの署名と公証はしていない（README の「macOS 版のインストール」を参照）
+      - name: ビルド
+        working-directory: macOS
+        run: >
+          xcodebuild -project PunctuationToggle.xcodeproj -scheme PunctuationToggle
+          -configuration Release -destination "generic/platform=macOS" -derivedDataPath build
+          CODE_SIGN_IDENTITY=- ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO build
+
+      - name: アップロード
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          archive="PunctuationToggle-$GITHUB_REF_NAME-macOS.zip"
+          ditto -c -k --keepParent macOS/build/Build/Products/Release/PunctuationToggle.app "$archive"
+          gh release upload "$GITHUB_REF_NAME" "$archive"
