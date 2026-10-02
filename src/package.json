@@ -1,0 +1,7 @@
+{
+  "name": "punc-converter-benchmarks",
+  "private": true,
+  "devDependencies": {
+    "@types/node": "^26.6.2"
+  }
+}
