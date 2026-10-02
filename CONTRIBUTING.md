@@ -82,3 +82,5 @@ make test
 2. バージョン番号を更新します（macOS: `PunctuationToggle.xcodeproj` の `MARKETING_VERSION` と `CURRENT_PROJECT_VERSION`、Windows: `Windows/Directory.Build.props` の `Version`）。
 3. main ブランチで `v1.2.3` のようなタグを付けて push します。GitHub Actions が macOS 版と Windows 版をビルドし、下書きのリリースを作ります。
 4. リリースの内容を確認して公開します。
+
+`.github/workflows/release.yml` を変更した Pull Request では、リリースは作らずに配布用ファイルのビルドまでが実行され、できた zip を Actions の成果物からダウンロードして確かめられます。

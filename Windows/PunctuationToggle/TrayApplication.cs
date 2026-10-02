@@ -112,7 +112,7 @@ internal sealed class TrayApplication : ApplicationContext
         menu.Items.Add(toggleMenuItem);
         menu.Items.Add(usageMenuItem);
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("切り替えキーを変更...", null, (_, _) => ShowTriggerKeyRecorder());
+        menu.Items.Add("切り替えキーを変更…", null, (_, _) => ShowTriggerKeyRecorder());
         menu.Items.Add(launchAtLoginMenuItem);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("バージョン情報", null, (_, _) => ShowAbout());
