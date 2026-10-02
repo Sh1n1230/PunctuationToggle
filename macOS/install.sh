@@ -1,5 +1,5 @@
 #!/bin/sh
-# PunctuationToggle をビルドして ~/Applications にインストールする。
+# PunctuationToggle をビルドして ~/Applications にインストールし、起動する。
 #
 # アドホック署名のアプリはビルドし直すたびに署名が変わるため、
 # アクセシビリティの許可が一覧上はオンのまま無効になる。
@@ -8,23 +8,33 @@ set -eu
 
 cd "$(dirname "$0")"
 
-BUNDLE_ID=com.example.PunctuationToggle
-DEST="$HOME/Applications/PunctuationToggle.app"
+APP_NAME=PunctuationToggle
+BUNDLE_ID=io.github.sh1n1230.PunctuationToggle
+# v1.0.0 までのバンドルID（古い許可を削除するため）
+LEGACY_BUNDLE_ID=com.example.PunctuationToggle
+DEST="$HOME/Applications/$APP_NAME.app"
+BUILD_DIR=build
 
-pkill -x PunctuationToggle 2>/dev/null || true
+if ! command -v xcodebuild >/dev/null 2>&1; then
+  echo "xcodebuild が見つかりません。Xcode をインストールしてください。" >&2
+  exit 1
+fi
 
-xcodebuild -project PunctuationToggle.xcodeproj -scheme PunctuationToggle \
+pkill -x "$APP_NAME" 2>/dev/null || true
+
+xcodebuild -project "$APP_NAME.xcodeproj" -scheme "$APP_NAME" \
   -configuration Release -destination "platform=macOS" \
-  -derivedDataPath build -quiet
+  -derivedDataPath "$BUILD_DIR" -quiet
 
 mkdir -p "$HOME/Applications"
 rm -rf "$DEST"
-cp -R build/Build/Products/Release/PunctuationToggle.app "$DEST"
+cp -R "$BUILD_DIR/Build/Products/Release/$APP_NAME.app" "$DEST"
 
 tccutil reset Accessibility "$BUNDLE_ID" >/dev/null 2>&1 || true
+tccutil reset Accessibility "$LEGACY_BUNDLE_ID" >/dev/null 2>&1 || true
 
 open "$DEST"
 
 echo "インストールしました: $DEST"
-echo "表示されるダイアログから「システム設定を開く」を選び、PunctuationToggle をオンにしてください。"
+echo "表示されるダイアログから「システム設定を開く」を選び、$APP_NAME をオンにしてください。"
 echo "許可されるとメニューバーの「⚠︎」が「、。」に変わります（再起動は不要です）。"
