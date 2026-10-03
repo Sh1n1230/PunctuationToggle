@@ -35,9 +35,9 @@ python3 punctuation_converter.py --reverse < 提出用.txt > 原稿.txt  # 「�
 - 1行ずつ（改行を含めて）読む: Rust
 - 一定の文字数ずつ読む: C#、Python（置換する文字はどれも1文字なので、どこで区切っても変換結果は同じ）
 
-### 使う実装だけを残す
+### 必要な実装の選定と不要ファイルの整理
 
-3つの実装はそれぞれ単独で動き、互いに依存していません。使うのは1つだけで十分なので、クローンしたあとは、使わない実装のファイルを削除してください。たとえば Rust を使うなら `punctuation_converter.rs` だけを残し、`punctuation_converter.py`・`PunctuationConverter.cs`・`dotnet/` は不要です。Python を使うなら `punctuation_converter.py` 1つだけで動きます。`make test` は、削除した実装を SKIP にして残りの実装をテストします。
+提供している3種類の実装はそれぞれ独立して動作し、相互の依存関係を持ちません。利用目的に応じていずれか1つの実装を選択すれば足りるため、ソースコードを取得した後は利用しない言語の実装ファイルを削除して差し支えありません。例えば Rust 実装を用いる場合は `punctuation_converter.rs` のみを残し、`punctuation_converter.py`、`PunctuationConverter.cs`、および `dotnet/` を削除できます。Python 実装を用いる場合は `punctuation_converter.py` 単体で動作します。なお、`make test` によるテストスクリプトは、削除された実装を自動的にスキップ（SKIP）して残余の実装のみを検証します。
 
 ## 必要なツール
 
@@ -46,7 +46,7 @@ python3 punctuation_converter.py --reverse < 提出用.txt > 原稿.txt  # 「�
 | C#（.NET Native AOT） | [.NET 10 SDK](https://dotnet.microsoft.com/download) 以降と、Native AOT 用のツール（macOS は Xcode Command Line Tools、Linux は clang と zlib、Windows は Visual Studio の「C++ によるデスクトップ開発」） |
 | Python | Python 3.9 以降 |
 | Rust | Rust（`rustc`） |
-| ベンチマーク | [hyperfine](https://github.com/sharkdp/hyperfine)（`brew install hyperfine`、Windows は `winget install sharkdp.hyperfine`） |
+| ベンチマーク | [hyperfine](https://github.com/sharkdp/hyperfine)（macOS は `brew install hyperfine`、Windows は `winget install sharkdp.hyperfine`） |
 
 ## ビルドとテスト
 
@@ -79,11 +79,11 @@ benchmark/run_benchmark.sh benchmark/wikipedia_programming.txt --warmup 5 --runs
 2. 同じ速さの実装が複数あるときは、ほかの言語にない利点があるものを残す。
 3. 同じソースのビルド方法の違いは、速い方だけ残す。
 
-計測は性能の異なる2つの環境（macOS の Apple M2 と、Windows の Ryzen 7 9700X）で行い、**どちらの環境でも成り立つ結果だけ**を判断の根拠にしました。順位が環境によって入れ替わる部分（実際の文章での Rust・Go・C++ の差など）は、1ミリ秒未満の差で体感できないため、判断には使っていません。
+計測は性能特性の異なる2つの環境（macOS の Apple M2、および Windows の Ryzen 7 9700X）で実施し、双方の環境で一貫して成り立つ結果のみを採択・削除の根拠としました。測定環境によって順位が前後する僅差の項目（実文章における Rust・Go・C++ の差など）は、1ミリ秒未満の差異であり実用上の体感差を生じないため、選定判断からは除外しています。
 
 ### 計測結果（選定時の参考値）
 
-置換する文字が1,000万個ある合成データでは置換そのものの速さが、約40KB の実際の文章ではプロセスの起動（ランタイムの読み込みや JIT）にかかる時間がほとんどを占めます。
+置換対象文字が1,000万個存在する約30MBの合成データでは文字列走査と置換自体の処理性能が、約40KBの実文章ではランタイム読み込みやJITコンパイルに伴うプロセスの起動時間が大半を占めます。
 
 #### 合成データ: 「、。」を500万回繰り返した1行（約30MB）
 
@@ -113,7 +113,7 @@ benchmark/run_benchmark.sh benchmark/wikipedia_programming.txt --warmup 5 --runs
 
 #### 計測した環境
 
-| | macOS | Windows |
+| 項目 | macOS | Windows |
 |---|---|---|
 | 日時 | 2026-10-03 | 2026-10-04 |
 | マシン | Apple M2 / macOS 26.6.1 | AMD Ryzen 7 9700X / Windows 11 Home（26200） |
@@ -123,29 +123,31 @@ benchmark/run_benchmark.sh benchmark/wikipedia_programming.txt --warmup 5 --runs
 | Python | Python 3.13.3 | Python 3.13.3（python.org 版） |
 | Rust | Rust 1.98.1 | Rust 1.99.0 |
 | TypeScript | Node.js 24.13.1 + TypeScript 7.0.2 | Node.js 24.18.0 + TypeScript 7.0.2 |
-| 計測 | hyperfine 1.20.0（`benchmark/run_benchmark.sh`） | hyperfine 1.20.0（下記） |
+| 計測ツール | hyperfine 1.20.0（`benchmark/run_benchmark.sh`） | hyperfine 1.20.0（下記参照） |
 
-macOS では `benchmark/run_benchmark.sh` に、合成データは `--warmup 2 --runs 10`、実際の文章は `--warmup 5 --runs 30` を指定しました。Windows の hyperfine はコマンドを `cmd.exe` で実行するため、このスクリプトはそのままでは動きません。そこで、シェルを介さずに標準入力を与える `hyperfine -N --input <入力ファイル> <実行ファイルの絶対パス> ...` で、同じ回数を計測しました。実際の文章の Rust・C++・Go・Native AOT は差が小さいため、`--warmup 10 --runs 100` で計測し直した値を載せています。
+macOS 環境では `benchmark/run_benchmark.sh` を用い、合成データは `--warmup 2 --runs 10`、実文章は `--warmup 5 --runs 30` で測定しました。Windows 環境の hyperfine は既定でコマンドを `cmd.exe` 経由で実行するため、シェルを介さず標準入力を直接渡す `hyperfine -N --input <入力ファイル> <実行ファイルの絶対パス> ...` を用いて同一試行回数で測定を行いました。なお、実文章における Rust・C++・Go・Native AOT の測定値は差異が僅小であるため、`--warmup 10 --runs 100` で再測定した精度高い値を採用しています。
 
-> **Windows の Python について:** Microsoft Store から入れた Python は、起動するだけで約75 ms かかります（`python -c pass` だけで 74.9 ms、python.org 版は 14.6 ms）。そのため上の表は python.org 版の値です。Store 版では合成データが 118.6 ms（Rust の 2.15 倍）、実際の文章が 75.8 ms でした。差はすべて起動にかかる時間で、変換の速さは変わりません。
+> [!NOTE]
+> **Windows 環境における Python の測定値について:**
+> Microsoft Store 版の Python はインタプリタ起動処理のオーバーヘッドが大きく、起動だけで約 75 ms を要します（`python -c pass` の実行時間が 74.9 ms、python.org 配布版は 14.6 ms）。そのため上記の表には python.org 配布版の測定値を記載しています。Store 版における測定値は合成データが 118.6 ms（Rust 比 2.15 倍）、実文章が 75.8 ms でした。この所要時間の差はすべてプロセスの起動オーバーヘッドに起因し、文字列置換処理自体のスループットは同等です。
 
 ### 残す実装とその理由
 
 | 言語 | 選んだ理由 |
 |---|---|
-| Rust | 合成データではどちらの環境でも最速の組（Native AOT と同等）で、実際の文章でも最速の組（macOS では Go と同率、Windows では C++ との差が 0.4 ms）に入る。両方のデータで、両方の環境で最速の組に入るのは Rust だけなので、速度の基準になる。標準ライブラリーだけで書け、`rustc` 1つでビルドできる。 |
-| C#（.NET Native AOT） | 合成データではどちらの環境でも Rust と同等（0.98〜1.01 倍）。実際の文章では Rust の 1.4〜1.8 倍だが 8 ms 未満で、体感の差はない。Windows 版のアプリも C#（.NET）で書いているので、同じ言語・同じツールで保守できる。 |
-| Python | 速さでは Rust に及ばない（合成データで 1.02〜1.24 倍、実際の文章で約3.8 倍）が、合成データでは削除した実装のどれよりも速い。C で書かれた `str.replace` が効いている。実際の文章でも 18 ms 未満で、体感の差はない。ビルドが不要で、macOS・Linux では最初から入っていることが多く、ソースを直接実行できるので、利用者がいちばん手軽に使える。 |
+| Rust | 合成データにおいて双方の環境で最速群（Native AOT と同等）であり、約 40KB の実文章でも最速群（macOS では Go と同等、Windows では C++ との差が 0.4 ms）に入る。双方のデータかつ双方の測定環境において一貫して最速群に入るのは Rust のみであり、速度測定の基準となる。外部クレートに依存せず標準ライブラリのみで完結し、`rustc` 単体でビルドできる。 |
+| C#（.NET Native AOT） | 合成データでは双方の環境で Rust と同等（0.98〜1.01 倍）の性能を示し、実文章でも所要時間は 8 ms 未満（Rust の 1.4〜1.8 倍）にとどまる。Windows 版の常駐アプリケーション本体も C#（.NET）で実装しているため、同一の言語基盤および開発ツールで保守できる。 |
+| Python | 実行速度では Rust に及ばないものの（合成データで 1.02〜1.24 倍、実文章で約 3.8 倍）、合成データにおいては削除対象とした他のすべての言語実装を上回る。これは C 言語で実装された `str.replace` により文字列走査が高速に行われるためである。実文章における所要時間も 18 ms 未満であり実用上の性能差は極めて小さい。事前ビルドが不要で macOS や Linux 環境に標準導入されている場合が多く、スクリプトを直接実行できるため利用者の導入負担が最も小さい。 |
 
 ### 削除した実装とその理由
 
 | 言語 | 削除した理由 |
 |---|---|
-| C#（Mono） | 同じソースを .NET Native AOT でもビルドしており、どちらの環境・どちらのデータでも大幅に遅い（合成データで 2.5〜4.2 倍、実際の文章で 14〜18 倍）。「C# が遅い」ように見えたのは言語ではなく Mono ランタイムによるもの。基準3により削除。 |
-| Go | 合成データではどちらの環境でも Rust の 2.5〜3.6 倍。実際の文章では macOS で Rust と同率、Windows で 1.3 倍。「速いネイティブバイナリー」という役割は Rust が果たしており、Go にしかない利点がない（基準1・2）。 |
-| C++ | 合成データではどちらの環境でも Rust の 2.3〜3.6 倍。実際の文章では Windows で Rust より 0.4 ms 速かったが、体感できる差ではない。また Windows（MSVC）では標準出力がテキストモードになり、LF が CRLF に変わってテストに通らなかった。コンパイラーの有無も環境で変わり、Rust に対して優位な点がない（基準1）。 |
-| Java | どちらの環境でも、合成データで 2.2〜2.8 倍、実際の文章で 9〜20 倍遅く、JVM の起動が支配的。Python や C# に対して優位な点がない（基準1）。 |
-| TypeScript | どちらの環境でも、合成データで最下位（7.4〜9.6 倍）。Node.js と、TypeScript のコンパイル（`npm install`）が必要で、手軽さでも Python に劣る（基準1）。 |
+| C#（Mono） | 同一のソースコードを .NET Native AOT でもビルドしており、双方の測定環境および双方の検証データにおいて大幅に遅い結果となった（合成データで 2.5〜4.2 倍、実文章で 14〜18 倍）。実行速度の低下は言語仕様ではなく Mono ランタイムの実行オーバーヘッドに起因する。基準3により削除。 |
+| Go | 合成データにおいて双方の環境で Rust の 2.5〜3.6 倍の所要時間を要した。実文章では macOS 環境で Rust と同等、Windows 環境で 1.3 倍であった。「高速なネイティブバイナリ」としての役割は Rust で満たされており、Go 固有の優位性を持たない（基準1・2）。 |
+| C++ | 合成データにおいて双方の環境で Rust の 2.3〜3.6 倍の所要時間を要した。実文章の Windows 環境では Rust より 0.4 ms 高速であったが実用上の差異には至らない。また Windows（MSVC）環境において標準出力がテキストモードで動作し、改行コード LF が CRLF へ変換されてテスト検証に合致しなかった。環境ごとのコンパイラ差異も大きく、Rust に対して保持すべき固有の利点がない（基準1）。 |
+| Java | 双方の測定環境において、合成データで 2.2〜2.8 倍、実文章で 9〜20 倍遅く、JVM（Java 仮想マシン）の起動処理が支配的である。Python や C# に対する優位性がない（基準1）。 |
+| TypeScript | 双方の測定環境において合成データで最下位（7.4〜9.6 倍）となった。Node.js ランタイムおよびビルド環境の準備が必要であり、手軽さの観点でも Python に及ばない（基準1）。 |
 
 削除した実装のコードは Git の履歴（v1.1.0 より前のコミット）に残っています。
 
