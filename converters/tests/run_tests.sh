@@ -19,7 +19,7 @@ trap 'rm -rf "$WORK_DIR"' EXIT
 command_for() {
   case "$1" in
     csharp-dotnet) [[ -x bin/dotnet/PunctuationConverter ]] && echo "bin/dotnet/PunctuationConverter" ;;
-    python) command -v python3 >/dev/null && echo "python3 punctuation_converter.py" ;;
+    python) [[ -f punctuation_converter.py ]] && command -v python3 >/dev/null && echo "python3 punctuation_converter.py" ;;
     rust) [[ -x bin/punctuation_converter_rust ]] && echo "bin/punctuation_converter_rust" ;;
     *) return 1 ;;
   esac

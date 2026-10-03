@@ -8,6 +8,9 @@ UNAME_S := $(shell uname -s)
 UNAME_M := $(shell uname -m)
 ifeq ($(UNAME_S),Darwin)
   DOTNET_OS := osx
+else ifneq ($(filter MINGW% MSYS% CYGWIN%,$(UNAME_S)),)
+  # Windows の Git Bash などでは uname -s が MINGW64_NT-10.0-26200 のようになる
+  DOTNET_OS := win
 else
   DOTNET_OS := linux
 endif
