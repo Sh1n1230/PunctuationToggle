@@ -1,0 +1,8 @@
+* text=auto eol=lf
+
+# Windows PowerShell 5.1 で読めるよう、CRLF のまま扱う
+*.ps1 text eol=crlf
+*.sln text eol=crlf
+
+# テストデータは改行コードや末尾の改行の有無を含めてそのまま扱う
+converters/tests/cases/** -text

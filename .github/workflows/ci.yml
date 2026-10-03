@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    name: macOS アプリ
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 単体テスト
+        working-directory: macOS
+        run: swift test
+
+      - name: ビルド
+        working-directory: macOS
+        run: >
+          xcodebuild -project PunctuationToggle.xcodeproj -scheme PunctuationToggle
+          -configuration Release -destination "platform=macOS" -derivedDataPath build
+          CODE_SIGN_IDENTITY=- build
+
+  windows:
+    name: Windows アプリ
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: ビルド
+        run: dotnet build Windows/PunctuationToggle.sln -c Release
+
+      - name: 単体テスト
+        run: dotnet test Windows/PunctuationToggle.sln -c Release --no-build
+
+      # Windows PowerShell 5.1 で、インストール・起動・アンインストールが通ることを確認する。
+      # ここに書いたスクリプトは BOM なしで保存されて 5.1 では UTF-8 として読まれないため、ASCII の文字だけで書く。
+      - name: インストールとアンインストール
+        shell: powershell
+        run: |
+          .\Windows\install.ps1
+          Start-Sleep -Seconds 5
+          if (-not (Get-Process PunctuationToggle -ErrorAction SilentlyContinue)) {
+            throw 'PunctuationToggle is not running after installation.'
+          }
+          .\Windows\uninstall.ps1
+          if (Test-Path (Join-Path $env:LOCALAPPDATA 'Programs\PunctuationToggle')) {
+            throw 'Installed files remain after uninstallation.'
+          }
+
+  converters:
+    name: 変換コマンド
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: converters
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Native AOT のビルドに必要なパッケージ
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+
+      - name: ビルド
+        run: make all csharp-dotnet
+
+      - name: テスト
+        run: REQUIRE_ALL=1 make test

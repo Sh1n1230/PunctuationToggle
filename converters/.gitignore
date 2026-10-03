@@ -1,0 +1,5 @@
+bin/
+dotnet/bin/
+dotnet/obj/
+benchmark/repeated_text.txt
+benchmark/results/

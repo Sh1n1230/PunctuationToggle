@@ -1,4 +1,15 @@
 .DS_Store
+
+# Xcode / Swift Package Manager
 xcuserdata/
 build/
 DerivedData/
+.build/
+.swiftpm/
+
+# .NET
+bin/
+obj/
+*.user
+.vs/
+TestResults/

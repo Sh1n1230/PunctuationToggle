@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <RootNamespace>PunctuationToggle</RootNamespace>
+    <AssemblyName>PunctuationToggle</AssemblyName>
+    <!-- macOS や Linux でもビルド（コンパイルの確認）だけはできるようにする -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PunctuationToggle.Core\PunctuationToggle.Core.csproj" />
+  </ItemGroup>
+
+</Project>

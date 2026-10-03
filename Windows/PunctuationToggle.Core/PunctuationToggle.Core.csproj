@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Windows API に依存しない判定ロジック。macOS や Linux でもテストできる。 -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>PunctuationToggle</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="PunctuationToggle.Tests" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,139 @@
+# v1.2.3 のようなタグを push すると、配布用のファイルをビルドして下書きのリリースを作る。
+# 内容を確認してから、GitHub のリリース画面で公開すること。
+#
+# このファイルを変更した Pull Request では、リリースは作らずに配布用ファイルのビルドまでを確かめ、
+# できたファイルを Actions の成果物として保存する。
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  pull_request:
+    paths: [".github/workflows/release.yml"]
+
+permissions:
+  contents: write
+
+env:
+  IS_RELEASE: ${{ github.event_name == 'push' }}
+  # Pull Request では、タグの代わりに仮のバージョン名を使う
+  RELEASE_NAME: ${{ github.event_name == 'push' && github.ref_name || 'pr-build' }}
+
+jobs:
+  create-draft:
+    name: 下書きのリリースを作成
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: CHANGELOG からリリースノートを作成
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v version="$version" '
+            $0 ~ "^## \\[?" version "\\]?" { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "CHANGELOG.md に $version の項目がありません。" >&2
+            exit 1
+          fi
+
+      - name: 下書きを作成
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "$GITHUB_REF_NAME" --draft --verify-tag
+          --title "PunctuationToggle $GITHUB_REF_NAME" --notes-file release-notes.md
+
+  windows:
+    name: Windows 版
+    needs: create-draft
+    # Pull Request では create-draft が実行されないので、スキップされても続ける
+    if: ${{ !failure() && !cancelled() }}
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        runtime: [win-x64, win-arm64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: テスト
+        run: dotnet test Windows/PunctuationToggle.sln -c Release
+
+      # .NET のランタイムが無い PC でも動くよう、ランタイムを含めた1つの exe にする
+      - name: ビルド
+        run: >
+          dotnet publish Windows/PunctuationToggle/PunctuationToggle.csproj -c Release
+          -r ${{ matrix.runtime }} --self-contained
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true -p:DebugType=none
+          -p:PublishDir=${{ github.workspace }}/publish/
+
+      - name: zip にまとめる
+        shell: pwsh
+        run: |
+          $archive = "PunctuationToggle-$env:RELEASE_NAME-${{ matrix.runtime }}.zip"
+          Copy-Item LICENSE publish/
+          Compress-Archive -Path publish/* -DestinationPath $archive
+          "ARCHIVE=$archive" >> $env:GITHUB_ENV
+
+      - name: リリースに添付
+        if: env.IS_RELEASE == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload $env:RELEASE_NAME $env:ARCHIVE
+
+      - name: 成果物として保存
+        if: env.IS_RELEASE != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARCHIVE }}
+          path: ${{ env.ARCHIVE }}
+
+  macos:
+    name: macOS 版
+    needs: create-draft
+    if: ${{ !failure() && !cancelled() }}
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: テスト
+        working-directory: macOS
+        run: swift test
+
+      # 開発者IDの署名と公証はしていない（README の「インストール」を参照）
+      - name: ビルド
+        working-directory: macOS
+        run: >
+          xcodebuild -project PunctuationToggle.xcodeproj -scheme PunctuationToggle
+          -configuration Release -destination "generic/platform=macOS" -derivedDataPath build
+          CODE_SIGN_IDENTITY=- ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO build
+
+      - name: zip にまとめる
+        run: |
+          archive="PunctuationToggle-$RELEASE_NAME-macOS.zip"
+          app=macOS/build/Build/Products/Release/PunctuationToggle.app
+          lipo -info "$app/Contents/MacOS/PunctuationToggle"
+          ditto -c -k --keepParent "$app" "$archive"
+          echo "ARCHIVE=$archive" >> "$GITHUB_ENV"
+
+      - name: リリースに添付
+        if: env.IS_RELEASE == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$RELEASE_NAME" "$ARCHIVE"
+
+      - name: 成果物として保存
+        if: env.IS_RELEASE != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARCHIVE }}
+          path: ${{ env.ARCHIVE }}
