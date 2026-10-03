@@ -22,7 +22,7 @@ indent_size = 4
 [*.sln]
 end_of_line = crlf
 
-[{Makefile,*.go}]
+[Makefile]
 indent_style = tab
 
 [*.{csproj,props}]

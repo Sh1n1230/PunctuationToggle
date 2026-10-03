@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- ../PunctuationConverter.cs を .NET SDK でビルドする（Mono 版とソースは共通）。 -->
+  <!-- ../PunctuationConverter.cs を .NET SDK でビルドする。 -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>

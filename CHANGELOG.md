@@ -8,7 +8,7 @@
 
 - Windows 版を追加しました。右Ctrl を単独で押すと Microsoft IME の句読点を切り替えます。
 - 切り替えキーを自由に変えられるようにしました。メニューの「切り替えキーを変更…」を選び、使いたいキーを押して設定します。修飾キーのほか、ファンクションキーや「英数」「かな」（Windows では「変換」「無変換」など）も選べます。
-- 書き終えた文章の句読点をまとめて変換するコマンド（`converters/`）を、C++・C#・Go・Java・Python・Rust・TypeScript で追加しました。`--reverse` で「，．」から「、。」にも変換できます。
+- 書き終えた文章の句読点をまとめて変換するコマンド（`converters/`）を、C#・Python・Rust で追加しました。`--reverse` で「，．」から「、。」にも変換できます。
 - メニューに「PunctuationToggle について」（Windows では「バージョン情報」）を追加しました。
 - アンインストール用のスクリプト（`macOS/uninstall.sh`、`Windows/uninstall.ps1`）を追加しました。
 - 単体テスト、変換コマンドのテスト、GitHub Actions による CI とリリースの自動化を追加しました。

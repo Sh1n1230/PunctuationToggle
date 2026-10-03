@@ -1,5 +1,4 @@
 bin/
-node_modules/
 dotnet/bin/
 dotnet/obj/
 benchmark/repeated_text.txt

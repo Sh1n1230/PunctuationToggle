@@ -19,7 +19,7 @@ PunctuationToggle/
 │   ├── PunctuationToggle.Tests/    Core の単体テスト（xUnit）
 │   ├── PunctuationToggle.sln
 │   └── install.ps1 / uninstall.ps1
-├── converters/                     句読点の変換コマンド（7言語）とベンチマーク
+├── converters/                     句読点の変換コマンド（3言語）とベンチマーク
 └── .github/workflows/              CI とリリースの自動化
 ```
 
@@ -51,7 +51,6 @@ dotnet build Windows/PunctuationToggle.sln
 
 ```sh
 cd converters
-npm install
 make all csharp-dotnet
 make test
 ```
@@ -69,7 +68,7 @@ make test
 
 ## コーディング規約
 
-- 各言語の標準的な命名規則と書式に従います（Swift: [API Design Guidelines](https://www.swift.org/documentation/api-design-guidelines/)、C#: [.NET のコーディング規則](https://learn.microsoft.com/dotnet/csharp/fundamentals/coding-style/coding-conventions)、Go: `gofmt`、Rust: `rustfmt`、Python: PEP 8、Java: Google Java Style、TypeScript: 2スペースのインデント）。インデントなどの基本設定は `.editorconfig` にあります。
+- 各言語の標準的な命名規則と書式に従います（Swift: [API Design Guidelines](https://www.swift.org/documentation/api-design-guidelines/)、C#: [.NET のコーディング規則](https://learn.microsoft.com/dotnet/csharp/fundamentals/coding-style/coding-conventions)、Rust: `rustfmt`、Python: PEP 8）。インデントなどの基本設定は `.editorconfig` にあります。
 - 名前は省略せずに、役割が分かるものにします（`rl`・`br`・`cp` のような略語や、1文字の変数名は使いません。ループの添字も `index` などにします）。
 - 数値の意味が分からない定数（キーコードやレジストリのビットなど）は、名前を付けた定数にして、出典や意味をコメントに書きます。
 - コメントとユーザーに表示する文字列は日本語で書きます。コメントには「何をしているか」よりも「なぜそうしているか」を書きます。

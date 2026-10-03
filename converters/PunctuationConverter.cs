@@ -1,7 +1,4 @@
 // 標準入力の文章の句読点を「、。」⇔「，．」に変換して、標準出力に書き出す。
-//
-// Mono（mcs）と .NET SDK（dotnet/PunctuationConverter.csproj）の両方でビルドするため、
-// Mono の C# コンパイラーが対応している構文だけを使っている。
 using System;
 using System.IO;
 using System.Text;

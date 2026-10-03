@@ -27,14 +27,9 @@ fi
 
 # 「名前|実行に必要なファイル|コマンド」の組。ビルドされていないものは除く。
 candidates=(
-  "C++|bin/punctuation_converter_cpp|bin/punctuation_converter_cpp"
   "C# (.NET Native AOT)|bin/dotnet/PunctuationConverter|bin/dotnet/PunctuationConverter"
-  "C# (Mono)|bin/PunctuationConverter.exe|mono bin/PunctuationConverter.exe"
-  "Go|bin/punctuation_converter_go|bin/punctuation_converter_go"
-  "Java|bin/PunctuationConverter.class|java -cp bin PunctuationConverter"
   "Python|punctuation_converter.py|python3 punctuation_converter.py"
   "Rust|bin/punctuation_converter_rust|bin/punctuation_converter_rust"
-  "TypeScript (Node.js)|bin/punctuation_converter.js|node bin/punctuation_converter.js"
 )
 
 arguments=()

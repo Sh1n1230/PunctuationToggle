@@ -137,7 +137,7 @@ Microsoft IME の設定画面の「句読点」は、レジストリ `HKCU\Softw
 
 ## 句読点の変換コマンド
 
-すでに書いた文章の句読点をまとめて変換するコマンドを、C++・C#・Go・Java・Python・Rust・TypeScript で実装しています。使い方と各言語の速度の比較は [converters/README.md](converters/README.md) を参照してください。
+すでに書いた文章の句読点をまとめて変換するコマンドを、C#・Python・Rust で実装しています。使い方と言語を選んだ理由は [converters/README.md](converters/README.md) を参照してください。
 
 ```sh
 python3 converters/punctuation_converter.py < 原稿.txt > 提出用.txt        # 「、。」→「，．」

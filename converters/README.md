@@ -1,6 +1,6 @@
 # 句読点の変換コマンド
 
-すでに書いた文章の句読点を **「、。」⇔「，．」** にまとめて変換するコマンドです。同じ仕様を C++・C#・Go・Java・Python・Rust・TypeScript で実装し、[hyperfine](https://github.com/sharkdp/hyperfine) で速度を比較しています。
+すでに書いた文章の句読点を **「、。」⇔「，．」** にまとめて変換するコマンドです。同じ仕様を Rust・C#・Python の3言語で実装しています。言語は [hyperfine](https://github.com/sharkdp/hyperfine) での速度の比較をもとに絞りました（[実装する言語の選定](#実装する言語の選定)）。
 
 ## 使い方
 
@@ -26,35 +26,22 @@ python3 punctuation_converter.py --reverse < 提出用.txt > 原稿.txt  # 「�
 
 | 言語 | ファイル | ビルド | 実行コマンド |
 |---|---|---|---|
-| C++ | `punctuation_converter.cpp` | `make cpp` | `bin/punctuation_converter_cpp` |
 | C#（.NET Native AOT） | `PunctuationConverter.cs` | `make csharp-dotnet` | `bin/dotnet/PunctuationConverter` |
-| C#（Mono） | `PunctuationConverter.cs` | `make csharp-mono` | `mono bin/PunctuationConverter.exe` |
-| Go | `punctuation_converter.go` | `make go` | `bin/punctuation_converter_go` |
-| Java | `PunctuationConverter.java` | `make java` | `java -cp bin PunctuationConverter` |
 | Python | `punctuation_converter.py` | 不要 | `python3 punctuation_converter.py` |
 | Rust | `punctuation_converter.rs` | `make rust` | `bin/punctuation_converter_rust` |
-| TypeScript | `punctuation_converter.ts` | `make typescript` | `node bin/punctuation_converter.js` |
-
-C# は1つのソースを、Mono と .NET SDK（`dotnet/PunctuationConverter.csproj`）の両方でビルドします。
 
 読み込みの方法は言語ごとに、その言語で自然な書き方を選んでいます。
 
-- 1行ずつ（改行を含めて）読む: Go、Rust
-- 改行の直後で区切って一定のバイト数ずつ読む: C++
-- 一定の文字数ずつ読む: C#、Java、Python、TypeScript（置換する文字はどれも1文字なので、どこで区切っても変換結果は同じ）
+- 1行ずつ（改行を含めて）読む: Rust
+- 一定の文字数ずつ読む: C#、Python（置換する文字はどれも1文字なので、どこで区切っても変換結果は同じ）
 
 ## 必要なツール
 
 | 対象 | ツール |
 |---|---|
-| C++ | C++17 に対応したコンパイラー（clang++ / g++） |
 | C#（.NET Native AOT） | [.NET 10 SDK](https://dotnet.microsoft.com/download) 以降と、Native AOT 用のツール（macOS は Xcode Command Line Tools、Linux は clang と zlib） |
-| C#（Mono） | [Mono](https://www.mono-project.com/)（`mcs` / `mono`） |
-| Go | Go |
-| Java | JDK 17 以降 |
 | Python | Python 3.9 以降 |
 | Rust | Rust（`rustc`） |
-| TypeScript | Node.js（`npm install` で TypeScript と型定義を入れる） |
 | ベンチマーク | [hyperfine](https://github.com/sharkdp/hyperfine)（`brew install hyperfine`） |
 
 ## ビルドとテスト
@@ -62,8 +49,7 @@ C# は1つのソースを、Mono と .NET SDK（`dotnet/PunctuationConverter.csp
 このディレクトリで実行します。
 
 ```sh
-npm install               # TypeScript のコンパイラーと型定義を入れる
-make                      # C++・C#（Mono）・Go・Java・Rust・TypeScript をビルド（bin/ に出力）
+make                      # Rust をビルド（bin/ に出力）
 make csharp-dotnet        # C#（.NET Native AOT）をビルド（.NET SDK が無い環境でも make が通るよう、別にしている）
 make test                 # すべての実装をテストする
 ```
@@ -81,7 +67,15 @@ benchmark/run_benchmark.sh benchmark/wikipedia_programming.txt --warmup 5 --runs
 
 ビルド済みの実装をすべて hyperfine で計測し、結果を `benchmark/results/` に Markdown の表で保存します。合成データ（「、。」を500万回繰り返した1行）は、初回に `benchmark/generate_repeated_text.sh` で作ります。
 
-### 計測結果（参考値）
+## 実装する言語の選定
+
+もとは C++・C#（Mono / .NET Native AOT）・Go・Java・Python・Rust・TypeScript の8実装（7言語）を作り、同じテスト（`make test`）で全実装の出力がバイト単位で一致することを確かめたうえで、速度を比べました。変換は1文字ずつの置換なので、どの言語でも同じ結果になります。違いが出るのは速度と、使うまでの手間だけです。そのため次の基準で、役割が重なる実装を減らしました。
+
+1. 計測結果が、残す実装より同じか劣る実装は、残す理由がない。
+2. 同じ速さの実装が複数あるときは、ほかの言語にない利点があるものを残す。
+3. 同じソースのビルド方法の違いは、速い方だけ残す。
+
+### 計測結果（選定時の参考値）
 
 - 日時: 2026-10-03
 - マシン: Apple M2 / macOS 26.6.1
@@ -91,54 +85,63 @@ benchmark/run_benchmark.sh benchmark/wikipedia_programming.txt --warmup 5 --runs
 
 `benchmark/run_benchmark.sh benchmark/repeated_text.txt --warmup 2 --runs 10`
 
-| 言語 | 平均 [ms] | 最小 [ms] | 最大 [ms] | Rust との比 |
-|:---|---:|---:|---:|---:|
-| Rust | 51.6 ± 0.4 | 51.3 | 52.5 | 1.00 |
-| C#（.NET Native AOT） | 52.0 ± 0.3 | 51.7 | 52.4 | 1.01 |
-| Python | 52.9 ± 0.5 | 52.2 | 53.9 | 1.02 |
-| Java | 115.2 ± 0.6 | 114.2 | 116.4 | 2.23 |
-| Go | 184.3 ± 0.8 | 183.3 | 186.2 | 3.57 |
-| C++ | 185.7 ± 0.5 | 184.7 | 186.5 | 3.59 |
-| C#（Mono） | 217.4 ± 6.9 | 207.4 | 230.3 | 4.21 |
-| TypeScript（Node.js） | 493.8 ± 1.1 | 492.3 | 495.4 | 9.56 |
-
-置換する文字が1,000万個あるため、置換そのものの速さが差になります。1文字ずつ見て置き換える実装（Rust、C#、Java）や、C で書かれた `str.replace` を使う Python が速く、部分文字列の検索を繰り返す実装（Go の `strings.Replacer`、C++ の `std::string::find`）は検索1回ごとのコストが積み重なります。
+| 言語 | 平均 [ms] | 最小 [ms] | 最大 [ms] | Rust との比 | 判断 |
+|:---|---:|---:|---:|---:|:---|
+| Rust | 51.6 ± 0.4 | 51.3 | 52.5 | 1.00 | 残す |
+| C#（.NET Native AOT） | 52.0 ± 0.3 | 51.7 | 52.4 | 1.01 | 残す |
+| Python | 52.9 ± 0.5 | 52.2 | 53.9 | 1.02 | 残す |
+| Java | 115.2 ± 0.6 | 114.2 | 116.4 | 2.23 | 削除 |
+| Go | 184.3 ± 0.8 | 183.3 | 186.2 | 3.57 | 削除 |
+| C++ | 185.7 ± 0.5 | 184.7 | 186.5 | 3.59 | 削除 |
+| C#（Mono） | 217.4 ± 6.9 | 207.4 | 230.3 | 4.21 | 削除 |
+| TypeScript（Node.js） | 493.8 ± 1.1 | 492.3 | 495.4 | 9.56 | 削除 |
 
 #### 実際の文章: Wikipedia「プログラミング」の記事（約40KB、194行）
 
 `benchmark/run_benchmark.sh benchmark/wikipedia_programming.txt --warmup 5 --runs 30`
 
-| 言語 | 平均 [ms] | 最小 [ms] | 最大 [ms] | Rust との比 |
-|:---|---:|---:|---:|---:|
-| Rust | 4.7 ± 0.3 | 4.0 | 5.2 | 1.00 |
-| Go | 4.7 ± 0.3 | 3.8 | 5.2 | 1.01 |
-| C++ | 5.1 ± 0.3 | 4.2 | 5.6 | 1.10 |
-| C#（.NET Native AOT） | 6.6 ± 0.3 | 5.5 | 7.1 | 1.42 |
-| Python | 17.8 ± 0.4 | 17.0 | 18.9 | 3.81 |
-| TypeScript（Node.js） | 28.4 ± 0.5 | 27.1 | 29.6 | 6.08 |
-| Java | 42.2 ± 0.7 | 41.2 | 44.3 | 9.04 |
-| C#（Mono） | 85.4 ± 4.6 | 72.3 | 97.2 | 18.29 |
+| 言語 | 平均 [ms] | 最小 [ms] | 最大 [ms] | Rust との比 | 判断 |
+|:---|---:|---:|---:|---:|:---|
+| Rust | 4.7 ± 0.3 | 4.0 | 5.2 | 1.00 | 残す |
+| Go | 4.7 ± 0.3 | 3.8 | 5.2 | 1.01 | 削除 |
+| C++ | 5.1 ± 0.3 | 4.2 | 5.6 | 1.10 | 削除 |
+| C#（.NET Native AOT） | 6.6 ± 0.3 | 5.5 | 7.1 | 1.42 | 残す |
+| Python | 17.8 ± 0.4 | 17.0 | 18.9 | 3.81 | 残す |
+| TypeScript（Node.js） | 28.4 ± 0.5 | 27.1 | 29.6 | 6.08 | 削除 |
+| Java | 42.2 ± 0.7 | 41.2 | 44.3 | 9.04 | 削除 |
+| C#（Mono） | 85.4 ± 4.6 | 72.3 | 97.2 | 18.29 | 削除 |
 
-入力が小さいので、変換よりもプロセスの起動（ランタイムの読み込みや JIT）にかかる時間がほとんどです。ネイティブコードにコンパイルする言語（Rust、Go、C++、.NET Native AOT）が速く、Mono・Java・Node.js は起動の分だけ遅くなります。
+置換する文字が1,000万個ある合成データでは置換そのものの速さが、約40KB の実際の文章ではプロセスの起動（ランタイムの読み込みや JIT）にかかる時間がほとんどを占めます。
 
-同じ C# でも、.NET Native AOT は Mono よりどちらのデータでも大幅に速く、「C# が遅い」のは言語ではなく Mono ランタイムによるものです。Windows 版のアプリを C#（.NET）で書いたのは、この結果も踏まえています。
+### 残す実装とその理由
 
-全実装の出力は、`make test` でバイト単位で一致することを確認しています。
+| 言語 | 選んだ理由 |
+|---|---|
+| Rust | 2種類のデータのどちらでも最速（実際の文章では Go と同率）で、速度の基準になる。標準ライブラリーだけで書け、`rustc` 1つでビルドできる。 |
+| C#（.NET Native AOT） | 合成データでは Rust と同等（1.01 倍）、実際の文章でも 1.42 倍と、ネイティブ実行と呼べる速さ。Windows 版のアプリも C#（.NET）で書いているので、同じ言語・同じツールで保守できる。 |
+| Python | 合成データでは Rust と同等（1.02 倍）で、C で書かれた `str.replace` が効いている。実際の文章でも 18 ms 弱で、体感の差はない。ビルドが不要で、macOS・Linux では最初から入っていることが多く、ソースを直接実行できるので、利用者がいちばん手軽に使える。 |
+
+### 削除した実装とその理由
+
+| 言語 | 削除した理由 |
+|---|---|
+| C#（Mono） | 同じソースを .NET Native AOT でもビルドしており、どちらのデータでも大幅に遅い（合成データで 4.2 倍、実際の文章で 18 倍）。「C# が遅い」ように見えたのは言語ではなく Mono ランタイムによるもの。基準3により削除。 |
+| Go | 実際の文章では Rust と同じだが、合成データでは 3.6 倍遅い。「速いネイティブバイナリー」という役割は Rust が果たしており、Go にしかない利点がない（基準1・2）。 |
+| C++ | Go とほぼ同じ結果（どちらのデータでも Rust 以下）。コンパイラーの有無が環境で変わり、Rust に対して優位な点がない（基準1）。 |
+| Java | 合成データで 2.2 倍、実際の文章で 9 倍遅く、JVM の起動が支配的。Python や C# に対して優位な点がない（基準1）。 |
+| TypeScript | どちらのデータでも最も遅い部類（合成データで最下位の 9.6 倍）。Node.js と、TypeScript のコンパイル（`npm install`）が必要で、手軽さでも Python に劣る（基準1）。 |
+
+削除した実装のコードは Git の履歴（v1.1.0 より前のコミット）に残っています。
 
 ## ディレクトリ構成
 
 ```
 converters/
 ├── Makefile                      # ビルド・テスト・ベンチマーク
-├── punctuation_converter.cpp
-├── PunctuationConverter.cs       # Mono と .NET で共通
-├── punctuation_converter.go
-├── PunctuationConverter.java
+├── PunctuationConverter.cs
 ├── punctuation_converter.py
 ├── punctuation_converter.rs
-├── punctuation_converter.ts
 ├── dotnet/                       # .NET SDK（Native AOT）用のプロジェクト
-├── package.json, tsconfig.json   # TypeScript 用
 ├── tests/
 │   ├── run_tests.sh              # 全実装のテスト
 │   └── cases/                    # 入力と期待する出力

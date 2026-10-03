@@ -10,7 +10,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-ALL_IMPLEMENTATIONS=(cpp csharp-dotnet csharp-mono go java python rust typescript)
+ALL_IMPLEMENTATIONS=(csharp-dotnet python rust)
 CASES_DIR=tests/cases
 WORK_DIR=$(mktemp -d)
 trap 'rm -rf "$WORK_DIR"' EXIT
@@ -18,14 +18,9 @@ trap 'rm -rf "$WORK_DIR"' EXIT
 # 実装名から実行コマンドを求める。実行できない場合は失敗を返す。
 command_for() {
   case "$1" in
-    cpp) [[ -x bin/punctuation_converter_cpp ]] && echo "bin/punctuation_converter_cpp" ;;
     csharp-dotnet) [[ -x bin/dotnet/PunctuationConverter ]] && echo "bin/dotnet/PunctuationConverter" ;;
-    csharp-mono) [[ -f bin/PunctuationConverter.exe ]] && command -v mono >/dev/null && echo "mono bin/PunctuationConverter.exe" ;;
-    go) [[ -x bin/punctuation_converter_go ]] && echo "bin/punctuation_converter_go" ;;
-    java) [[ -f bin/PunctuationConverter.class ]] && command -v java >/dev/null && echo "java -cp bin PunctuationConverter" ;;
     python) command -v python3 >/dev/null && echo "python3 punctuation_converter.py" ;;
     rust) [[ -x bin/punctuation_converter_rust ]] && echo "bin/punctuation_converter_rust" ;;
-    typescript) [[ -f bin/punctuation_converter.js ]] && command -v node >/dev/null && echo "node bin/punctuation_converter.js" ;;
     *) return 1 ;;
   esac
 }
