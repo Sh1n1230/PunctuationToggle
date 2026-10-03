@@ -58,6 +58,7 @@ Xcode 26 以降が必要です。
 ```sh
 git clone https://github.com/Sh1n1230/PunctuationToggle.git
 cd PunctuationToggle
+rm -rf Windows  # Windows 版のため不要
 ./macOS/install.sh
 ```
 
@@ -80,10 +81,20 @@ Release ビルド、`~/Applications` へのコピー、古いアクセシビリ�
 ```powershell
 git clone https://github.com/Sh1n1230/PunctuationToggle.git
 cd PunctuationToggle
+Remove-Item -Recurse -Force macOS  # macOS 版のため不要
 powershell -ExecutionPolicy Bypass -File .\Windows\install.ps1
 ```
 
 この方法でインストールした場合は、実行に [.NET 10 デスクトップ ランタイム](https://dotnet.microsoft.com/download/dotnet/10.0)が必要です（SDK に含まれています）。
+
+### クローンしたあとに、使わないコードを削除する
+
+このリポジトリには、macOS 版（Swift、`macOS/`）、Windows 版（C#、`Windows/`）、句読点の変換コマンド（Rust・C#・Python、`converters/`）がまとめて入っていますが、どれも互いに依存していません。クローンしたら、使わないものは削除してください。
+
+- Windows で使うなら `macOS/` は不要です（Windows に Swift のコードを置いておく必要はありません）。macOS で使うなら `Windows/` は不要です。上の「ソースからビルドする場合」の手順では、インストールの前に削除しています。PowerShell の `rm` は `Remove-Item` の別名で `-rf` を受け付けないため、Windows では `Remove-Item -Recurse -Force` を使います。
+- 変換コマンドを使わないなら `converters/` ごと削除できます。使う場合も、残すのは使う言語の実装1つだけで十分です。たとえば Rust を使うなら、Python や C# の実装を残す必要はありません（[使う実装だけを残す](converters/README.md#使う実装だけを残す)）。
+
+> **補足:** このリポジトリに変更を送る（Pull Request を作る）場合は、削除をコミットに含めないでください。
 
 ## アンインストール
 
@@ -137,7 +148,7 @@ Microsoft IME の設定画面の「句読点」は、レジストリ `HKCU\Softw
 
 ## 句読点の変換コマンド
 
-すでに書いた文章の句読点をまとめて変換するコマンドを、C#・Python・Rust で実装しています。使い方と言語を選んだ理由は [converters/README.md](converters/README.md) を参照してください。
+すでに書いた文章の句読点をまとめて変換するコマンドを、C#・Python・Rust で実装しています。使うのはどれか1つで十分です。使い方と、macOS・Windows での速度の比較をもとに言語を選んだ理由は [converters/README.md](converters/README.md) を参照してください。
 
 ```sh
 python3 converters/punctuation_converter.py < 原稿.txt > 提出用.txt        # 「、。」→「，．」

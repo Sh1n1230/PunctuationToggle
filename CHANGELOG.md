@@ -2,6 +2,19 @@
 
 このプロジェクトの主な変更点を記録します。書式は [Keep a Changelog](https://keepachangelog.com/ja/1.1.0/) に、バージョン番号は [セマンティック バージョニング](https://semver.org/lang/ja/) に従います。
 
+## [Unreleased]
+
+### 修正
+
+- Windows で、Python 版の変換コマンドの使い方とエラーが UTF-8 ではなく cp932 で表示される問題を修正しました。
+- Windows の Git Bash で `make csharp-dotnet` を実行すると、Linux 向けにビルドしようとする問題を修正しました。
+- 変換コマンドのテストで、Python の実装を削除した場合に SKIP ではなく失敗になる問題を修正しました。
+
+### ドキュメント
+
+- 変換コマンドの言語の選定に、Windows（Ryzen 7 9700X）での計測結果を追加し、macOS と Windows のどちらでも成り立つ理由に書き直しました。
+- クローンしたあとに、使わない OS 版や変換コマンドの実装を削除してよいことを README に書きました。
+
 ## [1.1.0] - 2026-10-03
 
 ### 追加
@@ -36,5 +49,6 @@
 - 「ログイン時に起動」を設定できます。
 - 再ビルド後もアクセシビリティの許可が有効になるインストールスクリプト（`install.sh`）を用意しました。
 
+[Unreleased]: https://github.com/Sh1n1230/PunctuationToggle/compare/v1.1.0...HEAD
 [1.1.0]: https://github.com/Sh1n1230/PunctuationToggle/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Sh1n1230/PunctuationToggle/releases/tag/v1.0.0

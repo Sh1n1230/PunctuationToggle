@@ -33,6 +33,11 @@ def convert(text: str, replacements: dict[str, str]) -> str:
 
 
 def main(arguments: list[str]) -> int:
+    # Windows では標準出力・標準エラー出力の既定の文字コードが UTF-8 ではなく（cp932 など）、
+    # 改行も CRLF に変わるため、使い方やエラーの表示もほかの実装と同じ UTF-8・LF に揃える
+    sys.stdout.reconfigure(encoding="utf-8", newline="\n")
+    sys.stderr.reconfigure(encoding="utf-8", newline="\n")
+
     if arguments in ([], ["-r"], ["--reverse"]):
         replacements = TO_TOUTEN_KUTEN if arguments else TO_COMMA_PERIOD
     elif arguments in (["-h"], ["--help"]):
