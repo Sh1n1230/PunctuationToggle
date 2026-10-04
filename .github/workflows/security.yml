@@ -1,0 +1,22 @@
+# 秘密情報の混入・危険なコード・依存の既知の脆弱性・設定の不備を検査する。
+# 検査の中身は security-checker (https://github.com/Sh1n1230/security-checker) にあり、ここでは呼ぶだけ。
+name: Security Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write # 結果を GitHub の Code Scanning に登録するため
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: Sh1n1230/security-checker@491dbb07119b5ad9823d92c3bbc95855c65b6149 # v1.1.0
