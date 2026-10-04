@@ -1,0 +1,33 @@
+name: 不具合の報告
+description: 想定どおりに動作しない場合はこちら
+labels: [bug]
+body:
+  - type: dropdown
+    id: os
+    attributes:
+      label: OS
+      options: [macOS, Windows]
+    validations: {required: true}
+  - type: input
+    id: os-version
+    attributes:
+      label: OS のバージョン
+      placeholder: macOS 26.0 / Windows 11 24H2
+    validations: {required: true}
+  - type: input
+    id: version
+    attributes:
+      label: PunctuationToggle のバージョン
+      placeholder: v1.1.0
+    validations: {required: true}
+  - type: textarea
+    id: what
+    attributes:
+      label: 発生した問題と、期待していた動作
+    validations: {required: true}
+  - type: textarea
+    id: steps
+    attributes:
+      label: 再現手順
+      description: 切り替えキーの設定や、問題が起きるアプリがあれば記載してください。
+    validations: {required: true}
