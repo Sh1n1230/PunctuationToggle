@@ -1,0 +1,18 @@
+# 依存の更新を自動で提案させる。
+version: 2
+
+updates:
+  # ワークフローのアクションはコミット SHA で固定しているため、人手では更新が漏れる
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  # Windows 版のテストで使う NuGet パッケージ
+  - package-ecosystem: nuget
+    directory: /Windows
+    schedule:
+      interval: weekly
+    groups:
+      test-packages:
+        patterns: ["*"]
