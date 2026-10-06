@@ -7,12 +7,18 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # 公開直後の版は、乗っ取りや不具合で取り下げられることがあるため、7日待ってから提案させる
+    cooldown:
+      default-days: 7
 
   # Windows 版のテストで使う NuGet パッケージ
   - package-ecosystem: nuget
     directory: /Windows
     schedule:
       interval: weekly
+    # 公開直後の版は、乗っ取りや不具合で取り下げられることがあるため、7日待ってから提案させる
+    cooldown:
+      default-days: 7
     groups:
       test-packages:
         patterns: ["*"]

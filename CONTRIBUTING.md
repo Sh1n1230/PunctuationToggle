@@ -1,6 +1,6 @@
 # 開発ガイド
 
-PunctuationToggle への貢献を歓迎します。不具合の報告や要望は [Issues](https://github.com/Sh1n1230/PunctuationToggle/issues) へ、修正は Pull Request でお送りください。
+PunctuationToggle への貢献を歓迎します。不具合の報告や要望は [Issues](https://github.com/Sh1n1230/PunctuationToggle/issues) へ、修正は Pull Request でお送りください。参加にあたっては [行動規範](CODE_OF_CONDUCT.md) を守ってください。
 
 ## ディレクトリ構成
 
@@ -12,7 +12,7 @@ PunctuationToggle/
 │   ├── Tests/                      Core の単体テスト（Swift Testing）
 │   ├── Package.swift               Core をテストするための Swift パッケージ
 │   ├── PunctuationToggle.xcodeproj
-│   ├── install.sh / uninstall.sh
+│   └── install.sh / uninstall.sh
 ├── Windows/                        Windows 版（C# / .NET）
 │   ├── PunctuationToggle/          アプリ本体（Windows Forms）
 │   ├── PunctuationToggle.Core/     OS に依存しない判定ロジック（単体テストの対象）
