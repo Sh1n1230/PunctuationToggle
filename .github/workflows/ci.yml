@@ -27,6 +27,16 @@ jobs:
           -configuration Release -destination "platform=macOS" -derivedDataPath build
           CODE_SIGN_IDENTITY=- build
 
+      # Hardened Runtime が無いと、DYLD_INSERT_LIBRARIES などで注入したコードがアクセシビリティの権限を使えてしまう
+      - name: Hardened Runtime の確認
+        run: |
+          code_directory=$(codesign -dv macOS/build/Build/Products/Release/PunctuationToggle.app 2>&1 | grep '^CodeDirectory')
+          echo "$code_directory"
+          case "$code_directory" in
+            *runtime*) ;;
+            *) echo "::error::Hardened Runtime が有効になっていません"; exit 1 ;;
+          esac
+
   windows:
     name: Windows アプリ
     runs-on: windows-latest
