@@ -3,6 +3,7 @@
 /// - 修飾キーは、単独で押して離したときに読み取る（Command＋C のような組み合わせは無視する）。
 /// - それ以外のキーは、押したときに読み取る。読み取ったキーの入力はほかのアプリに渡さない。
 /// - Esc でキャンセルする。
+/// - 設定画面が前面にない間の入力は `handleWhileInactive(_:)` に渡し、読み取らずにほかのアプリへ渡す。
 struct TriggerKeyCapture: Sendable {
     enum Outcome: Equatable, Sendable {
         /// まだキーが押されていない
@@ -56,6 +57,18 @@ struct TriggerKeyCapture: Sendable {
             pendingModifierKeyCode = nil
             return Result(outcome: .waiting, shouldSuppress: false)
         }
+    }
+
+    /// 設定画面が前面にない（ほかのアプリを操作している）ときの入力を処理する。
+    /// キーは読み取らず、入力もほかのアプリに渡す。
+    /// ただし、前面にあったときに押し下げを渡さなかったキーは、離したときの入力も渡さない。
+    mutating func handleWhileInactive(_ input: KeyboardInput) -> Result {
+        pendingModifierKeyCode = nil
+        guard case let .keyUp(keyCode) = input, suppressedKeyCode == keyCode else {
+            return Result(outcome: .waiting, shouldSuppress: false)
+        }
+        suppressedKeyCode = nil
+        return Result(outcome: .waiting, shouldSuppress: true)
     }
 
     private static func outcome(for keyCode: UInt16) -> Outcome {

@@ -3,7 +3,8 @@ import AppKit
 /// 切り替えキーを設定するウィンドウ。
 ///
 /// 開いている間は `handle(_:)` に入力を渡してもらい、次に押されたキーを新しい切り替えキーとして読み取る。
-/// キー入力は `KeyboardMonitor` で受け取るので、このウィンドウが前面になくても読み取れる。
+/// キー入力は `KeyboardMonitor` で受け取る（修飾キーの単独押しはウィンドウのイベントでは扱いにくいため）。
+/// ほかのアプリでの入力を読み取ったり握りつぶしたりしないよう、このウィンドウが前面にある間だけ読み取る。
 final class TriggerKeyRecorderWindowController: NSWindowController, NSWindowDelegate {
     /// 読み取りが終わったときに1度だけ呼ばれる。キャンセルされた場合は nil。
     private let completion: (TriggerKey?) -> Void
@@ -40,7 +41,8 @@ final class TriggerKeyRecorderWindowController: NSWindowController, NSWindowDele
     func handle(_ input: KeyboardInput) -> Bool {
         guard !isFinished else { return false }
 
-        let result = capture.handle(input)
+        let isActive = NSApp.isActive && window?.isKeyWindow == true
+        let result = isActive ? capture.handle(input) : capture.handleWhileInactive(input)
         switch result.outcome {
         case .waiting:
             break

@@ -67,4 +67,33 @@ struct TriggerKeyCaptureTests {
     mutating func unrelatedKeyUp() {
         #expect(!capture.handle(.keyUp(keyCode: 0)).shouldSuppress)
     }
+
+    @Test("設定画面が前面にない間は、キーを読み取らず入力も渡す")
+    mutating func inactiveKey() {
+        let letterA: UInt16 = 0
+        let pressed = capture.handleWhileInactive(.keyDown(keyCode: letterA, isRepeat: false, modifiersHeld: false))
+        #expect(pressed == .init(outcome: .waiting, shouldSuppress: false))
+        #expect(capture.handleWhileInactive(.keyUp(keyCode: letterA)) == .init(outcome: .waiting, shouldSuppress: false))
+
+        let eisu = capture.handleWhileInactive(.keyDown(keyCode: KeyCode.eisu, isRepeat: false, modifiersHeld: false))
+        #expect(eisu == .init(outcome: .waiting, shouldSuppress: false))
+    }
+
+    @Test("設定画面が前面にない間に押し始めた修飾キーは、前面に戻ってから離しても読み取らない")
+    mutating func inactiveModifier() {
+        _ = capture.handleWhileInactive(
+            .modifierChanged(keyCode: KeyCode.rightCommand, isPressed: true, otherModifiersHeld: false)
+        )
+        #expect(
+            capture.handle(.modifierChanged(keyCode: KeyCode.rightCommand, isPressed: false, otherModifiersHeld: false))
+                .outcome == .waiting
+        )
+    }
+
+    @Test("前面にあるときに渡さなかったキーは、前面でなくなってから離しても渡さない")
+    mutating func suppressedKeyReleasedWhileInactive() {
+        let letterA: UInt16 = 0
+        _ = capture.handle(.keyDown(keyCode: letterA, isRepeat: false, modifiersHeld: false))
+        #expect(capture.handleWhileInactive(.keyUp(keyCode: letterA)).shouldSuppress)
+    }
 }

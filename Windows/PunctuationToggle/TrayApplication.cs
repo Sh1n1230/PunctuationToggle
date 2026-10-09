@@ -92,7 +92,19 @@ internal sealed class TrayApplication : ApplicationContext
     /// </param>
     private void TogglePunctuationStyle(bool bounceFocus)
     {
-        MicrosoftImeSettings.PunctuationStyle = MicrosoftImeSettings.PunctuationStyle.Toggled();
+        try
+        {
+            MicrosoftImeSettings.PunctuationStyle = MicrosoftImeSettings.PunctuationStyle.Toggled();
+        }
+        catch (InvalidDataException exception)
+        {
+            MessageBox.Show(
+                $"句読点の設定を変更できませんでした。{Environment.NewLine}{exception.Message}",
+                "PunctuationToggle",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            return;
+        }
         UpdateDisplay();
 
         if (bounceFocus)

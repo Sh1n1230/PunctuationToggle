@@ -34,6 +34,7 @@ public readonly record struct CaptureResult(
 /// <item>修飾キーは、単独で押して離したときに読み取る（Ctrl＋C のような組み合わせは無視する）。</item>
 /// <item>それ以外のキーは、押したときに読み取る。押したキーの入力はほかのアプリに渡さない。</item>
 /// <item>Esc でキャンセルする。</item>
+/// <item>設定画面が前面にない間の入力は <see cref="HandleWhileInactive"/> に渡し、読み取らずにほかのアプリへ渡す。</item>
 /// </list>
 /// </remarks>
 public sealed class TriggerKeyCapture
@@ -85,6 +86,22 @@ public sealed class TriggerKeyCapture
                 pendingModifier = null;
                 return new CaptureResult(CaptureOutcome.Waiting, ShouldSuppress: false);
         }
+    }
+
+    /// <summary>
+    /// 設定画面が前面にない（ほかのアプリを操作している）ときの入力を処理する。
+    /// キーは読み取らず、入力もほかのアプリに渡す。
+    /// ただし、前面にあったときに押し下げを渡さなかったキーは、離したときの入力も渡さない。
+    /// </summary>
+    public CaptureResult HandleWhileInactive(KeyboardInput input)
+    {
+        pendingModifier = null;
+        if (input.Kind != KeyboardInputKind.KeyUp || suppressedKey != input.VirtualKey)
+        {
+            return new CaptureResult(CaptureOutcome.Waiting, ShouldSuppress: false);
+        }
+        suppressedKey = null;
+        return new CaptureResult(CaptureOutcome.Waiting, ShouldSuppress: true);
     }
 
     private static CaptureResult ResultFor(int virtualKey, bool shouldSuppress) =>

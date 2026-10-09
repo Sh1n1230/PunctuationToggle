@@ -5,7 +5,8 @@ namespace PunctuationToggle;
 /// </summary>
 /// <remarks>
 /// 開いている間は <see cref="HandleInput"/> に入力を渡してもらい、次に押されたキーを新しい切り替えキーとして読み取る。
-/// キー入力は <see cref="KeyboardHook"/> で受け取るので、このウィンドウが前面になくても読み取れる。
+/// キー入力は <see cref="KeyboardHook"/> で受け取る（修飾キーの単独押しや Windows キーはウィンドウのイベントでは扱いにくいため）。
+/// ほかのアプリでの入力を読み取ったり握りつぶしたりしないよう、このウィンドウが前面にある間だけ読み取る。
 /// </remarks>
 internal sealed class TriggerKeyRecorderForm : Form
 {
@@ -79,7 +80,8 @@ internal sealed class TriggerKeyRecorderForm : Form
             return false;
         }
 
-        var result = capture.Handle(input);
+        // フックはこのウィンドウと同じ UI スレッドで呼ばれるので、ActiveForm をそのまま調べられる
+        var result = ActiveForm == this ? capture.Handle(input) : capture.HandleWhileInactive(input);
         switch (result.Outcome)
         {
             case CaptureOutcome.Captured:
