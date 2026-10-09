@@ -5,6 +5,10 @@
     <IsPackable>false</IsPackable>
     <!-- テストメソッド名を日本語の説明にしているため、命名規則の警告は出さない -->
     <NoWarn>$(NoWarn);CA1707</NoWarn>
+    <!-- 外部のパッケージを使うのはこのプロジェクトだけなので、ここで packages.lock.json に固定する。
+         CI では lock ファイルと食い違うと復元を失敗させる -->
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <RestoreLockedMode Condition="'$(CI)' == 'true'">true</RestoreLockedMode>
   </PropertyGroup>
 
   <ItemGroup>

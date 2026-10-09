@@ -47,6 +47,8 @@ dotnet test Windows/PunctuationToggle.sln
 dotnet build Windows/PunctuationToggle.sln
 ```
 
+テストで使う NuGet パッケージは `Windows/PunctuationToggle.Tests/packages.lock.json` で固定しています。パッケージを追加・更新したときは `dotnet restore Windows/PunctuationToggle.sln` で lock ファイルを更新し、一緒にコミットしてください（CI では lock ファイルと食い違うと失敗します）。
+
 ### 変換コマンド
 
 ```sh
@@ -79,7 +81,9 @@ make test
 
 1. `CHANGELOG.md` に新しいバージョンの項目を追加します。
 2. バージョン番号を更新します（macOS: `PunctuationToggle.xcodeproj` の `MARKETING_VERSION` と `CURRENT_PROJECT_VERSION`、Windows: `Windows/Directory.Build.props` の `Version`）。
-3. main ブランチで `v1.2.3` のようなタグを付けて push します。GitHub Actions が macOS 版と Windows 版をビルドし、下書きのリリースを作ります。
-4. リリースの内容を確認して公開します。
+3. main ブランチで `v1.2.3` のようなタグを付けて push します。GitHub Actions が macOS 版と Windows 版をビルドし、来歴証明（artifact attestation）を付けて、zip と `SHA256SUMS.txt` を添付した下書きのリリースを作ります。
+4. リリースの内容を確認して公開します。添付された zip は、README の「ダウンロードしたファイルの確認」の手順で検証できます。
+
+テストやビルドのジョブは読み取り権限だけで動かし、リリースへの書き込み権限はビルド済みのファイルを添付する最後のジョブにだけ与えています。ワークフローを変更するときもこの分担を保ってください。
 
 `.github/workflows/release.yml` を変更した Pull Request では、リリースは作らずに配布用ファイルのビルドまでが実行され、できた zip を Actions の成果物からダウンロードして確かめられます。
