@@ -83,7 +83,13 @@ internal sealed class TriggerKeyRecorderForm : Form
         }
 
         // フックはこのウィンドウと同じ UI スレッドで呼ばれるので、ActiveForm をそのまま調べられる
-        var result = ActiveForm == this ? capture.Handle(input) : capture.HandleWhileInactive(input);
+        var isActive = ActiveForm == this;
+        var result = isActive ? capture.Handle(input) : capture.HandleWhileInactive(input);
+        if (!isActive && input.Kind == KeyboardInputKind.KeyDown)
+        {
+            // Windows がこのウィンドウを前面にしなかった場合に、何も起きないように見えないよう案内する
+            ShowInactiveMessage();
+        }
         switch (result.Outcome)
         {
             case CaptureOutcome.Captured:
@@ -111,6 +117,12 @@ internal sealed class TriggerKeyRecorderForm : Form
             titleFont.Dispose();
         }
         base.Dispose(disposing);
+    }
+
+    private void ShowInactiveMessage()
+    {
+        statusLabel.Text = $"このウィンドウをクリックしてから、キーを押してください。{Environment.NewLine}{InstructionText}";
+        statusLabel.ForeColor = Color.DarkOrange;
     }
 
     private void ShowRejectedMessage(int virtualKey)
