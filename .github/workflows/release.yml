@@ -3,6 +3,9 @@
 #
 # このファイルを変更した Pull Request では、リリースは作らずに配布用ファイルのビルドまでを確かめ、
 # できたファイルを Actions の成果物として保存する。
+#
+# テストやビルドでは外部のパッケージやツールのコードが動くため、それらのジョブには書き込み権限を渡さない。
+# リリースへの書き込みは、ビルド済みのファイルを受け取って添付するだけの publish ジョブに限る。
 name: Release
 
 on:
@@ -11,21 +14,30 @@ on:
   pull_request:
     paths: [".github/workflows/release.yml"]
 
-permissions:
-  contents: write
+# ジョブごとに必要な権限だけを付ける
+permissions: {}
+
+# 同じタグのリリースが並行して作られないようにする（Pull Request では古い実行を取り消す）
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  IS_RELEASE: ${{ github.event_name == 'push' }}
   # Pull Request では、タグの代わりに仮のバージョン名を使う
   RELEASE_NAME: ${{ github.event_name == 'push' && github.ref_name || 'pr-build' }}
 
 jobs:
-  create-draft:
-    name: 下書きのリリースを作成
+  # ビルドの前に確かめて、CHANGELOG の書き忘れで時間を無駄にしないようにする
+  release-notes:
+    name: リリースノートを作成
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: CHANGELOG からリリースノートを作成
         run: |
@@ -40,24 +52,26 @@ jobs:
             exit 1
           fi
 
-      - name: 下書きを作成
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: >
-          gh release create "$GITHUB_REF_NAME" --draft --verify-tag
-          --title "PunctuationToggle $GITHUB_REF_NAME" --notes-file release-notes.md
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-notes
+          path: release-notes.md
 
   windows:
     name: Windows 版
-    needs: create-draft
-    # Pull Request では create-draft が実行されないので、スキップされても続ける
+    needs: release-notes
+    # Pull Request では release-notes が実行されないので、スキップされても続ける
     if: ${{ !failure() && !cancelled() }}
     runs-on: windows-latest
+    permissions:
+      contents: read
     strategy:
       matrix:
         runtime: [win-x64, win-arm64]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
@@ -83,27 +97,24 @@ jobs:
           Compress-Archive -Path publish/* -DestinationPath $archive
           "ARCHIVE=$archive" >> $env:GITHUB_ENV
 
-      - name: リリースに添付
-        if: env.IS_RELEASE == 'true'
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release upload $env:RELEASE_NAME $env:ARCHIVE
-
       - name: 成果物として保存
-        if: env.IS_RELEASE != 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ env.ARCHIVE }}
           path: ${{ env.ARCHIVE }}
+          if-no-files-found: error
 
   macos:
     name: macOS 版
-    needs: create-draft
+    needs: release-notes
     if: ${{ !failure() && !cancelled() }}
     runs-on: macos-26
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: テスト
         working-directory: macOS
@@ -131,15 +142,48 @@ jobs:
           ditto -c -k --keepParent "$app" "$archive"
           echo "ARCHIVE=$archive" >> "$GITHUB_ENV"
 
-      - name: リリースに添付
-        if: env.IS_RELEASE == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$RELEASE_NAME" "$ARCHIVE"
-
       - name: 成果物として保存
-        if: env.IS_RELEASE != 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ env.ARCHIVE }}
           path: ${{ env.ARCHIVE }}
+          if-no-files-found: error
+
+  # ビルド済みのファイルに来歴証明を付け、下書きのリリースに添付する。
+  # 外部のコードを実行しないこのジョブだけが、リリースへの書き込み権限を持つ。
+  publish:
+    name: 下書きのリリースを作成
+    needs: [release-notes, windows, macos]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # リリースの作成とファイルの添付
+      id-token: write # 来歴証明の署名に使う OIDC トークンの発行
+      attestations: write # 来歴証明の保存
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: チェックサムを作成
+        working-directory: dist
+        run: |
+          mv release-notes.md ..
+          sha256sum PunctuationToggle-*.zip > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      # 利用者が `gh attestation verify` で、このリポジトリのこのワークフローでビルドされたことを確かめられる
+      - name: 来歴証明を作成
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: dist/PunctuationToggle-*.zip
+
+      - name: 下書きを作成
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: >
+          gh release create "$GITHUB_REF_NAME" --draft --verify-tag
+          --title "PunctuationToggle $GITHUB_REF_NAME" --notes-file release-notes.md
+          dist/PunctuationToggle-*.zip dist/SHA256SUMS.txt

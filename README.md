@@ -45,12 +45,37 @@
 
 ## インストール
 
+### ダウンロードしたファイルの確認
+
+本ツールはすべてのキー入力を監視する権限を必要とするため、入手したファイルが本リポジトリでビルドされたものであることを、起動する前に確認してください。v1.1.0 より後のリリースでは、GitHub Actions がビルドした各ファイルに[来歴証明（artifact attestation）](https://docs.github.com/ja/actions/security-for-github-actions/using-artifact-attestations/using-artifact-attestations-to-establish-provenance-for-builds)を付け、SHA-256 のチェックサムを `SHA256SUMS.txt` として添付しています。
+
+[GitHub CLI](https://cli.github.com/) を利用できる場合は、次のコマンドで来歴証明を検証します。`Verification succeeded!` と表示されれば、本リポジトリのリリース用ワークフローでビルドされたファイルです。
+
+```sh
+gh attestation verify PunctuationToggle-<バージョン>-macOS.zip --repo Sh1n1230/PunctuationToggle
+```
+
+GitHub CLI を利用しない場合は、チェックサムを計算し、同じリリースの `SHA256SUMS.txt` に記載された値と一致することを確認します。
+
+```sh
+# macOS（ダウンロードしたフォルダーで実行）
+shasum -a 256 -c SHA256SUMS.txt --ignore-missing
+```
+
+```powershell
+# Windows（PowerShell）
+Get-FileHash .\PunctuationToggle-<バージョン>-win-x64.zip -Algorithm SHA256
+```
+
+> [!CAUTION]
+> 以下で案内している警告の回避操作は、上記の確認を済ませたファイルに対してのみ行ってください。本リポジトリの [Releases](https://github.com/Sh1n1230/PunctuationToggle/releases) 以外から入手したファイルは実行しないでください。
+
 ### macOS
 
 [Releases](https://github.com/Sh1n1230/PunctuationToggle/releases) から `PunctuationToggle-<バージョン>-macOS.zip` をダウンロードして展開し、生成された `PunctuationToggle.app` を「アプリケーション」フォルダーへ移動して起動します。
 
 > [!NOTE]
-> 配布しているバイナリは Apple の公証を受けていないため、初回起動時に「開発元を検証できません」という警告が表示されます。システム設定の「プライバシーとセキュリティ」画面を開き、下部に表示される「このまま開く」を選択してください。
+> 配布しているバイナリは Apple の公証を受けていないため、初回起動時に「開発元を検証できません」という警告が表示されます。[ダウンロードしたファイルの確認](#ダウンロードしたファイルの確認)を済ませたうえで、システム設定の「プライバシーとセキュリティ」画面を開き、下部に表示される「このまま開く」を選択してください。
 
 起動後、アクセシビリティの許可を求めるダイアログが表示されます。「システム設定を開く」を選択し、「プライバシーとセキュリティ」→「アクセシビリティ」で PunctuationToggle を有効にしてください。許可が付与されると、メニューバーの表示が警告アイコン（⚠︎）から現在の句読点（「、。」など）へ切り替わります（システムの再起動は不要です）。
 
@@ -75,7 +100,7 @@ rm -rf Windows  # Windows 版のため不要
 [Releases](https://github.com/Sh1n1230/PunctuationToggle/releases) から、利用環境に合致するアーカイブ（64bit 環境は `win-x64`、Arm 版 Windows は `win-arm64`）をダウンロードし、任意のフォルダーに展開して `PunctuationToggle.exe` を起動します。自己完結型（Self-Contained）バイナリとして出力しているため、.NET ランタイムの事前導入や管理者権限の付与は不要です。
 
 > [!NOTE]
-> コード署名証明書による署名を行っていないため、初回起動時に Microsoft Defender SmartScreen による警告が表示される場合があります。「詳細情報」をクリックし、「実行」を選択してください。
+> コード署名証明書による署名を行っていないため、初回起動時に Microsoft Defender SmartScreen による警告が表示される場合があります。[ダウンロードしたファイルの確認](#ダウンロードしたファイルの確認)を済ませたうえで、「詳細情報」をクリックし、「実行」を選択してください。
 
 #### ソースからビルドする場合
 
