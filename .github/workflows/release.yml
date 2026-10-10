@@ -122,6 +122,12 @@ jobs:
           archive="PunctuationToggle-$RELEASE_NAME-macOS.zip"
           app=macOS/build/Build/Products/Release/PunctuationToggle.app
           lipo -info "$app/Contents/MacOS/PunctuationToggle"
+          code_directory=$(codesign -dv "$app" 2>&1 | grep '^CodeDirectory')
+          echo "$code_directory"
+          case "$code_directory" in
+            *runtime*) ;;
+            *) echo "::error::Hardened Runtime が有効になっていません"; exit 1 ;;
+          esac
           ditto -c -k --keepParent "$app" "$archive"
           echo "ARCHIVE=$archive" >> "$GITHUB_ENV"
 
