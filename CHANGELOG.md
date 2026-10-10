@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-10
+
+セキュリティレビューの指摘に対応し、配布物の信頼性とアプリの堅牢性を高めました。このバージョンから、配布する zip に来歴証明とチェックサムを付けています（確認方法は README の「ダウンロードしたファイルの確認」を参照してください）。
+
 ### 変更
 
 - 行動規範（`CODE_OF_CONDUCT.md`）を追加しました。
@@ -56,6 +60,7 @@ Windows 対応、キー設定のカスタマイズ、既存文書の一括変換
 - 「ログイン時に起動」を設定できます。
 - 再ビルド後もアクセシビリティの許可が有効になるインストールスクリプト（`install.sh`）を用意しました。
 
-[Unreleased]: https://github.com/Sh1n1230/PunctuationToggle/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/Sh1n1230/PunctuationToggle/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/Sh1n1230/PunctuationToggle/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/Sh1n1230/PunctuationToggle/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Sh1n1230/PunctuationToggle/releases/tag/v1.0.0
