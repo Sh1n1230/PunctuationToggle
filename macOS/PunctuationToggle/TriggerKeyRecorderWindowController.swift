@@ -4,7 +4,8 @@ import AppKit
 ///
 /// 開いている間は `handle(_:)` に入力を渡してもらい、次に押されたキーを新しい切り替えキーとして読み取る。
 /// キー入力は `KeyboardMonitor` で受け取る（修飾キーの単独押しはウィンドウのイベントでは扱いにくいため）。
-/// ほかのアプリでの入力を読み取ったり握りつぶしたりしないよう、このウィンドウが前面にある間だけ読み取る。
+/// ほかのアプリでの入力を読み取ったり握りつぶしたりしないよう、このウィンドウが前面にある間だけ読み取り、
+/// ほかのアプリに切り替えたら設定を中止して閉じる。
 final class TriggerKeyRecorderWindowController: NSWindowController, NSWindowDelegate {
     /// 読み取りが終わったときに1度だけ呼ばれる。キャンセルされた場合は nil。
     private let completion: (TriggerKey?) -> Void
@@ -30,6 +31,14 @@ final class TriggerKeyRecorderWindowController: NSWindowController, NSWindowDele
 
         buildContent(in: window, currentKey: currentKey)
         window.center()
+
+        // NSPanel はアプリが前面でなくなると隠れる。隠れたまま開いていると切り替えキーが効かなくなるため、中止して閉じる
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(applicationDidResignActive),
+            name: NSApplication.didResignActiveNotification,
+            object: nil
+        )
     }
 
     @available(*, unavailable)
@@ -107,6 +116,11 @@ final class TriggerKeyRecorderWindowController: NSWindowController, NSWindowDele
     @objc
     private func resetToDefault() {
         finish(with: .defaultKey)
+    }
+
+    @objc
+    private func applicationDidResignActive(_ notification: Notification) {
+        finish(with: nil)
     }
 
     @objc
