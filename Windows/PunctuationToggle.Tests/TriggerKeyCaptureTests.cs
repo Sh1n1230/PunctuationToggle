@@ -68,4 +68,27 @@ public class TriggerKeyCaptureTests
     {
         Assert.False(capture.Handle(KeyboardInput.KeyUp(LetterA)).ShouldSuppress);
     }
+
+    [Fact]
+    public void 設定画面が前面にない間はキーを読み取らず入力も渡す()
+    {
+        var waiting = new CaptureResult(CaptureOutcome.Waiting, ShouldSuppress: false);
+        Assert.Equal(waiting, capture.HandleWhileInactive(KeyboardInput.KeyDown(LetterA)));
+        Assert.Equal(waiting, capture.HandleWhileInactive(KeyboardInput.KeyUp(LetterA)));
+        Assert.Equal(waiting, capture.HandleWhileInactive(KeyboardInput.KeyDown(VirtualKeys.Convert)));
+    }
+
+    [Fact]
+    public void 設定画面が前面にない間に押し始めた修飾キーは前面に戻ってから離しても読み取らない()
+    {
+        capture.HandleWhileInactive(KeyboardInput.KeyDown(VirtualKeys.RightControl));
+        Assert.Equal(CaptureOutcome.Waiting, capture.Handle(KeyboardInput.KeyUp(VirtualKeys.RightControl)).Outcome);
+    }
+
+    [Fact]
+    public void 前面にあるときに渡さなかったキーは前面でなくなってから離しても渡さない()
+    {
+        capture.Handle(KeyboardInput.KeyDown(LetterA));
+        Assert.True(capture.HandleWhileInactive(KeyboardInput.KeyUp(LetterA)).ShouldSuppress);
+    }
 }

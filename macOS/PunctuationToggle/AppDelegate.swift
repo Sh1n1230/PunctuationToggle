@@ -160,7 +160,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc
     private func showTriggerKeyRecorder() {
         if let triggerKeyRecorder {
+            NSApp.activate()
             triggerKeyRecorder.window?.makeKeyAndOrderFront(nil)
+            triggerKeyRecorder.window?.orderFrontRegardless()
             return
         }
 
@@ -175,8 +177,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         triggerKeyRecorder = recorder
 
+        // ほかのアプリが前面だと macOS が前面にしないことがあるため、ウィンドウだけでも最前面に出す
         NSApp.activate()
         recorder.showWindow(nil)
+        recorder.window?.orderFrontRegardless()
     }
 
     @objc

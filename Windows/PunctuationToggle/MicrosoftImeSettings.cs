@@ -17,20 +17,30 @@ internal static class MicrosoftImeSettings
     private const string KeyPath = @"Software\Microsoft\IME\15.0\IMEJP\MSIME";
     private const string Option1ValueName = "option1";
 
+    /// <exception cref="InvalidDataException">
+    /// 設定時、option1 が DWORD 以外の形式で保存されている場合。
+    /// 既定値から書き込むと IME のほかの設定を変えてしまうおそれがあるため、書き換えない。
+    /// </exception>
     public static PunctuationStyle PunctuationStyle
     {
-        get => MicrosoftImeOption1.GetPunctuationStyle(ReadOption1());
+        get
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(KeyPath);
+            return MicrosoftImeOption1.GetPunctuationStyle(
+                key?.GetValue(Option1ValueName) is int option1 ? option1 : MicrosoftImeOption1.DefaultValue);
+        }
         set
         {
-            var option1 = MicrosoftImeOption1.WithPunctuationStyle(ReadOption1(), value);
             using var key = Registry.CurrentUser.CreateSubKey(KeyPath);
-            key.SetValue(Option1ValueName, option1, RegistryValueKind.DWord);
+            var option1 = key.GetValue(Option1ValueName) switch
+            {
+                // IME の設定を一度も変更していない環境では値が無く、IME は既定値で動いている
+                null => MicrosoftImeOption1.DefaultValue,
+                int dword => dword,
+                _ => throw new InvalidDataException(
+                    $"Microsoft IME の設定値 {Option1ValueName} が想定と異なる形式（{key.GetValueKind(Option1ValueName)}）で保存されています。"),
+            };
+            key.SetValue(Option1ValueName, MicrosoftImeOption1.WithPunctuationStyle(option1, value), RegistryValueKind.DWord);
         }
-    }
-
-    private static int ReadOption1()
-    {
-        using var key = Registry.CurrentUser.OpenSubKey(KeyPath);
-        return key?.GetValue(Option1ValueName) is int option1 ? option1 : MicrosoftImeOption1.DefaultValue;
     }
 }

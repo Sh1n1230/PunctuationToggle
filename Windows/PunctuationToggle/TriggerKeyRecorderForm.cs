@@ -5,7 +5,9 @@ namespace PunctuationToggle;
 /// </summary>
 /// <remarks>
 /// 開いている間は <see cref="HandleInput"/> に入力を渡してもらい、次に押されたキーを新しい切り替えキーとして読み取る。
-/// キー入力は <see cref="KeyboardHook"/> で受け取るので、このウィンドウが前面になくても読み取れる。
+/// キー入力は <see cref="KeyboardHook"/> で受け取る（修飾キーの単独押しや Windows キーはウィンドウのイベントでは扱いにくいため）。
+/// ほかのアプリでの入力を読み取ったり握りつぶしたりしないよう、このウィンドウが前面にある間だけ読み取り、
+/// ほかのウィンドウに切り替えたら設定を中止して閉じる（開いている間は切り替えキーが効かないため、残さない）。
 /// </remarks>
 internal sealed class TriggerKeyRecorderForm : Form
 {
@@ -69,6 +71,7 @@ internal sealed class TriggerKeyRecorderForm : Form
         Controls.Add(layout);
 
         FormClosed += (_, _) => Finish(null);
+        Deactivate += (_, _) => Finish(null);
     }
 
     /// <summary>入力を1つ処理する。true を返した入力はほかのアプリに渡さない。</summary>
@@ -79,7 +82,14 @@ internal sealed class TriggerKeyRecorderForm : Form
             return false;
         }
 
-        var result = capture.Handle(input);
+        // フックはこのウィンドウと同じ UI スレッドで呼ばれるので、ActiveForm をそのまま調べられる
+        var isActive = ActiveForm == this;
+        var result = isActive ? capture.Handle(input) : capture.HandleWhileInactive(input);
+        if (!isActive && input.Kind == KeyboardInputKind.KeyDown)
+        {
+            // Windows がこのウィンドウを前面にしなかった場合に、何も起きないように見えないよう案内する
+            ShowInactiveMessage();
+        }
         switch (result.Outcome)
         {
             case CaptureOutcome.Captured:
@@ -107,6 +117,12 @@ internal sealed class TriggerKeyRecorderForm : Form
             titleFont.Dispose();
         }
         base.Dispose(disposing);
+    }
+
+    private void ShowInactiveMessage()
+    {
+        statusLabel.Text = $"このウィンドウをクリックしてから、キーを押してください。{Environment.NewLine}{InstructionText}";
+        statusLabel.ForeColor = Color.DarkOrange;
     }
 
     private void ShowRejectedMessage(int virtualKey)

@@ -31,7 +31,7 @@
 
 ### 切り替えキーの変更
 
-メニューの「切り替えキーを変更…」を選択し、表示された設定ウィンドウで割り当てたいキーを押します。Esc キーで変更を中止でき、「初期設定に戻す」ボタンで初期キー（macOS は右 Command、Windows は右 Ctrl）に復帰します。
+メニューの「切り替えキーを変更…」を選択し、表示された設定ウィンドウで割り当てたいキーを押します（キーを読み取るのは設定ウィンドウが前面にある間だけです。ほかのアプリに切り替えると、変更は中止されて設定ウィンドウが閉じます）。Esc キーで変更を中止でき、「初期設定に戻す」ボタンで初期キー（macOS は右 Command、Windows は右 Ctrl）に復帰します。
 
 | キー分類 | macOS | Windows | 動作の特性 |
 |---|---|---|---|
@@ -97,7 +97,10 @@ rm -rf Windows  # Windows 版のため不要
 
 ### Windows
 
-[Releases](https://github.com/Sh1n1230/PunctuationToggle/releases) から、利用環境に合致するアーカイブ（64bit 環境は `win-x64`、Arm 版 Windows は `win-arm64`）をダウンロードし、任意のフォルダーに展開して `PunctuationToggle.exe` を起動します。自己完結型（Self-Contained）バイナリとして出力しているため、.NET ランタイムの事前導入や管理者権限の付与は不要です。
+[Releases](https://github.com/Sh1n1230/PunctuationToggle/releases) から、利用環境に合致するアーカイブ（64bit 環境は `win-x64`、Arm 版 Windows は `win-arm64`）をダウンロードし、本ツール専用のフォルダー（例: `%LOCALAPPDATA%\Programs\PunctuationToggle`）に展開して `PunctuationToggle.exe` を起動します。自己完結型（Self-Contained）バイナリとして出力しているため、.NET ランタイムの事前導入や管理者権限の付与は不要です。
+
+> [!IMPORTANT]
+> 「ダウンロード」フォルダーやデスクトップなど、ほかのファイルと混在するフォルダーで直接起動しないでください。Windows は exe と同じフォルダーにある DLL を優先して読み込むため、同じフォルダーに悪意のある DLL（`version.dll` など）が置かれていると、キー入力を監視する本ツールのプロセスに読み込まれるおそれがあります。「ログイン時に起動」も、起動した場所の exe を登録します。
 
 > [!NOTE]
 > コード署名証明書による署名を行っていないため、初回起動時に Microsoft Defender SmartScreen による警告が表示される場合があります。[ダウンロードしたファイルの確認](#ダウンロードしたファイルの確認)を済ませたうえで、「詳細情報」をクリックし、「実行」を選択してください。

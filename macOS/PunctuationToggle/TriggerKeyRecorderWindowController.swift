@@ -3,7 +3,13 @@ import AppKit
 /// 切り替えキーを設定するウィンドウ。
 ///
 /// 開いている間は `handle(_:)` に入力を渡してもらい、次に押されたキーを新しい切り替えキーとして読み取る。
-/// キー入力は `KeyboardMonitor` で受け取るので、このウィンドウが前面になくても読み取れる。
+/// キー入力は `KeyboardMonitor` で受け取る（修飾キーの単独押しはウィンドウのイベントでは扱いにくいため）。
+/// ほかのアプリでの入力を読み取ったり握りつぶしたりしないよう、このウィンドウが前面にある間だけ読み取り、
+/// ほかのアプリに切り替えたら設定を中止して閉じる。
+///
+/// 開いている間は切り替えキーが効かないため、ウィンドウは常に見えるようにしておく。
+/// ほかのアプリが前面のときにメニューから開くと、macOS がこのアプリを前面にしないことがあるため、
+/// その場合はウィンドウをクリックしてもらうよう案内する。
 final class TriggerKeyRecorderWindowController: NSWindowController, NSWindowDelegate {
     /// 読み取りが終わったときに1度だけ呼ばれる。キャンセルされた場合は nil。
     private let completion: (TriggerKey?) -> Void
@@ -24,11 +30,21 @@ final class TriggerKeyRecorderWindowController: NSWindowController, NSWindowDele
         window.title = "切り替えキーの設定"
         window.isReleasedWhenClosed = false
         window.level = .floating
+        // NSPanel は既定でアプリが前面でない間は隠れる。前面にできなかったときに見えないまま開き続けないよう、常に表示する
+        window.hidesOnDeactivate = false
         super.init(window: window)
         window.delegate = self
 
         buildContent(in: window, currentKey: currentKey)
         window.center()
+
+        // 前面にしてから、ほかのアプリに切り替えた場合は中止する（開いたまま切り替えキーが効かない状態を残さない）
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(applicationDidResignActive),
+            name: NSApplication.didResignActiveNotification,
+            object: nil
+        )
     }
 
     @available(*, unavailable)
@@ -40,7 +56,11 @@ final class TriggerKeyRecorderWindowController: NSWindowController, NSWindowDele
     func handle(_ input: KeyboardInput) -> Bool {
         guard !isFinished else { return false }
 
-        let result = capture.handle(input)
+        let isActive = NSApp.isActive && window?.isKeyWindow == true
+        let result = isActive ? capture.handle(input) : capture.handleWhileInactive(input)
+        if !isActive, case .keyDown = input {
+            showInactiveMessage()
+        }
         switch result.outcome {
         case .waiting:
             break
@@ -97,6 +117,11 @@ final class TriggerKeyRecorderWindowController: NSWindowController, NSWindowDele
         ほかに F1〜F20、英数、かな が使えます。Esc でキャンセルします。
         """
 
+    private func showInactiveMessage() {
+        statusLabel.stringValue = "このウィンドウをクリックしてから、キーを押してください。\n" + Self.instructionText
+        statusLabel.textColor = .systemOrange
+    }
+
     private func showRejectedMessage(keyCode: UInt16) {
         statusLabel.stringValue = "そのキー（キーコード \(keyCode)）は使えません。\n" + Self.instructionText
         statusLabel.textColor = .systemRed
@@ -105,6 +130,11 @@ final class TriggerKeyRecorderWindowController: NSWindowController, NSWindowDele
     @objc
     private func resetToDefault() {
         finish(with: .defaultKey)
+    }
+
+    @objc
+    private func applicationDidResignActive(_ notification: Notification) {
+        finish(with: nil)
     }
 
     @objc

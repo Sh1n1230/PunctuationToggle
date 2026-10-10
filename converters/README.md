@@ -30,10 +30,10 @@ python3 punctuation_converter.py --reverse < 提出用.txt > 原稿.txt  # 「�
 | Python | `punctuation_converter.py` | 不要 | `python3 punctuation_converter.py` |
 | Rust | `punctuation_converter.rs` | `make rust` | `bin/punctuation_converter_rust` |
 
-読み込みの方法は言語ごとに、その言語で自然な書き方を選んでいます。
+どの実装も、改行の無い巨大な入力でもメモリを使い切らないよう、入力を一定の量ずつ読みます。置換する文字はどれも1文字なので、どこで区切っても変換結果は同じです。
 
-- 1行ずつ（改行を含めて）読む: Rust
-- 一定の文字数ずつ読む: C#、Python（置換する文字はどれも1文字なので、どこで区切っても変換結果は同じ）
+- 一定の文字数ずつ読む: C#、Python
+- 一定のバイト数ずつ読む: Rust（UTF-8 の文字の途中で区切らないよう、末尾で切れた文字は次の読み込みに回す）
 
 ### 必要な実装の選定と不要ファイルの整理
 
