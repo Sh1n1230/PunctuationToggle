@@ -57,10 +57,37 @@ jobs:
           name: release-notes
           path: release-notes.md
 
+  # タグ・Windows 版・macOS 版のバージョン番号が食い違ったまま配布しないよう、ビルドの前に確かめる。
+  # Pull Request では、Windows 版と macOS 版のバージョン番号が一致しているかだけを確かめる
+  version:
+    name: バージョン番号を確認
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: タグとバージョン番号を比べる
+        run: |
+          windows_version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Windows/Directory.Build.props)
+          macos_version=$(sed -n 's/.*MARKETING_VERSION = \(.*\);/\1/p' macOS/PunctuationToggle.xcodeproj/project.pbxproj | sort -u)
+          echo "Windows 版: $windows_version"
+          echo "macOS 版: $macos_version"
+          if [ -z "$windows_version" ] || [ "$macos_version" != "$windows_version" ]; then
+            echo "::error::Windows 版（Directory.Build.props の Version）と macOS 版（MARKETING_VERSION）のバージョン番号が一致しません。"
+            exit 1
+          fi
+          if [ "$GITHUB_EVENT_NAME" = push ] && [ "${GITHUB_REF_NAME#v}" != "$windows_version" ]; then
+            echo "::error::タグ（$GITHUB_REF_NAME）とバージョン番号（$windows_version）が一致しません。"
+            exit 1
+          fi
+
   windows:
     name: Windows 版
-    needs: release-notes
-    # Pull Request では release-notes が実行されないので、スキップされても続ける
+    needs: [release-notes, version]
+    # Pull Request では release-notes が実行されないので、スキップされても続ける（version の失敗では止める）
     if: ${{ !failure() && !cancelled() }}
     runs-on: windows-latest
     permissions:
@@ -106,7 +133,7 @@ jobs:
 
   macos:
     name: macOS 版
-    needs: release-notes
+    needs: [release-notes, version]
     if: ${{ !failure() && !cancelled() }}
     runs-on: macos-26
     permissions:
