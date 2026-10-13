@@ -59,6 +59,12 @@ internal static class PunctuationConverter
             Convert(Console.OpenStandardInput(), Console.OpenStandardOutput(), sources, targets);
             return ExitSuccess;
         }
+        catch (DecoderFallbackException)
+        {
+            // ほかの実装と同じく、UTF-8 として正しくない入力は置き換えずにエラーにする
+            WriteUtf8(Console.OpenStandardError(), "入力を UTF-8 として読み込めませんでした。\n");
+            return ExitFailure;
+        }
         catch (IOException exception)
         {
             WriteUtf8(Console.OpenStandardError(), "変換に失敗しました: " + exception.Message + "\n");
@@ -69,10 +75,12 @@ internal static class PunctuationConverter
     // 入力を一定の文字数ずつ読み、変換して書き出す。置換する文字はどれも1文字なので、区切る位置は問わない。
     private static void Convert(Stream input, Stream output, string sources, string targets)
     {
-        // BOM を付け足したり取り除いたりしないよう、BOM なしの UTF-8 として読み書きする
-        var encoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
-        using (var reader = new StreamReader(input, encoding, detectEncodingFromByteOrderMarks: false, bufferSize: BufferSize))
-        using (var writer = new StreamWriter(output, encoding, BufferSize))
+        // BOM を付け足したり取り除いたりしないよう、BOM なしの UTF-8 として読み書きする。
+        // 読み込みでは、正しくないバイト列を U+FFFD に置き換えて出力を黙って変えないよう、例外にする
+        var inputEncoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+        var outputEncoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+        using (var reader = new StreamReader(input, inputEncoding, detectEncodingFromByteOrderMarks: false, bufferSize: BufferSize))
+        using (var writer = new StreamWriter(output, outputEncoding, BufferSize))
         {
             var buffer = new char[BufferSize];
             int length;
