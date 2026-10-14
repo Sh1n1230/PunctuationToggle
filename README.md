@@ -123,7 +123,7 @@ powershell -ExecutionPolicy Bypass -File .\Windows\install.ps1
 本リポジトリには、macOS 版（Swift、`macOS/`）、Windows 版（C#、`Windows/`）、および句読点変換コマンド（Rust・C#・Python、`converters/`）が含まれていますが、各コンポーネントは互いに独立しており依存関係を持ちません。ソースコードからビルドして利用する際は、不要なフォルダーを削除して管理できます。
 
 - Windows 環境では `macOS/` は不要です（macOS 環境では `Windows/` が不要です）。前述のビルド手順に示すとおり、Windows 環境では PowerShell の `Remove-Item -Recurse -Force macOS`（PowerShell における `rm` は `Remove-Item` のエイリアスであり、`-rf` 引数を解釈しないため）を用いて削除できます。
-- 句読点変換コマンドを利用しない場合は `converters/` ディレクトリ全体を削除できます。利用する場合でも、利用対象とする言語の実装1つ（たとえば Rust を使用する場合は `punctuation_converter.rs` のみ）を残し、他の実装ファイルを削除して差し支えありません（詳細は [使う実装だけを残す](converters/README.md#使う実装だけを残す) を参照してください）。
+- 句読点変換コマンドを利用しない場合は `converters/` ディレクトリ全体を削除できます。利用する場合でも、利用対象とする言語の実装1つ（たとえば Rust を使用する場合は `punctuation_converter.rs` のみ）を残し、他の実装ファイルを削除して差し支えありません（詳細は [必要な実装の選定と不要ファイルの整理](converters/README.md#必要な実装の選定と不要ファイルの整理) を参照してください）。
 
 > [!NOTE]
 > 本リポジトリに対して Pull Request を作成する場合は、ローカル環境における不要コードの削除をコミットに含めないでください。
