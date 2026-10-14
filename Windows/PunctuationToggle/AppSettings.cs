@@ -30,20 +30,24 @@ internal static class AppSettings
         }
     }
 
-    /// <summary>ログイン時に起動するか（HKCU の Run キーに登録する）。</summary>
+    /// <summary>
+    /// ログイン時に起動するか（HKCU の Run キーに登録する）。
+    /// 別の場所の exe が登録されている場合は false（オンにし直すと、今の場所の exe で登録し直す）。
+    /// </summary>
     public static bool LaunchAtLogin
     {
         get
         {
             using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath);
-            return key?.GetValue(RunValueName) is string;
+            return key?.GetValue(RunValueName) is string command
+                && LaunchAtLoginCommand.Launches(command, Application.ExecutablePath);
         }
         set
         {
             using var key = Registry.CurrentUser.CreateSubKey(RunKeyPath);
             if (value)
             {
-                key.SetValue(RunValueName, $"\"{Application.ExecutablePath}\"");
+                key.SetValue(RunValueName, LaunchAtLoginCommand.For(Application.ExecutablePath));
             }
             else
             {
