@@ -96,7 +96,9 @@ internal sealed class TrayApplication : ApplicationContext
         {
             MicrosoftImeSettings.PunctuationStyle = MicrosoftImeSettings.PunctuationStyle.Toggled();
         }
-        catch (InvalidDataException exception)
+        // レジストリのアクセス権が変えられている場合なども、アプリを終了させずに知らせる
+        catch (Exception exception) when (exception is InvalidDataException or UnauthorizedAccessException
+            or System.Security.SecurityException or IOException)
         {
             MessageBox.Show(
                 $"句読点の設定を変更できませんでした。{Environment.NewLine}{exception.Message}",
