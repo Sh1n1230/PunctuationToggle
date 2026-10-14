@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-10-14
+
+Windows 版と変換コマンドの不具合を修正しました。
+
 ### 修正
 
 - Windows 版で、Microsoft IME の設定をレジストリに書き込めなかった場合（アクセス権が変更されている場合など）に、アプリが異常終了していました。警告を表示して動作を続けるようにしました。
@@ -66,7 +70,8 @@ Windows 対応、キー設定のカスタマイズ、既存文書の一括変換
 - 「ログイン時に起動」を設定できます。
 - 再ビルド後もアクセシビリティの許可が有効になるインストールスクリプト（`install.sh`）を用意しました。
 
-[Unreleased]: https://github.com/Sh1n1230/PunctuationToggle/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/Sh1n1230/PunctuationToggle/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/Sh1n1230/PunctuationToggle/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/Sh1n1230/PunctuationToggle/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/Sh1n1230/PunctuationToggle/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Sh1n1230/PunctuationToggle/releases/tag/v1.0.0
