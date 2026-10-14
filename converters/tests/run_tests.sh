@@ -74,6 +74,19 @@ test_implementation() {
     fi
   done
 
+  # UTF-8 として正しくない入力（不正なバイト、末尾で途中までしかない文字）は、置き換えずに終了コード 1 にする
+  local invalid_input="$WORK_DIR/invalid_input"
+  for invalid_bytes in 'a\xff\xe3\x80\x81\n' 'a\xe3\x80'; do
+    # shellcheck disable=SC2059 # 不正なバイト列を作るため、printf の書式として解釈させる
+    printf "$invalid_bytes" > "$invalid_input"
+    local status=0
+    # shellcheck disable=SC2086
+    $command < "$invalid_input" > "$output" 2> "$errors" || status=$?
+    if [[ $status -ne 1 || ! -s $errors ]]; then
+      report_failure "不正な UTF-8 '$invalid_bytes': 終了コード 1 とエラー出力を期待しましたが、終了コードは $status でした"
+    fi
+  done
+
   for arguments in "--unknown" "-r -r" "extra"; do
     local status=0
     # shellcheck disable=SC2086
