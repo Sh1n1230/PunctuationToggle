@@ -25,6 +25,7 @@ internal sealed class TrayApplication : ApplicationContext
     private TriggerKeyRecorderForm? triggerKeyRecorder;
     private Icon? currentIcon;
     private PunctuationStyle? displayedStyle;
+    private int displayedIconSize;
 
     public TrayApplication()
     {
@@ -150,14 +151,17 @@ internal sealed class TrayApplication : ApplicationContext
         usageMenuItem.Text = triggerKey.UsageDescription;
         notifyIcon.Text = $"PunctuationToggle: {style.Symbols()}";
 
-        if (style == displayedStyle)
+        // 表示倍率の変更は、トレイ用のウィンドウが無く WM_DPICHANGED を受け取れないため、設定を読み直すたびに確かめる
+        var iconSize = TrayIconRenderer.CurrentIconSize;
+        if (style == displayedStyle && iconSize == displayedIconSize)
         {
             return;
         }
         displayedStyle = style;
+        displayedIconSize = iconSize;
 
         var previousIcon = currentIcon;
-        currentIcon = TrayIconRenderer.Render(style.Symbols(), AppSettings.IsTaskbarLight);
+        currentIcon = TrayIconRenderer.Render(style.Symbols(), AppSettings.IsTaskbarLight, iconSize);
         notifyIcon.Icon = currentIcon;
         previousIcon?.Dispose();
     }
