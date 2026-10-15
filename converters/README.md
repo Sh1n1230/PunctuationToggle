@@ -44,7 +44,7 @@ python3 punctuation_converter.py --reverse < 提出用.txt > 原稿.txt  # 「�
 | 対象 | ツール |
 |---|---|
 | C#（.NET Native AOT） | [.NET 10 SDK](https://dotnet.microsoft.com/download) 以降と、Native AOT 用のツール（macOS は Xcode Command Line Tools、Linux は clang と zlib、Windows は Visual Studio の「C++ によるデスクトップ開発」） |
-| Python | Python 3.9 以降 |
+| Python | Python 3.10 以降 |
 | Rust | Rust（`rustc`） |
 | ベンチマーク | [hyperfine](https://github.com/sharkdp/hyperfine)（macOS は `brew install hyperfine`、Windows は `winget install sharkdp.hyperfine`） |
 
@@ -58,7 +58,7 @@ make csharp-dotnet        # C#（.NET Native AOT）をビルド（.NET SDK が�
 make test                 # すべての実装をテストする
 ```
 
-`make test`（`tests/run_tests.sh`）は、`tests/cases/` の入力をそれぞれの実装に与え、出力が期待どおりかをバイト単位で比べます。CRLF の改行、最後の行に改行が無い文章、空の入力、BOM や絵文字、読み込みの区切りをまたぐ長い1行、UTF-8 として正しくない入力などを確かめています。ビルドされていない実装は SKIP になります。特定の実装だけを確かめるときは `tests/run_tests.sh rust python` のように指定します。
+`make test`（`tests/run_tests.sh`）は、`tests/cases/` の入力をそれぞれの実装に与え、出力が期待どおりかをバイト単位で比べます。CRLF の改行、最後の行に改行が無い文章、空の入力、BOM や絵文字、読み込みの区切りをまたぐ長い1行、UTF-8 として正しくない入力、書き込めない出力先（`/dev/full` がある Linux のみ）などを確かめています。ビルドされていない実装は SKIP になります。特定の実装だけを確かめるときは `tests/run_tests.sh rust python` のように指定します。
 
 `make clean` で生成物を削除できます。
 

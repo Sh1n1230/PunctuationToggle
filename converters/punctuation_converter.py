@@ -1,6 +1,7 @@
 """標準入力の文章の句読点を「、。」⇔「，．」に変換して、標準出力に書き出す。"""
 
 import io
+import os
 import sys
 
 USAGE = """\
@@ -20,7 +21,9 @@ EXIT_FAILURE = 1
 EXIT_USAGE_ERROR = 2
 
 TO_COMMA_PERIOD = {"、": "，", "。": "．"}
-TO_TOUTEN_KUTEN = {comma_period: touten_kuten for touten_kuten, comma_period in TO_COMMA_PERIOD.items()}
+TO_TOUTEN_KUTEN = {
+    comma_period: touten_kuten for touten_kuten, comma_period in TO_COMMA_PERIOD.items()
+}
 
 # 一度に読み込む文字数
 CHUNK_SIZE = 1 << 16
@@ -56,6 +59,14 @@ def main(arguments: list[str]) -> int:
         writer.flush()
     except UnicodeDecodeError:
         sys.stderr.write("入力を UTF-8 として読み込めませんでした。\n")
+        return EXIT_FAILURE
+    except OSError as error:
+        # 出力先に書き込めない（ディスクがいっぱい、パイプの読み手が先に終了したなど）場合、
+        # 終了時の flush で再び失敗してトレースバックが出ないよう、標準出力を os.devnull に向ける
+        # (https://docs.python.org/3/library/signal.html#note-on-sigpipe)
+        devnull = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(devnull, sys.stdout.fileno())
+        sys.stderr.write(f"変換に失敗しました: {error}\n")
         return EXIT_FAILURE
     return EXIT_SUCCESS
 

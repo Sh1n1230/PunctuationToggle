@@ -140,7 +140,8 @@ struct RegularTriggerTests {
                 == .passThrough
         )
         #expect(
-            detector.handle(.modifierChanged(keyCode: KeyCode.rightCommand, isPressed: false, otherModifiersHeld: false))
+            detector.handle(
+                .modifierChanged(keyCode: KeyCode.rightCommand, isPressed: false, otherModifiersHeld: false))
                 == .passThrough
         )
     }

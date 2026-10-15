@@ -87,6 +87,17 @@ test_implementation() {
     fi
   done
 
+  # 書き込めない出力先では、トレースバックなどではなくエラーメッセージを表示して終了コード 1 にする。
+  # 書き込むと必ず失敗する /dev/full は Linux にしか無いため、ほかの OS では確かめない
+  if [[ -w /dev/full ]]; then
+    local status=0
+    # shellcheck disable=SC2086
+    $command < "$WORK_DIR/cases/long_line/input.txt" > /dev/full 2> "$errors" || status=$?
+    if [[ $status -ne 1 ]] || ! grep -q "^変換に失敗しました: " "$errors"; then
+      report_failure "書き込めない出力先: 終了コード 1 とエラーメッセージを期待しましたが、終了コードは $status でした: $(head -c 200 "$errors")"
+    fi
+  fi
+
   for arguments in "--unknown" "-r -r" "extra"; do
     local status=0
     # shellcheck disable=SC2086
