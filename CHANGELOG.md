@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-15
+
+Windows 版のタスクトレイのアイコンが、macOS 版と同じく句読点の2文字を、表示倍率に合った大きさで表示するようになりました。あわせて、変換コマンドの Python 実装の不具合を修正し、対応する最も古い Python の版を 3.10 に上げました。
+
 ### 変更
 
 - Windows 版のタスクトレイのアイコンを、表示倍率に合った大きさ（100% で 16×16 ピクセルなど）で描くようにしました。これまでは 32×32 ピクセルで描いたものを縮小して表示していたため、句読点の点がにじんで見分けにくいことがありました。
@@ -80,7 +84,8 @@ Windows 対応、キー設定のカスタマイズ、既存文書の一括変換
 - 「ログイン時に起動」を設定できます。
 - 再ビルド後もアクセシビリティの許可が有効になるインストールスクリプト（`install.sh`）を用意しました。
 
-[Unreleased]: https://github.com/Sh1n1230/PunctuationToggle/compare/v1.2.1...HEAD
+[Unreleased]: https://github.com/Sh1n1230/PunctuationToggle/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/Sh1n1230/PunctuationToggle/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/Sh1n1230/PunctuationToggle/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/Sh1n1230/PunctuationToggle/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/Sh1n1230/PunctuationToggle/compare/v1.0.0...v1.1.0
