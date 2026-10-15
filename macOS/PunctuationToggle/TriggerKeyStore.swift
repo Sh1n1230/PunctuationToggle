@@ -8,8 +8,8 @@ enum TriggerKeyStore {
         get {
             let defaults = UserDefaults.standard
             guard defaults.object(forKey: keyCodeDefaultsKey) != nil,
-                  let keyCode = UInt16(exactly: defaults.integer(forKey: keyCodeDefaultsKey)),
-                  let key = TriggerKey(keyCode: keyCode)
+                let keyCode = UInt16(exactly: defaults.integer(forKey: keyCodeDefaultsKey)),
+                let key = TriggerKey(keyCode: keyCode)
             else {
                 return .defaultKey
             }

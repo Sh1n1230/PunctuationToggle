@@ -22,6 +22,11 @@ jobs:
         working-directory: macOS
         run: swift test
 
+      # 設定は macOS/.swift-format
+      - name: コーディング規約（swift format）
+        working-directory: macOS
+        run: swift format lint --strict -r Package.swift PunctuationToggle Scripts Tests
+
       - name: ビルド
         working-directory: macOS
         run: >
@@ -99,3 +104,44 @@ jobs:
 
       - name: テスト
         run: REQUIRE_ALL=1 make test
+
+  # CONTRIBUTING の「コーディング規約」に合っているかを確かめる。
+  # Swift は Xcode のツールチェーンに同梱の swift format を使うため、macOS アプリのジョブで確かめる
+  lint:
+    name: コーディング規約
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+
+      # ruff と ShellCheck は、版と sha256 を固定して導入する
+      - name: ツールの導入
+        run: pip install --require-hashes --no-deps -r .github/lint/requirements.txt
+
+      - name: Rust（rustfmt・Clippy）
+        run: |
+          rustfmt --version
+          rustfmt --check --edition 2021 converters/punctuation_converter.rs
+          clippy-driver --edition 2021 -D warnings -o "$RUNNER_TEMP/punctuation_converter" converters/punctuation_converter.rs
+
+      - name: Python（ruff）
+        run: |
+          ruff check converters
+          ruff format --check --diff converters
+
+      - name: シェルスクリプト（ShellCheck）
+        run: git ls-files -z '*.sh' | xargs -0 shellcheck
+
+      - name: C#（dotnet format）
+        run: |
+          dotnet format Windows/PunctuationToggle.sln --verify-no-changes
+          dotnet format converters/dotnet/PunctuationConverter.csproj --verify-no-changes

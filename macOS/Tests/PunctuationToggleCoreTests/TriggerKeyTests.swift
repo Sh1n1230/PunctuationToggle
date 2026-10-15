@@ -10,13 +10,15 @@ struct TriggerKeyTests {
         #expect(TriggerKey.defaultKey.isModifier)
     }
 
-    @Test("文字キー・Esc・Caps Lock は切り替えキーにできない", arguments: [
-        UInt16(0),  // A
-        49,         // Space
-        36,         // Return
-        KeyCode.escape,
-        KeyCode.capsLock,
-    ])
+    @Test(
+        "文字キー・Esc・Caps Lock は切り替えキーにできない",
+        arguments: [
+            UInt16(0),  // A
+            49,  // Space
+            36,  // Return
+            KeyCode.escape,
+            KeyCode.capsLock,
+        ])
     func unsupportedKeys(keyCode: UInt16) {
         #expect(TriggerKey(keyCode: keyCode) == nil)
     }

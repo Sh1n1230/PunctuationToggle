@@ -11,6 +11,18 @@ updates:
     cooldown:
       default-days: 7
 
+  # CI の「コーディング規約」ジョブで使うツール（ruff・ShellCheck）
+  - package-ecosystem: pip
+    directory: /.github/lint
+    schedule:
+      interval: weekly
+    # 公開直後の版は、乗っ取りや不具合で取り下げられることがあるため、7日待ってから提案させる
+    cooldown:
+      default-days: 7
+    groups:
+      lint-tools:
+        patterns: ["*"]
+
   # Windows 版のテストで使う NuGet パッケージ
   - package-ecosystem: nuget
     directory: /Windows
