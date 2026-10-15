@@ -41,7 +41,7 @@ struct TriggerKeyDetector: Sendable {
     private mutating func handleWithModifierTrigger(_ input: KeyboardInput) -> InputDecision {
         switch input {
         case let .modifierChanged(keyCode, isPressed, otherModifiersHeld)
-            where keyCode == triggerKey.keyCode:
+        where keyCode == triggerKey.keyCode:
             if isPressed {
                 isTriggerModifierHeld = true
                 // Shift を押したまま右Command を押した場合なども、単独押しとはみなさない

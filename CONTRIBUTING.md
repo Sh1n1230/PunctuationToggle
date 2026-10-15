@@ -79,6 +79,32 @@ make test
 - Windows 版は `TreatWarningsAsErrors` と .NET のコード分析（`AnalysisLevel=latest-recommended`）を有効にしています。警告が出ない状態を保ってください。
 - 変換コマンドは、すべての言語で同じ仕様（オプション、終了コード、入出力をバイト単位で保つこと）を守ります。仕様を変えるときはすべての実装と `tests/cases/` を同時に更新します。
 
+### 書式の確認
+
+書式と静的解析は CI（「コーディング規約」ジョブと、macOS アプリのジョブ）で確かめています。Pull Request を送る前に、手元でも次のコマンドで確かめてください。ruff と ShellCheck は、CI と同じ版を `.github/lint/requirements.txt` から導入できます（`pip install --require-hashes --no-deps -r .github/lint/requirements.txt`）。
+
+```sh
+# Swift（Xcode に同梱の swift format。設定は macOS/.swift-format）
+(cd macOS && swift format lint --strict -r Package.swift PunctuationToggle Scripts Tests)
+
+# C#
+dotnet format Windows/PunctuationToggle.sln --verify-no-changes
+dotnet format converters/dotnet/PunctuationConverter.csproj --verify-no-changes
+
+# Rust
+rustfmt --check --edition 2021 converters/punctuation_converter.rs
+clippy-driver --edition 2021 -D warnings -o /tmp/punctuation_converter converters/punctuation_converter.rs
+
+# Python
+ruff check converters
+ruff format --check converters
+
+# シェルスクリプト
+git ls-files -z '*.sh' | xargs -0 shellcheck
+```
+
+`--verify-no-changes` や `--check` を外す（Swift は `lint --strict` を `format -i` にする）と、指摘された書式をその場で直せます。
+
 ## リリースの手順
 
 1. `CHANGELOG.md` に新しいバージョンの項目を追加します。

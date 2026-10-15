@@ -73,7 +73,8 @@ struct TriggerKeyCaptureTests {
         let letterA: UInt16 = 0
         let pressed = capture.handleWhileInactive(.keyDown(keyCode: letterA, isRepeat: false, modifiersHeld: false))
         #expect(pressed == .init(outcome: .waiting, shouldSuppress: false))
-        #expect(capture.handleWhileInactive(.keyUp(keyCode: letterA)) == .init(outcome: .waiting, shouldSuppress: false))
+        #expect(
+            capture.handleWhileInactive(.keyUp(keyCode: letterA)) == .init(outcome: .waiting, shouldSuppress: false))
 
         let eisu = capture.handleWhileInactive(.keyDown(keyCode: KeyCode.eisu, isRepeat: false, modifiersHeld: false))
         #expect(eisu == .init(outcome: .waiting, shouldSuppress: false))

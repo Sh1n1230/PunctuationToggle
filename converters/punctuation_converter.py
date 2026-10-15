@@ -21,7 +21,9 @@ EXIT_FAILURE = 1
 EXIT_USAGE_ERROR = 2
 
 TO_COMMA_PERIOD = {"、": "，", "。": "．"}
-TO_TOUTEN_KUTEN = {comma_period: touten_kuten for touten_kuten, comma_period in TO_COMMA_PERIOD.items()}
+TO_TOUTEN_KUTEN = {
+    comma_period: touten_kuten for touten_kuten, comma_period in TO_COMMA_PERIOD.items()
+}
 
 # 一度に読み込む文字数
 CHUNK_SIZE = 1 << 16

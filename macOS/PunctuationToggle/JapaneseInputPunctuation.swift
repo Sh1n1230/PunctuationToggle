@@ -19,7 +19,7 @@ enum JapaneseInputPunctuation {
         CFPreferencesAppSynchronize(preferencesDomain)
         let storedValue = CFPreferencesCopyAppValue(punctuationTypeKey as CFString, preferencesDomain)
         guard let rawValue = storedValue as? Int,
-              let style = PunctuationStyle(rawValue: rawValue)
+            let style = PunctuationStyle(rawValue: rawValue)
         else {
             return .systemDefault
         }
