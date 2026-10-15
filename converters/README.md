@@ -44,7 +44,7 @@ python3 punctuation_converter.py --reverse < 提出用.txt > 原稿.txt  # 「�
 | 対象 | ツール |
 |---|---|
 | C#（.NET Native AOT） | [.NET 10 SDK](https://dotnet.microsoft.com/download) 以降と、Native AOT 用のツール（macOS は Xcode Command Line Tools、Linux は clang と zlib、Windows は Visual Studio の「C++ によるデスクトップ開発」） |
-| Python | Python 3.9 以降 |
+| Python | Python 3.10 以降 |
 | Rust | Rust（`rustc`） |
 | ベンチマーク | [hyperfine](https://github.com/sharkdp/hyperfine)（macOS は `brew install hyperfine`、Windows は `winget install sharkdp.hyperfine`） |
 
