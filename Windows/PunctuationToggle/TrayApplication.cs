@@ -190,8 +190,20 @@ internal sealed class TrayApplication : ApplicationContext
             triggerKeyRecorder = null;
             if (newKey is not null)
             {
-                AppSettings.TriggerKey = newKey;
-                detector.TriggerKey = newKey;
+                // 保存できなかったキーを今回の起動中だけ使うと、再起動で元に戻って分かりにくいため、変更しない。
+                try
+                {
+                    AppSettings.TriggerKey = newKey;
+                    detector.TriggerKey = newKey;
+                }
+                catch (Exception exception) when (exception is UnauthorizedAccessException or System.Security.SecurityException or IOException)
+                {
+                    MessageBox.Show(
+                        $"切り替えキーを保存できませんでした。{Environment.NewLine}{exception.Message}",
+                        "PunctuationToggle",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                }
             }
             UpdateDisplay();
         };
