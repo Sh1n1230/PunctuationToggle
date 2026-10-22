@@ -64,6 +64,63 @@ public class TriggerKeyCaptureTests
     }
 
     [Fact]
+    public void Escを離したときの入力も渡さない()
+    {
+        capture.Handle(KeyboardInput.KeyDown(VirtualKeys.Escape));
+        Assert.Equal(
+            new CaptureResult(CaptureOutcome.Waiting, ShouldSuppress: true),
+            capture.Handle(KeyboardInput.KeyUp(VirtualKeys.Escape)));
+    }
+
+    [Fact]
+    public void ほかのキーと一緒に押した修飾キーは離しても読み取らない()
+    {
+        capture.Handle(KeyboardInput.KeyDown(VirtualKeys.RightControl));
+        capture.Handle(KeyboardInput.KeyDown(VirtualKeys.F1 + 12, otherModifiersHeld: true));
+        Assert.Equal(CaptureOutcome.Waiting, capture.Handle(KeyboardInput.KeyUp(VirtualKeys.RightControl)).Outcome);
+    }
+
+    [Fact]
+    public void 修飾キーと一緒に押したキーも読み取る()
+    {
+        // 修飾キーを押したままでも、修飾キー以外のキーは押したときに読み取る
+        var result = capture.Handle(KeyboardInput.KeyDown(VirtualKeys.NonConvert, otherModifiersHeld: true));
+        Assert.Equal(CaptureOutcome.Captured, result.Outcome);
+        Assert.Equal(VirtualKeys.NonConvert, result.CapturedKey?.VirtualKey);
+        Assert.True(result.ShouldSuppress);
+    }
+
+    [Fact]
+    public void 使えないキーを押したあとも読み取りを続ける()
+    {
+        capture.Handle(KeyboardInput.KeyDown(LetterA));
+        capture.Handle(KeyboardInput.KeyUp(LetterA));
+
+        capture.Handle(KeyboardInput.KeyDown(VirtualKeys.LeftShift));
+        var result = capture.Handle(KeyboardInput.KeyUp(VirtualKeys.LeftShift));
+        Assert.Equal(CaptureOutcome.Captured, result.Outcome);
+        Assert.Equal(VirtualKeys.LeftShift, result.CapturedKey?.VirtualKey);
+    }
+
+    [Fact]
+    public void 離したときの入力を渡さないのは最後に押したキーだけ()
+    {
+        // 2つのキーを続けて押すと、最初のキーを離したときの入力は渡してしまう（現在の仕様）
+        const int LetterS = 0x53;
+        capture.Handle(KeyboardInput.KeyDown(LetterA));
+        capture.Handle(KeyboardInput.KeyDown(LetterS));
+        Assert.False(capture.Handle(KeyboardInput.KeyUp(LetterA)).ShouldSuppress);
+        Assert.True(capture.Handle(KeyboardInput.KeyUp(LetterS)).ShouldSuppress);
+    }
+
+    [Fact]
+    public void 修飾キーは押し下げも離したときの入力も渡す()
+    {
+        Assert.False(capture.Handle(KeyboardInput.KeyDown(VirtualKeys.LeftAlt)).ShouldSuppress);
+        Assert.False(capture.Handle(KeyboardInput.KeyUp(VirtualKeys.LeftAlt)).ShouldSuppress);
+    }
+
+    [Fact]
     public void 押し下げを渡したキーの離したときの入力は渡す()
     {
         Assert.False(capture.Handle(KeyboardInput.KeyUp(LetterA)).ShouldSuppress);

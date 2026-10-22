@@ -87,6 +87,54 @@ public class ModifierTriggerTests
     }
 
     [Fact]
+    public void 押している間にホイールを回したら切り替えない()
+    {
+        // ホイールの操作も KeyboardInput.Mouse になる（KeyboardHook を参照）
+        detector.Handle(KeyboardInput.KeyDown(VirtualKeys.RightControl));
+        detector.Handle(KeyboardInput.Mouse);
+        detector.Handle(KeyboardInput.Mouse);
+        Assert.Equal(InputDecision.PassThrough, detector.Handle(KeyboardInput.KeyUp(VirtualKeys.RightControl)));
+    }
+
+    [Fact]
+    public void 押す前のほかのキーの入力は単独押しの判定に影響しない()
+    {
+        detector.Handle(KeyboardInput.KeyDown(LetterC));
+        detector.Handle(KeyboardInput.KeyUp(LetterC));
+        detector.Handle(KeyboardInput.Mouse);
+        detector.Handle(KeyboardInput.KeyDown(VirtualKeys.RightControl));
+        Assert.True(detector.Handle(KeyboardInput.KeyUp(VirtualKeys.RightControl)).ShouldToggle);
+    }
+
+    [Fact]
+    public void 押している間にほかのキーを離しただけなら切り替える()
+    {
+        // 右Ctrl を押す前から押していた文字キーを、右Ctrl を押している間に離した場合
+        detector.Handle(KeyboardInput.KeyDown(LetterC));
+        detector.Handle(KeyboardInput.KeyDown(VirtualKeys.RightControl));
+        detector.Handle(KeyboardInput.KeyUp(LetterC));
+        Assert.True(detector.Handle(KeyboardInput.KeyUp(VirtualKeys.RightControl)).ShouldToggle);
+    }
+
+    [Fact]
+    public void 押すたびに切り替える()
+    {
+        foreach (var _ in Enumerable.Range(0, 3))
+        {
+            detector.Handle(KeyboardInput.KeyDown(VirtualKeys.RightControl));
+            Assert.True(detector.Handle(KeyboardInput.KeyUp(VirtualKeys.RightControl)).ShouldToggle);
+        }
+    }
+
+    [Fact]
+    public void Windowsキーも単独押しで切り替える()
+    {
+        detector.TriggerKey = TriggerKey.FromVirtualKey(VirtualKeys.LeftWindows)!;
+        detector.Handle(KeyboardInput.KeyDown(VirtualKeys.LeftWindows));
+        Assert.Equal(new InputDecision(ShouldToggle: true), detector.Handle(KeyboardInput.KeyUp(VirtualKeys.LeftWindows)));
+    }
+
+    [Fact]
     public void 修飾キーの入力は常にそのまま渡す()
     {
         KeyboardInput[] inputs =
@@ -161,6 +209,57 @@ public class RegularTriggerTests
         Assert.Equal(InputDecision.PassThrough, detector.Handle(KeyboardInput.KeyDown(VirtualKeys.RightControl)));
         Assert.Equal(InputDecision.PassThrough, detector.Handle(KeyboardInput.KeyUp(VirtualKeys.RightControl)));
         Assert.Equal(InputDecision.PassThrough, detector.Handle(KeyboardInput.Mouse));
+    }
+
+    [Fact]
+    public void 押したまま修飾キーを押しても離したときの入力は渡さない()
+    {
+        detector.Handle(KeyboardInput.KeyDown(VirtualKeys.NonConvert));
+        // 押し下げ中に Ctrl を押すと、以降のリピートには OtherModifiersHeld が付く
+        Assert.Equal(
+            new InputDecision(ShouldSuppress: true),
+            detector.Handle(KeyboardInput.KeyDown(VirtualKeys.NonConvert, isRepeat: true, otherModifiersHeld: true)));
+        Assert.Equal(new InputDecision(ShouldSuppress: true), detector.Handle(KeyboardInput.KeyUp(VirtualKeys.NonConvert)));
+    }
+
+    [Fact]
+    public void 押すたびに切り替える()
+    {
+        foreach (var _ in Enumerable.Range(0, 3))
+        {
+            Assert.True(detector.Handle(KeyboardInput.KeyDown(VirtualKeys.NonConvert)).ShouldToggle);
+            detector.Handle(KeyboardInput.KeyUp(VirtualKeys.NonConvert));
+        }
+    }
+
+    [Fact]
+    public void 切り替えキーを変えると押し下げ中の状態は破棄される()
+    {
+        detector.Handle(KeyboardInput.KeyDown(VirtualKeys.NonConvert));
+        detector.TriggerKey = TriggerKey.FromVirtualKey(F13)!;
+        // 古いキーを離した入力は、もう切り替えキーの入力ではないのでそのまま渡す
+        Assert.Equal(InputDecision.PassThrough, detector.Handle(KeyboardInput.KeyUp(VirtualKeys.NonConvert)));
+        Assert.True(detector.Handle(KeyboardInput.KeyDown(F13)).ShouldToggle);
+    }
+
+    [Fact]
+    public void Resetで押し下げ中の状態を破棄する()
+    {
+        detector.Handle(KeyboardInput.KeyDown(VirtualKeys.NonConvert));
+        detector.Reset();
+        Assert.Equal(InputDecision.PassThrough, detector.Handle(KeyboardInput.KeyUp(VirtualKeys.NonConvert)));
+    }
+
+    // 既知の不具合（LOG.md の提案を参照）: 離した入力を取りこぼすと、次に押したときに1回切り替わらない。
+    // 修飾キーの場合（ModifierTriggerTests の「離した入力を取りこぼしても次の押し下げからやり直す」）は、やり直せる。
+    [Fact(Skip = "既知の不具合: リピートでない押し下げも、押しっぱなしのリピートとして扱われる")]
+    public void 離した入力を取りこぼしても次に押したときは切り替える()
+    {
+        detector.Handle(KeyboardInput.KeyDown(VirtualKeys.NonConvert));
+        // ここで KeyUp が届かなかったとする
+        Assert.Equal(
+            new InputDecision(ShouldToggle: true, ShouldSuppress: true),
+            detector.Handle(KeyboardInput.KeyDown(VirtualKeys.NonConvert)));
     }
 
     [Fact]

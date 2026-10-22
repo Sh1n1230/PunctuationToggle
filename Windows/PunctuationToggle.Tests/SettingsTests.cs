@@ -97,6 +97,46 @@ public class TriggerKeyTests
         Assert.All(VirtualKeys.Modifiers, modifier => Assert.NotNull(TriggerKey.FromVirtualKey(modifier)));
     }
 
+    [Theory]
+    [InlineData(VirtualKeys.Convert)]
+    [InlineData(VirtualKeys.NonConvert)]
+    [InlineData(VirtualKeys.Applications)]
+    [InlineData(VirtualKeys.Pause)]
+    [InlineData(VirtualKeys.ScrollLock)]
+    [InlineData(VirtualKeys.F1)]
+    [InlineData(VirtualKeys.F1 + VirtualKeys.FunctionKeyCount - 1)]
+    public void 修飾キー以外のキー(int virtualKey)
+    {
+        var key = TriggerKey.FromVirtualKey(virtualKey);
+        Assert.NotNull(key);
+        Assert.False(key.IsModifier);
+        Assert.Equal(virtualKey, key.VirtualKey);
+    }
+
+    [Fact]
+    public void 選べるキーは修飾キー8個とそれ以外の5個とF1からF24()
+    {
+        Assert.Equal(VirtualKeys.Modifiers.Count + 5 + VirtualKeys.FunctionKeyCount, TriggerKey.SupportedKeys.Count);
+    }
+
+    [Theory]
+    [InlineData(0x10)] // VK_SHIFT（左右を区別しない）
+    [InlineData(0x11)] // VK_CONTROL
+    [InlineData(0x12)] // VK_MENU
+    public void 左右を区別しない修飾キーは選べない(int virtualKey)
+    {
+        // 低レベルフックは左右を区別した仮想キーコードを渡すので、区別しないコードでは判定できない
+        Assert.Null(TriggerKey.FromVirtualKey(virtualKey));
+        Assert.False(VirtualKeys.IsModifier(virtualKey));
+    }
+
+    [Fact]
+    public void 同じ仮想キーコードのキーは等しい()
+    {
+        Assert.Equal(TriggerKey.RightControl, TriggerKey.FromVirtualKey(VirtualKeys.RightControl));
+        Assert.NotEqual(TriggerKey.RightControl, TriggerKey.FromVirtualKey(VirtualKeys.LeftControl));
+    }
+
     [Fact]
     public void 操作の説明()
     {
