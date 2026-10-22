@@ -42,6 +42,43 @@ struct TriggerKeyTests {
         }
     }
 
+    @Test("修飾キーのキーコードから種類を求められ、Caps Lock や修飾キー以外は nil になる")
+    func modifierFromKeyCode() {
+        for (keyCode, info) in TriggerKey.supportedKeys {
+            #expect(TriggerKey.Modifier(keyCode: keyCode) == info.modifier)
+        }
+        #expect(TriggerKey.Modifier(keyCode: KeyCode.capsLock) == nil)
+        #expect(TriggerKey.Modifier(keyCode: KeyCode.escape) == nil)
+        #expect(TriggerKey.Modifier(keyCode: 0) == nil)
+    }
+
+    @Test("すべての修飾キーのビットを合わせた値")
+    func allFlagMasks() {
+        #expect(TriggerKey.Modifier.allFlagMasks.nonzeroBitCount == TriggerKey.Modifier.allCases.count)
+        for modifier in TriggerKey.Modifier.allCases {
+            #expect(TriggerKey.Modifier.allFlagMasks & modifier.flagMask == modifier.flagMask)
+        }
+    }
+
+    @Test("修飾キーかどうか", arguments: [KeyCode.eisu, KeyCode.kana] + KeyCode.functionKeys)
+    func nonModifierKeys(keyCode: UInt16) {
+        let key = TriggerKey(keyCode: keyCode)
+        #expect(key != nil)
+        #expect(key?.isModifier == false)
+        #expect(key?.modifier == nil)
+    }
+
+    @Test("選べるキーは修飾キー9個・英数・かな・F1〜F20")
+    func supportedKeyCount() {
+        #expect(TriggerKey.supportedKeys.count == TriggerKey.Modifier.allCases.count + 2 + 20)
+    }
+
+    @Test("同じキーコードのキーは等しい")
+    func equality() {
+        #expect(TriggerKey(keyCode: KeyCode.rightCommand) == TriggerKey.rightCommand)
+        #expect(TriggerKey(keyCode: KeyCode.leftCommand) != TriggerKey.rightCommand)
+    }
+
     @Test("操作の説明")
     func usageDescription() {
         #expect(TriggerKey.rightCommand.usageDescription == "右Commandを単独で押すと切り替え")
@@ -58,6 +95,16 @@ struct PunctuationStyleTests {
         #expect(PunctuationStyle(rawValue: 2)?.symbols == "、．")
         #expect(PunctuationStyle(rawValue: 3)?.symbols == "，．")
         #expect(PunctuationStyle(rawValue: 4) == nil)
+    }
+
+    @Test("設定が無いときは「、。」とみなす")
+    func systemDefault() {
+        #expect(PunctuationStyle.systemDefault == .toutenKuten)
+    }
+
+    @Test("どの設定からも2回切り替えると「，．」か「、。」に落ち着く", arguments: PunctuationStyle.allCases)
+    func toggledTwice(style: PunctuationStyle) {
+        #expect([.toutenKuten, .commaPeriod].contains(style.toggled.toggled))
     }
 
     @Test("「、。」と「，．」を行き来する")

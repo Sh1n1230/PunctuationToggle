@@ -63,6 +63,66 @@ struct TriggerKeyCaptureTests {
         #expect(result == .init(outcome: .cancelled, shouldSuppress: true))
     }
 
+    @Test("Esc を離したときの入力も渡さない")
+    mutating func escapeKeyUp() {
+        _ = capture.handle(.keyDown(keyCode: KeyCode.escape, isRepeat: false, modifiersHeld: false))
+        #expect(capture.handle(.keyUp(keyCode: KeyCode.escape)) == .init(outcome: .waiting, shouldSuppress: true))
+    }
+
+    @Test("ほかのキーと一緒に押した修飾キーは、離しても読み取らない")
+    mutating func modifierWithKey() {
+        _ = capture.handle(.modifierChanged(keyCode: KeyCode.rightCommand, isPressed: true, otherModifiersHeld: false))
+        _ = capture.handle(.keyDown(keyCode: KeyCode.functionKeys[12], isRepeat: false, modifiersHeld: true))
+        #expect(
+            capture.handle(.modifierChanged(keyCode: KeyCode.rightCommand, isPressed: false, otherModifiersHeld: false))
+                .outcome == .waiting
+        )
+    }
+
+    @Test("修飾キーと一緒に押したキーも読み取る")
+    mutating func regularKeyWithModifier() {
+        // 修飾キーを押したままでも、修飾キー以外のキーは押したときに読み取る
+        let f13 = KeyCode.functionKeys[12]
+        let result = capture.handle(.keyDown(keyCode: f13, isRepeat: false, modifiersHeld: true))
+        #expect(result == .init(outcome: .captured(TriggerKey(keyCode: f13)!), shouldSuppress: true))
+    }
+
+    @Test("使えないキーを押したあとも読み取りを続ける")
+    mutating func continuesAfterRejection() {
+        let letterA: UInt16 = 0
+        _ = capture.handle(.keyDown(keyCode: letterA, isRepeat: false, modifiersHeld: false))
+        _ = capture.handle(.keyUp(keyCode: letterA))
+
+        _ = capture.handle(.modifierChanged(keyCode: KeyCode.leftShift, isPressed: true, otherModifiersHeld: false))
+        let released = capture.handle(
+            .modifierChanged(keyCode: KeyCode.leftShift, isPressed: false, otherModifiersHeld: false)
+        )
+        #expect(released.outcome == .captured(TriggerKey(keyCode: KeyCode.leftShift)!))
+    }
+
+    @Test("離したときの入力を渡さないのは、最後に押したキーだけ")
+    mutating func onlyLastKeyUpSuppressed() {
+        // 2つのキーを続けて押すと、最初のキーを離したときの入力は渡してしまう（現在の仕様）
+        let letterA: UInt16 = 0
+        let letterS: UInt16 = 1
+        _ = capture.handle(.keyDown(keyCode: letterA, isRepeat: false, modifiersHeld: false))
+        _ = capture.handle(.keyDown(keyCode: letterS, isRepeat: false, modifiersHeld: false))
+        #expect(!capture.handle(.keyUp(keyCode: letterA)).shouldSuppress)
+        #expect(capture.handle(.keyUp(keyCode: letterS)).shouldSuppress)
+    }
+
+    @Test("修飾キーは押し下げも離したときの入力も渡す")
+    mutating func modifierNeverSuppressed() {
+        let pressed = capture.handle(
+            .modifierChanged(keyCode: KeyCode.leftOption, isPressed: true, otherModifiersHeld: false)
+        )
+        let released = capture.handle(
+            .modifierChanged(keyCode: KeyCode.leftOption, isPressed: false, otherModifiersHeld: false)
+        )
+        #expect(!pressed.shouldSuppress)
+        #expect(!released.shouldSuppress)
+    }
+
     @Test("押し下げを渡したキーの、離したときの入力は渡す")
     mutating func unrelatedKeyUp() {
         #expect(!capture.handle(.keyUp(keyCode: 0)).shouldSuppress)
