@@ -72,6 +72,50 @@ struct ModifierTriggerTests {
         #expect(!detector.handle(release(KeyCode.rightCommand)).shouldToggle)
     }
 
+    @Test("離した入力を取りこぼしても次の押し下げからやり直す")
+    mutating func missedRelease() {
+        // イベントタップが一時的に無効になった場合などで、離した入力が届かなかった場合
+        _ = detector.handle(press(KeyCode.rightCommand))
+        _ = detector.handle(.keyDown(keyCode: 8, isRepeat: false, modifiersHeld: true))
+
+        _ = detector.handle(press(KeyCode.rightCommand))
+        #expect(detector.handle(release(KeyCode.rightCommand)).shouldToggle)
+    }
+
+    @Test("押している間にスクロールしたら切り替えない")
+    mutating func withScroll() {
+        // スクロールも KeyboardInput.mouse になる（KeyboardMonitor を参照）
+        _ = detector.handle(press(KeyCode.rightCommand))
+        _ = detector.handle(.mouse)
+        _ = detector.handle(.mouse)
+        #expect(detector.handle(release(KeyCode.rightCommand)) == .passThrough)
+    }
+
+    @Test("押す前のほかのキーの入力は、単独押しの判定に影響しない")
+    mutating func inputsBeforePress() {
+        _ = detector.handle(.keyDown(keyCode: 0, isRepeat: false, modifiersHeld: false))
+        _ = detector.handle(.keyUp(keyCode: 0))
+        _ = detector.handle(.mouse)
+        _ = detector.handle(press(KeyCode.rightCommand))
+        #expect(detector.handle(release(KeyCode.rightCommand)).shouldToggle)
+    }
+
+    @Test("押している間にほかのキーを離しただけなら切り替える")
+    mutating func keyUpWhileHeld() {
+        // 右Command を押す前から押していた文字キーを、右Command を押している間に離した場合
+        _ = detector.handle(.keyDown(keyCode: 0, isRepeat: false, modifiersHeld: false))
+        _ = detector.handle(press(KeyCode.rightCommand))
+        _ = detector.handle(.keyUp(keyCode: 0))
+        #expect(detector.handle(release(KeyCode.rightCommand)).shouldToggle)
+    }
+
+    @Test("fn キーも単独押しで切り替える")
+    mutating func functionModifier() {
+        detector.triggerKey = TriggerKey(keyCode: KeyCode.function)!
+        _ = detector.handle(press(KeyCode.function))
+        #expect(detector.handle(release(KeyCode.function)).shouldToggle)
+    }
+
     @Test("修飾キーの入力は渡さないことがない")
     mutating func neverSuppresses() {
         let inputs: [KeyboardInput] = [
@@ -144,6 +188,54 @@ struct RegularTriggerTests {
                 .modifierChanged(keyCode: KeyCode.rightCommand, isPressed: false, otherModifiersHeld: false))
                 == .passThrough
         )
+        #expect(detector.handle(.mouse) == .passThrough)
+    }
+
+    @Test("押したまま修飾キーを押しても、離したときの入力は渡さない")
+    mutating func modifierPressedWhileHeld() {
+        _ = detector.handle(.keyDown(keyCode: Self.f13, isRepeat: false, modifiersHeld: false))
+        // 押し下げ中に Command を押すと、以降のリピートには modifiersHeld が付く
+        #expect(
+            detector.handle(.keyDown(keyCode: Self.f13, isRepeat: true, modifiersHeld: true))
+                == InputDecision(shouldSuppress: true)
+        )
+        #expect(detector.handle(.keyUp(keyCode: Self.f13)) == InputDecision(shouldSuppress: true))
+    }
+
+    @Test("押すたびに切り替える")
+    mutating func repeatedPresses() {
+        for _ in 0..<3 {
+            #expect(detector.handle(.keyDown(keyCode: Self.f13, isRepeat: false, modifiersHeld: false)).shouldToggle)
+            _ = detector.handle(.keyUp(keyCode: Self.f13))
+        }
+    }
+
+    @Test("切り替えキーを変えると、押し下げ中の状態は破棄される")
+    mutating func changingTriggerKeyResetsState() {
+        _ = detector.handle(.keyDown(keyCode: Self.f13, isRepeat: false, modifiersHeld: false))
+        detector.triggerKey = TriggerKey(keyCode: KeyCode.eisu)!
+        // 古いキーを離した入力は、もう切り替えキーの入力ではないのでそのまま渡す
+        #expect(detector.handle(.keyUp(keyCode: Self.f13)) == .passThrough)
+        #expect(detector.handle(.keyDown(keyCode: KeyCode.eisu, isRepeat: false, modifiersHeld: false)).shouldToggle)
+    }
+
+    @Test("reset() で押し下げ中の状態を破棄する")
+    mutating func resetClearsSuppression() {
+        _ = detector.handle(.keyDown(keyCode: Self.f13, isRepeat: false, modifiersHeld: false))
+        detector.reset()
+        #expect(detector.handle(.keyUp(keyCode: Self.f13)) == .passThrough)
+    }
+
+    // 既知の不具合（LOG.md の提案を参照）: 離した入力を取りこぼすと、次に押したときに1回切り替わらない。
+    // 修飾キーの場合（ModifierTriggerTests.missedRelease）は次の押し下げからやり直せる。
+    @Test("離した入力を取りこぼしても、次に押したときは切り替える")
+    mutating func missedRelease() {
+        _ = detector.handle(.keyDown(keyCode: Self.f13, isRepeat: false, modifiersHeld: false))
+        // ここで keyUp が届かなかったとする
+        let nextPress = detector.handle(.keyDown(keyCode: Self.f13, isRepeat: false, modifiersHeld: false))
+        withKnownIssue("リピートでない押し下げも、押しっぱなしのリピートとして扱われる") {
+            #expect(nextPress == InputDecision(shouldToggle: true, shouldSuppress: true))
+        }
     }
 
     @Test("起動前から押されていたキーのリピートでは切り替えない")
