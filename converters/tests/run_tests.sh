@@ -74,9 +74,10 @@ test_implementation() {
     fi
   done
 
-  # UTF-8 として正しくない入力（不正なバイト、末尾で途中までしかない文字）は、置き換えずに終了コード 1 にする
+  # UTF-8 として正しくない入力（不正なバイト、末尾で途中までしかない文字、先頭バイトの無い継続バイト、
+  # 冗長な符号化、サロゲートの符号化、U+10FFFF を超える符号位置）は、置き換えずに終了コード 1 にする
   local invalid_input="$WORK_DIR/invalid_input"
-  for invalid_bytes in 'a\xff\xe3\x80\x81\n' 'a\xe3\x80'; do
+  for invalid_bytes in 'a\xff\xe3\x80\x81\n' 'a\xe3\x80' '\x80' '\xc0\xaf' '\xed\xa0\x80' '\xf4\x90\x80\x80'; do
     # shellcheck disable=SC2059 # 不正なバイト列を作るため、printf の書式として解釈させる
     printf "$invalid_bytes" > "$invalid_input"
     local status=0
@@ -98,7 +99,8 @@ test_implementation() {
     fi
   fi
 
-  for arguments in "--unknown" "-r -r" "extra"; do
+  # オプションは1つだけ受け付け、大文字小文字の違いや "--"・"-" も不正な引数とする
+  for arguments in "--unknown" "-r -r" "extra" "-h -r" "--reverse --help" "-R" "--" "-"; do
     local status=0
     # shellcheck disable=SC2086
     $command $arguments < /dev/null > "$output" 2> "$errors" || status=$?
