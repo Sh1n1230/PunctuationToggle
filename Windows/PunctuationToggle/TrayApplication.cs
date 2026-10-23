@@ -98,8 +98,7 @@ internal sealed class TrayApplication : ApplicationContext
             MicrosoftImeSettings.PunctuationStyle = MicrosoftImeSettings.PunctuationStyle.Toggled();
         }
         // レジストリのアクセス権が変えられている場合なども、アプリを終了させずに知らせる
-        catch (Exception exception) when (exception is InvalidDataException or UnauthorizedAccessException
-            or System.Security.SecurityException or IOException)
+        catch (Exception exception) when (exception is InvalidDataException || RegistryErrors.IsAccessFailure(exception))
         {
             MessageBox.Show(
                 $"句読点の設定を変更できませんでした。{Environment.NewLine}{exception.Message}",
@@ -196,7 +195,7 @@ internal sealed class TrayApplication : ApplicationContext
                     AppSettings.TriggerKey = newKey;
                     detector.TriggerKey = newKey;
                 }
-                catch (Exception exception) when (exception is UnauthorizedAccessException or System.Security.SecurityException or IOException)
+                catch (Exception exception) when (RegistryErrors.IsAccessFailure(exception))
                 {
                     MessageBox.Show(
                         $"切り替えキーを保存できませんでした。{Environment.NewLine}{exception.Message}",
@@ -218,7 +217,7 @@ internal sealed class TrayApplication : ApplicationContext
         {
             AppSettings.LaunchAtLogin = !AppSettings.LaunchAtLogin;
         }
-        catch (Exception exception) when (exception is UnauthorizedAccessException or System.Security.SecurityException or IOException)
+        catch (Exception exception) when (RegistryErrors.IsAccessFailure(exception))
         {
             MessageBox.Show(
                 $"「ログイン時に起動」を変更できませんでした。{Environment.NewLine}{exception.Message}",

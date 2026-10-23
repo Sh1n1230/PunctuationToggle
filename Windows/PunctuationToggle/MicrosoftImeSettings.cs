@@ -25,9 +25,19 @@ internal static class MicrosoftImeSettings
     {
         get
         {
-            using var key = Registry.CurrentUser.OpenSubKey(KeyPath);
-            return MicrosoftImeOption1.GetPunctuationStyle(
-                key?.GetValue(Option1ValueName) is int option1 ? option1 : MicrosoftImeOption1.DefaultValue);
+            try
+            {
+                using var key = Registry.CurrentUser.OpenSubKey(KeyPath);
+                return MicrosoftImeOption1.GetPunctuationStyle(
+                    key?.GetValue(Option1ValueName) is int option1 ? option1 : MicrosoftImeOption1.DefaultValue);
+            }
+            // 表示を更新するたびに読むため、読み込めなくても異常終了させない。
+            // IME も同じユーザーとして読むので、読み込めない場合は値が無い場合と同じく既定値で動いていると考えられる。
+            // 書き込み（set）は自分で option1 を読み直し、読み込めなければ例外にするので、ほかのビットを既定値で上書きすることはない
+            catch (Exception exception) when (RegistryErrors.IsAccessFailure(exception))
+            {
+                return MicrosoftImeOption1.GetPunctuationStyle(MicrosoftImeOption1.DefaultValue);
+            }
         }
         set
         {
