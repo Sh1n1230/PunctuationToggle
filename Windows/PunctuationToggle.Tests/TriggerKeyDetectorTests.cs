@@ -250,16 +250,25 @@ public class RegularTriggerTests
         Assert.Equal(InputDecision.PassThrough, detector.Handle(KeyboardInput.KeyUp(VirtualKeys.NonConvert)));
     }
 
-    // 既知の不具合（LOG.md の提案を参照）: 離した入力を取りこぼすと、次に押したときに1回切り替わらない。
-    // 修飾キーの場合（ModifierTriggerTests の「離した入力を取りこぼしても次の押し下げからやり直す」）は、やり直せる。
-    [Fact(Skip = "既知の不具合: リピートでない押し下げも、押しっぱなしのリピートとして扱われる")]
+    [Fact]
     public void 離した入力を取りこぼしても次に押したときは切り替える()
     {
+        // フックの処理が遅れて入力を飛ばされた場合などで、離した入力が届かなかった場合
         detector.Handle(KeyboardInput.KeyDown(VirtualKeys.NonConvert));
-        // ここで KeyUp が届かなかったとする
         Assert.Equal(
             new InputDecision(ShouldToggle: true, ShouldSuppress: true),
             detector.Handle(KeyboardInput.KeyDown(VirtualKeys.NonConvert)));
+        Assert.Equal(new InputDecision(ShouldSuppress: true), detector.Handle(KeyboardInput.KeyUp(VirtualKeys.NonConvert)));
+    }
+
+    [Fact]
+    public void 離した入力を取りこぼした後に修飾キーと一緒に押した場合は離したときの入力も渡す()
+    {
+        detector.Handle(KeyboardInput.KeyDown(VirtualKeys.NonConvert));
+        Assert.Equal(
+            InputDecision.PassThrough,
+            detector.Handle(KeyboardInput.KeyDown(VirtualKeys.NonConvert, otherModifiersHeld: true)));
+        Assert.Equal(InputDecision.PassThrough, detector.Handle(KeyboardInput.KeyUp(VirtualKeys.NonConvert)));
     }
 
     [Fact]

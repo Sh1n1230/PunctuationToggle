@@ -65,11 +65,14 @@ struct TriggerKeyDetector: Sendable {
     private mutating func handleWithRegularTrigger(_ input: KeyboardInput) -> InputDecision {
         switch input {
         case let .keyDown(keyCode, isRepeat, modifiersHeld) where keyCode == triggerKey.keyCode:
-            if isSuppressingTriggerKey {
-                // 押しっぱなしによるリピート
+            // 押しっぱなしによるリピート。リピートでない押し下げは、離した入力を取りこぼした後の
+            // 新しい押し下げなので（イベントタップが一時的に無効になった場合など）、切り替える
+            if isSuppressingTriggerKey && isRepeat {
                 return InputDecision(shouldSuppress: true)
             }
             if modifiersHeld {
+                // 押し下げを渡すので、離したときの入力も渡す
+                isSuppressingTriggerKey = false
                 return .passThrough
             }
             isSuppressingTriggerKey = true

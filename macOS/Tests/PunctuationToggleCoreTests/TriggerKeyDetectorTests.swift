@@ -226,16 +226,22 @@ struct RegularTriggerTests {
         #expect(detector.handle(.keyUp(keyCode: Self.f13)) == .passThrough)
     }
 
-    // 既知の不具合（LOG.md の提案を参照）: 離した入力を取りこぼすと、次に押したときに1回切り替わらない。
-    // 修飾キーの場合（ModifierTriggerTests.missedRelease）は次の押し下げからやり直せる。
     @Test("離した入力を取りこぼしても、次に押したときは切り替える")
     mutating func missedRelease() {
+        // イベントタップが一時的に無効になった場合などで、離した入力が届かなかった場合
         _ = detector.handle(.keyDown(keyCode: Self.f13, isRepeat: false, modifiersHeld: false))
-        // ここで keyUp が届かなかったとする
-        let nextPress = detector.handle(.keyDown(keyCode: Self.f13, isRepeat: false, modifiersHeld: false))
-        withKnownIssue("リピートでない押し下げも、押しっぱなしのリピートとして扱われる") {
-            #expect(nextPress == InputDecision(shouldToggle: true, shouldSuppress: true))
-        }
+        #expect(
+            detector.handle(.keyDown(keyCode: Self.f13, isRepeat: false, modifiersHeld: false))
+                == InputDecision(shouldToggle: true, shouldSuppress: true)
+        )
+        #expect(detector.handle(.keyUp(keyCode: Self.f13)) == InputDecision(shouldSuppress: true))
+    }
+
+    @Test("離した入力を取りこぼした後に修飾キーと一緒に押した場合は、離したときの入力も渡す")
+    mutating func missedReleaseThenShortcut() {
+        _ = detector.handle(.keyDown(keyCode: Self.f13, isRepeat: false, modifiersHeld: false))
+        #expect(detector.handle(.keyDown(keyCode: Self.f13, isRepeat: false, modifiersHeld: true)) == .passThrough)
+        #expect(detector.handle(.keyUp(keyCode: Self.f13)) == .passThrough)
     }
 
     @Test("起動前から押されていたキーのリピートでは切り替えない")

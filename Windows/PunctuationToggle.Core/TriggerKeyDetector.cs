@@ -95,13 +95,16 @@ public sealed class TriggerKeyDetector(TriggerKey triggerKey)
         switch (input.Kind)
         {
             case KeyboardInputKind.KeyDown:
-                if (isSuppressingTriggerKey)
+                // 押しっぱなしによるリピート。リピートでない押し下げは、離した入力を取りこぼした後の
+                // 新しい押し下げなので（フックの処理が遅れて入力を飛ばされた場合など）、切り替える
+                if (isSuppressingTriggerKey && input.IsRepeat)
                 {
-                    // 押しっぱなしによるリピート
                     return new InputDecision(ShouldSuppress: true);
                 }
                 if (input.OtherModifiersHeld)
                 {
+                    // 押し下げを渡すので、離したときの入力も渡す
+                    isSuppressingTriggerKey = false;
                     return InputDecision.PassThrough;
                 }
                 isSuppressingTriggerKey = true;
