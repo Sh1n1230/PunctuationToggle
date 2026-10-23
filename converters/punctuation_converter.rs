@@ -1,6 +1,8 @@
 //! 標準入力の文章の句読点を「、。」⇔「，．」に変換して、標準出力に書き出す。
 
+use std::borrow::Cow;
 use std::env;
+use std::ffi::OsString;
 use std::io::{self, BufWriter, ErrorKind, Read, Write};
 use std::process::ExitCode;
 
@@ -28,8 +30,14 @@ const TO_COMMA_PERIOD: Replacements = [('、', '，'), ('。', '．')];
 const TO_TOUTEN_KUTEN: Replacements = [('，', '、'), ('．', '。')];
 
 fn main() -> ExitCode {
-    let arguments: Vec<String> = env::args().skip(1).collect();
-    let arguments: Vec<&str> = arguments.iter().map(String::as_str).collect();
+    // env::args() は UTF-8 でない引数（macOS や Linux で渡せる）で panic するため、args_os() で受け取る。
+    // UTF-8 でない部分は U+FFFD に置き換わり、どのオプションにも一致しないので、不正な引数として扱われる
+    let arguments: Vec<OsString> = env::args_os().skip(1).collect();
+    let arguments: Vec<Cow<str>> = arguments
+        .iter()
+        .map(|argument| argument.to_string_lossy())
+        .collect();
+    let arguments: Vec<&str> = arguments.iter().map(AsRef::as_ref).collect();
 
     let replacements = match arguments.as_slice() {
         [] => &TO_COMMA_PERIOD,

@@ -47,7 +47,13 @@ def main(arguments: list[str]) -> int:
         sys.stdout.write(USAGE)
         return EXIT_SUCCESS
     else:
-        sys.stderr.write(f"不正な引数です: {' '.join(arguments)}\n\n{USAGE}")
+        # UTF-8 でない引数（macOS や Linux で渡せる）は、sys.argv にサロゲートとして入っており
+        # そのままでは UTF-8 で書き出せないため、ほかの実装と同じく U+FFFD に置き換えて表示する
+        displayed = " ".join(
+            os.fsencode(argument).decode("utf-8", errors="replace")
+            for argument in arguments
+        )
+        sys.stderr.write(f"不正な引数です: {displayed}\n\n{USAGE}")
         return EXIT_USAGE_ERROR
 
     # newline="" で、改行コードを変換せずにそのまま読み書きする

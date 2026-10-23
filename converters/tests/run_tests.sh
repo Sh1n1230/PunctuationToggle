@@ -99,8 +99,9 @@ test_implementation() {
     fi
   fi
 
-  # オプションは1つだけ受け付け、大文字小文字の違いや "--"・"-" も不正な引数とする
-  for arguments in "--unknown" "-r -r" "extra" "-h -r" "--reverse --help" "-R" "--" "-"; do
+  # オプションは1つだけ受け付け、大文字小文字の違いや "--"・"-" も不正な引数とする。
+  # UTF-8 でない引数（macOS や Linux で渡せる）も、異常終了させずに不正な引数として扱う
+  for arguments in "--unknown" "-r -r" "extra" "-h -r" "--reverse --help" "-R" "--" "-" $'\xff'; do
     local status=0
     # shellcheck disable=SC2086
     $command $arguments < /dev/null > "$output" 2> "$errors" || status=$?
