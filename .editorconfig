@@ -34,3 +34,8 @@ charset = unset
 end_of_line = unset
 insert_final_newline = unset
 trim_trailing_whitespace = unset
+
+[*.cs]
+# P/Invoke で読み込む DLL を System32 からだけ探すようにする（exe と同じフォルダーの同名の DLL を読み込まない）。
+# 属性の付け忘れをビルドエラーにする（TreatWarningsAsErrors）
+dotnet_diagnostic.CA5392.severity = warning
