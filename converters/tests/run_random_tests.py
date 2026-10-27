@@ -16,6 +16,7 @@ tests/cases/ の固定のケースでは狙いにくい組み合わせ（改行�
   ビルドされていない実装は SKIP になる。REQUIRE_ALL=1 では SKIP も失敗にする。
 """
 
+import io
 import os
 import random
 import subprocess
@@ -157,6 +158,11 @@ def case_count() -> int:
 
 
 def main(arguments: list[str]) -> int:
+    # Windows では標準出力の既定の文字コードが UTF-8 ではなく（cp1252 など）、日本語を書けないため
+    for stream in (sys.stdout, sys.stderr):
+        if isinstance(stream, io.TextIOWrapper):
+            stream.reconfigure(encoding="utf-8")
+
     names = arguments or ALL_IMPLEMENTATIONS
     unknown = [name for name in names if name not in ALL_IMPLEMENTATIONS]
     if unknown:
