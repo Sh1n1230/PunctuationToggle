@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var detector = TriggerKeyDetector(triggerKey: TriggerKeyStore.triggerKey)
     private var triggerKeyRecorder: TriggerKeyRecorderWindowController?
     private var permissionRetryTimer: Timer?
+    private var isShowingSaveFailureAlert = false
 
     private var statusItem: NSStatusItem?
     private let toggleMenuItem = NSMenuItem()
@@ -60,8 +61,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func togglePunctuationStyle() {
-        JapaneseInputPunctuation.set(JapaneseInputPunctuation.current.toggled)
+        let newStyle = JapaneseInputPunctuation.current.toggled
+        if !JapaneseInputPunctuation.set(newStyle) {
+            NSLog("句読点の設定を保存できませんでした: \(newStyle.symbols)")
+            showSaveFailureAlert()
+        }
         updateStatusItem()
+    }
+
+    /// 句読点の設定を保存できなかったことを知らせる。
+    /// 切り替えキーを続けて押したときにアラートが重ならないよう、表示中は新しく出さない
+    private func showSaveFailureAlert() {
+        guard !isShowingSaveFailureAlert else { return }
+        isShowingSaveFailureAlert = true
+        defer { isShowingSaveFailureAlert = false }
+
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "句読点の設定を変更できませんでした"
+        alert.informativeText = "日本語入力の設定ファイルに書き込めませんでした。句読点は切り替わっていません。"
+        NSApp.activate()
+        alert.runModal()
     }
 
     // MARK: - アクセシビリティの許可
