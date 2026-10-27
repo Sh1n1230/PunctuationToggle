@@ -50,6 +50,9 @@ internal sealed class TriggerKeyRecorderForm : Form
             ForeColor = SystemColors.GrayText,
             AutoSize = true,
             MaximumSize = new Size(380, 0),
+            // 案内の文言が変わったこと（使えないキーを押したときなど）を、ナレーターなどのスクリーンリーダーに知らせる。
+            // LiveSetting を設定したラベルは、Text を変えるとライブ リージョンの変化を UI オートメーションに通知する
+            LiveSetting = System.Windows.Forms.Automation.AutomationLiveSetting.Polite,
         };
 
         var resetButton = new Button { Text = $"初期設定（{TriggerKey.Default.DisplayName}）に戻す", AutoSize = true };
