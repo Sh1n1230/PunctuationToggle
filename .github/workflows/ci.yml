@@ -145,7 +145,7 @@ jobs:
         with:
           python-version: "3.13"
 
-      # ruff・mypy・ShellCheck は、版と sha256 を固定して導入する
+      # ruff・mypy・ShellCheck・actionlint は、版と sha256 を固定して導入する
       - name: ツールの導入
         run: pip install --require-hashes --no-deps -r .github/lint/requirements.txt
 
@@ -164,6 +164,10 @@ jobs:
 
       - name: シェルスクリプト（ShellCheck）
         run: git ls-files -z '*.sh' | xargs -0 shellcheck
+
+      # PATH にある shellcheck で、ワークフローの run: の中も検査する
+      - name: ワークフロー（actionlint）
+        run: actionlint
 
       - name: C#（dotnet format）
         run: |
