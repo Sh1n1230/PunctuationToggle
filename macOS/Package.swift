@@ -1,4 +1,4 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 6.2
 
 // アプリ本体は PunctuationToggle.xcodeproj でビルドする。
 // このパッケージは、アプリのうち OS に依存しないロジック（PunctuationToggle/Core）を
@@ -7,7 +7,8 @@ import PackageDescription
 
 let package = Package(
     name: "PunctuationToggleCore",
-    platforms: [.macOS(.v14)],
+    // アプリ（PunctuationToggle.xcodeproj の MACOSX_DEPLOYMENT_TARGET）と同じ版にそろえ、同じ条件でコンパイルする
+    platforms: [.macOS(.v26)],
     targets: [
         .target(
             name: "PunctuationToggleCore",
