@@ -32,6 +32,10 @@ jobs:
           persist-credentials: false
 
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        env:
+          # ランナーに入っている SDK とは別の場所に入れ、global.json の版の SDK だけが使われるようにする
+          # （同じ場所にあると、rollForward によってランナーの新しい SDK が選ばれる）
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
         with:
           global-json-file: global.json
 

@@ -60,7 +60,7 @@ make rust-test            # Rust 実装の単体テスト（UTF-8 の文字の�
 make test-random          # ランダムに作った入力で、すべての実装をテストする（Python 3.10 以降が必要）
 ```
 
-Windows では Git Bash で同じコマンドを実行します。Git Bash には `make` が無いため、MSYS2 の `make`（`pacman -S make`）などを入れ、`/c/msys64/usr/bin/make` のように指定してください。`python3` が無い場合は `python` が使われます（`make test-random` は `make PYTHON=python test-random` とします）。CI では、Linux・macOS・Windows の3つで同じテストを実行しています。
+Windows では Git Bash で同じコマンドを実行します。Git Bash には `make` が無いため、GNU make（`winget install ezwinports.make` や `choco install make` など）を入れてください。`python3` が無い場合は `python` が使われます（`make test-random` は `make PYTHON=python test-random` とします）。CI では、Linux・macOS・Windows の3つで同じテストを実行しています（Windows は Chocolatey の make 4.4.1）。
 
 `make test`（`tests/run_tests.sh`）は、`tests/cases/` の入力をそれぞれの実装に与え、出力が期待どおりかをバイト単位で比べます。CRLF や CR だけの改行、最後の行に改行が無い文章、空の入力、BOM や絵文字、読み込みの区切りをまたぐ長い1行、UTF-8 として正しくない入力、書き込めない出力先（`/dev/full` がある Linux のみ）などを確かめています。ビルドされていない実装は SKIP になります。特定の実装だけを確かめるときは `tests/run_tests.sh rust python` のように指定します。
 

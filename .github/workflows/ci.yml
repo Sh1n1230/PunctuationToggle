@@ -75,8 +75,11 @@ jobs:
           persist-credentials: false
 
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        env:
+          # ランナーに入っている SDK とは別の場所に入れ、global.json の版の SDK だけが使われるようにする
+          # （同じ場所にあると、rollForward によってランナーの新しい SDK が選ばれる）
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
         with:
-          # リポジトリのルートの global.json の版の SDK そのものを入れる
           global-json-file: global.json
 
       - name: ビルド
@@ -145,8 +148,11 @@ jobs:
           persist-credentials: false
 
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        env:
+          # ランナーに入っている SDK とは別の場所に入れ、global.json の版の SDK だけが使われるようにする
+          # （同じ場所にあると、rollForward によってランナーの新しい SDK が選ばれる）
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
         with:
-          # リポジトリのルートの global.json の版の SDK そのものを入れる
           global-json-file: global.json
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -165,26 +171,26 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
 
-      # Windows のランナーには make が無いため、入っている MSYS2 から入れる（pacman はパッケージの署名を確かめる）。
-      # MSYS2 は PATH に入っていないので、make だけをフルパスで使う。python3 も無いので python を使う
+      # Windows のランナーには make が無いため、Chocolatey で版を固定して入れる（Chocolatey はダウンロードしたファイルを
+      # パッケージに書かれた sha256 で確かめる）。MSYS2 の make は、起動する dotnet に環境変数が正しく渡らず NuGet が失敗した。
+      # python3 も無いので python を使う
       - name: make の導入（Windows）
         if: runner.os == 'Windows'
         run: |
-          /c/msys64/usr/bin/pacman -S --noconfirm --needed make
-          echo "MAKE_COMMAND=/c/msys64/usr/bin/make" >> "$GITHUB_ENV"
+          choco install make --version 4.4.1 --no-progress -y
           echo "PYTHON=python" >> "$GITHUB_ENV"
 
       - name: ビルド
-        run: ${MAKE_COMMAND:-make} all csharp-dotnet
+        run: make all csharp-dotnet
 
       - name: テスト
-        run: REQUIRE_ALL=1 ${MAKE_COMMAND:-make} test
+        run: REQUIRE_ALL=1 make test
 
       - name: Rust 実装の単体テスト
-        run: ${MAKE_COMMAND:-make} rust-test
+        run: make rust-test
 
       - name: ランダムな入力でのテスト
-        run: REQUIRE_ALL=1 ${MAKE_COMMAND:-make} test-random
+        run: REQUIRE_ALL=1 make test-random
 
   # converters/README.md の「必要なツール」に書いた最も古い版で、Python 実装が動くことを確かめる
   converters-python-oldest:
@@ -218,8 +224,11 @@ jobs:
           persist-credentials: false
 
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        env:
+          # ランナーに入っている SDK とは別の場所に入れ、global.json の版の SDK だけが使われるようにする
+          # （同じ場所にあると、rollForward によってランナーの新しい SDK が選ばれる）
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
         with:
-          # リポジトリのルートの global.json の版の SDK そのものを入れる
           global-json-file: global.json
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
