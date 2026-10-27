@@ -15,11 +15,23 @@ CASES_DIR=tests/cases
 WORK_DIR=$(mktemp -d)
 trap 'rm -rf "$WORK_DIR"' EXIT
 
+# Python のコマンド名。Windows では python3 が無く python だけのことがある
+python_command() {
+  if command -v python3 >/dev/null; then
+    echo python3
+  elif command -v python >/dev/null; then
+    echo python
+  else
+    return 1
+  fi
+}
+
 # 実装名から実行コマンドを求める。実行できない場合は失敗を返す。
+# Windows（Git Bash）でも、.exe を省いたパスで実行ファイルを確かめ、実行できる
 command_for() {
   case "$1" in
     csharp-dotnet) [[ -x bin/dotnet/PunctuationConverter ]] && echo "bin/dotnet/PunctuationConverter" ;;
-    python) [[ -f punctuation_converter.py ]] && command -v python3 >/dev/null && echo "python3 punctuation_converter.py" ;;
+    python) [[ -f punctuation_converter.py ]] && python_name=$(python_command) && echo "$python_name punctuation_converter.py" ;;
     rust) [[ -x bin/punctuation_converter_rust ]] && echo "bin/punctuation_converter_rust" ;;
     *) return 1 ;;
   esac

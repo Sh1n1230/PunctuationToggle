@@ -88,13 +88,21 @@ jobs:
             throw 'Installed files remain after uninstallation.'
           }
 
+  # 変換コマンドは macOS と Windows で使うことを想定しているため、3つの OS で確かめる。
+  # OS ごとに違う処理（Python の Windows での標準出力の扱い、Makefile のランタイム識別子、Native AOT のビルド）を含む
   converters:
-    name: 変換コマンド
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    name: 変換コマンド（${{ matrix.os }}）
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-26, windows-2025]
     defaults:
       run:
         working-directory: converters
+        # Windows でも Git Bash で、ほかの OS と同じスクリプトを実行する
+        shell: bash
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -116,20 +124,31 @@ jobs:
           rustc --version
           rustfmt --version
 
-      - name: Native AOT のビルドに必要なパッケージ
+      # macOS は Xcode、Windows は Visual Studio の C++ ツールがランナーに入っている
+      - name: Native AOT のビルドに必要なパッケージ（Linux）
+        if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
 
+      # Windows のランナーには make が無いため、入っている MSYS2 から入れる（pacman はパッケージの署名を確かめる）。
+      # MSYS2 は PATH に入っていないので、make だけをフルパスで使う。python3 も無いので python を使う
+      - name: make の導入（Windows）
+        if: runner.os == 'Windows'
+        run: |
+          /c/msys64/usr/bin/pacman -S --noconfirm --needed make
+          echo "MAKE_COMMAND=/c/msys64/usr/bin/make" >> "$GITHUB_ENV"
+          echo "PYTHON=python" >> "$GITHUB_ENV"
+
       - name: ビルド
-        run: make all csharp-dotnet
+        run: ${MAKE_COMMAND:-make} all csharp-dotnet
 
       - name: テスト
-        run: REQUIRE_ALL=1 make test
+        run: REQUIRE_ALL=1 ${MAKE_COMMAND:-make} test
 
       - name: Rust 実装の単体テスト
-        run: make rust-test
+        run: ${MAKE_COMMAND:-make} rust-test
 
       - name: ランダムな入力でのテスト
-        run: REQUIRE_ALL=1 make test-random
+        run: REQUIRE_ALL=1 ${MAKE_COMMAND:-make} test-random
 
   # converters/README.md の「必要なツール」に書いた最も古い版で、Python 実装が動くことを確かめる
   converters-python-oldest:

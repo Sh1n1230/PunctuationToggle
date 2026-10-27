@@ -18,7 +18,6 @@ tests/cases/ の固定のケースでは狙いにくい組み合わせ（改行�
 
 import os
 import random
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -71,17 +70,22 @@ TO_COMMA_PERIOD = str.maketrans({"、": "，", "。": "．"})
 TO_TOUTEN_KUTEN = str.maketrans({"，": "、", "．": "。"})
 
 
+def executable(path: Path) -> list[str] | None:
+    """実行ファイルがあれば、それを実行するコマンド。Windows では .exe の付いたファイルを探す。"""
+    if os.name == "nt":
+        path = path.with_name(path.name + ".exe")
+    return [str(path)] if path.is_file() and os.access(path, os.X_OK) else None
+
+
 def command_for(name: str) -> list[str] | None:
     """実装名から実行コマンドを求める。実行できない場合は None。tests/run_tests.sh の command_for と同じ。"""
     if name == "csharp-dotnet":
-        path = CONVERTERS_DIR / "bin" / "dotnet" / "PunctuationConverter"
-        return [str(path)] if os.access(path, os.X_OK) else None
+        return executable(CONVERTERS_DIR / "bin" / "dotnet" / "PunctuationConverter")
     if name == "python":
         path = CONVERTERS_DIR / "punctuation_converter.py"
         return [sys.executable, str(path)] if path.is_file() else None
     if name == "rust":
-        path = CONVERTERS_DIR / "bin" / "punctuation_converter_rust"
-        return [str(path)] if os.access(path, os.X_OK) else None
+        return executable(CONVERTERS_DIR / "bin" / "punctuation_converter_rust")
     return None
 
 
@@ -169,7 +173,7 @@ def main(arguments: list[str]) -> int:
     skip_count = 0
     for name in names:
         command = command_for(name)
-        if command is None or shutil.which(command[0]) is None:
+        if command is None:
             print(f"SKIP  {name}（ビルドされていないか、実行環境がありません）")
             skip_count += 1
             continue

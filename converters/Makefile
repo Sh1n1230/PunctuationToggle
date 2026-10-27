@@ -21,6 +21,16 @@ else
 endif
 DOTNET_RID ?= $(DOTNET_OS)-$(DOTNET_ARCH)
 
+# Windows の実行ファイルの拡張子。Git Bash などでは、拡張子を省いても .exe を実行できる
+ifeq ($(DOTNET_OS),win)
+  EXE := .exe
+else
+  EXE :=
+endif
+
+# Python のコマンド名。Windows では python3 が無いことがあるので、make PYTHON=python のように指定する
+PYTHON ?= python3
+
 .PHONY: all rust rust-test csharp-dotnet test test-random benchmark clean
 
 # csharp-dotnet は .NET SDK が無い環境でも `make` が通るよう、all に含めない
@@ -33,11 +43,11 @@ csharp-dotnet: | $(BIN_DIR)
 	dotnet publish dotnet/PunctuationConverter.csproj -c Release -r $(DOTNET_RID) -p:PublishDir=$(CURDIR)/$(BIN_DIR)/dotnet/ --nologo
 
 rust: | $(BIN_DIR)
-	rustc --edition 2021 -O -o $(BIN_DIR)/punctuation_converter_rust punctuation_converter.rs
+	rustc --edition 2021 -O -o $(BIN_DIR)/punctuation_converter_rust$(EXE) punctuation_converter.rs
 
 # Rust 実装の内部の関数（UTF-8 の文字の区切りの処理など）の単体テスト
 rust-test: | $(BIN_DIR)
-	rustc --edition 2021 --test -o $(BIN_DIR)/punctuation_converter_rust_test punctuation_converter.rs
+	rustc --edition 2021 --test -o $(BIN_DIR)/punctuation_converter_rust_test$(EXE) punctuation_converter.rs
 	$(BIN_DIR)/punctuation_converter_rust_test
 
 test:
@@ -45,7 +55,7 @@ test:
 
 # ランダムに作った入力で、各実装が同じ仕様を満たすかを確かめる（RANDOM_SEED で入力を再現できる）
 test-random:
-	python3 tests/run_random_tests.py
+	$(PYTHON) tests/run_random_tests.py
 
 benchmark:
 	benchmark/run_benchmark.sh
