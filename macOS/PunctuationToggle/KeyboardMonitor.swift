@@ -92,42 +92,28 @@ final class KeyboardMonitor {
     }
 }
 
-extension KeyboardInput {
-    /// Command・Shift・Option・Control（左右を区別しない）
-    private static let shortcutModifierFlags: CGEventFlags = [
-        .maskCommand, .maskShift, .maskAlternate, .maskControl,
-    ]
-
-    /// `CGEvent` から変換する。判定に使わない入力（Caps Lock など）では nil を返す。
-    init?(type: CGEventType, event: CGEvent) {
-        let keyCode = UInt16(truncatingIfNeeded: event.getIntegerValueField(.keyboardEventKeycode))
-        let flags = event.flags
-
+extension KeyboardEventKind {
+    /// 判定に使わない種類（タップの無効化の通知など）では nil を返す。
+    init?(_ type: CGEventType) {
         switch type {
-        case .flagsChanged:
-            guard let modifier = TriggerKey.Modifier(keyCode: keyCode) else { return nil }
-            let otherModifierMasks = TriggerKey.Modifier.allFlagMasks & ~modifier.flagMask
-            self = .modifierChanged(
-                keyCode: keyCode,
-                isPressed: flags.rawValue & modifier.flagMask != 0,
-                otherModifiersHeld: flags.rawValue & otherModifierMasks != 0
-            )
-
-        case .keyDown:
-            self = .keyDown(
-                keyCode: keyCode,
-                isRepeat: event.getIntegerValueField(.keyboardEventAutorepeat) != 0,
-                modifiersHeld: !flags.intersection(Self.shortcutModifierFlags).isEmpty
-            )
-
-        case .keyUp:
-            self = .keyUp(keyCode: keyCode)
-
-        case .leftMouseDown, .rightMouseDown, .otherMouseDown, .scrollWheel:
-            self = .mouse
-
-        default:
-            return nil
+        case .keyDown: self = .keyDown
+        case .keyUp: self = .keyUp
+        case .flagsChanged: self = .flagsChanged
+        case .leftMouseDown, .rightMouseDown, .otherMouseDown, .scrollWheel: self = .mouse
+        default: return nil
         }
+    }
+}
+
+extension KeyboardInput {
+    /// `CGEvent` から値を取り出して変換する。判定に使わない入力（Caps Lock など）では nil を返す。
+    init?(type: CGEventType, event: CGEvent) {
+        guard let kind = KeyboardEventKind(type) else { return nil }
+        self.init(
+            kind: kind,
+            keyCode: UInt16(truncatingIfNeeded: event.getIntegerValueField(.keyboardEventKeycode)),
+            flags: event.flags.rawValue,
+            isAutorepeat: event.getIntegerValueField(.keyboardEventAutorepeat) != 0
+        )
     }
 }
