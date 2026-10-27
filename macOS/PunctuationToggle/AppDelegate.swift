@@ -7,6 +7,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var detector = TriggerKeyDetector(triggerKey: TriggerKeyStore.triggerKey)
     private var triggerKeyRecorder: TriggerKeyRecorderWindowController?
     private var permissionRetryTimer: Timer?
+    /// アクセシビリティの許可を待ち始めた時刻。待っていないときは nil
+    private var permissionWaitStartDate: Date?
+    private var isShowingSaveFailureAlert = false
 
     private var statusItem: NSStatusItem?
     private let toggleMenuItem = NSMenuItem()
@@ -14,7 +17,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let changeTriggerKeyMenuItem = NSMenuItem()
     private let launchAtLoginMenuItem = NSMenuItem()
 
+    /// `kAXTrustedCheckOptionPrompt` の値（ApplicationServices の AXUIElement.h）。
+    /// 定数はグローバルな `var` として読み込まれ、Swift 6 の言語モードでは並行処理で安全でないとして使えないため、値を書く
+    private static let trustedCheckOptionPromptKey = "AXTrustedCheckOptionPrompt"
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // 二重に起動すると切り替えキーで2回切り替わって元に戻ってしまうため、後から起動した方は何もせずに終わる
+        // （~/Applications のアプリとビルドしたアプリなど、別の場所のアプリでも同じバンドル ID なら対象にする）
+        if isAnotherInstanceRunning() {
+            NSApp.terminate(nil)
+            return
+        }
+
         createStatusItem()
 
         keyboardMonitor.inputHandler = { [weak self] input in
@@ -38,6 +52,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         keyboardMonitor.stop()
     }
 
+    /// 先に起動した同じアプリが動いているか。
+    /// 同時に起動した場合に両方が終わらないよう、起動した時刻（同じならプロセス ID）が早い方を残す
+    private func isAnotherInstanceRunning() -> Bool {
+        guard let bundleIdentifier = Bundle.main.bundleIdentifier else { return false }
+        let current = NSRunningApplication.current
+        let currentOrder = (current.launchDate ?? .distantFuture, current.processIdentifier)
+        return NSRunningApplication.runningApplications(withBundleIdentifier: bundleIdentifier).contains { other in
+            other.processIdentifier != current.processIdentifier && !other.isTerminated
+                && (other.launchDate ?? .distantFuture, other.processIdentifier) < currentOrder
+        }
+    }
+
     // MARK: - 入力の処理
 
     private func handle(_ input: KeyboardInput) -> Bool {
@@ -56,8 +82,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func togglePunctuationStyle() {
-        JapaneseInputPunctuation.set(JapaneseInputPunctuation.current.toggled)
+        let newStyle = JapaneseInputPunctuation.current.toggled
+        if !JapaneseInputPunctuation.set(newStyle) {
+            NSLog("句読点の設定を保存できませんでした: \(newStyle.symbols)")
+            showSaveFailureAlert()
+        }
         updateStatusItem()
+    }
+
+    /// 句読点の設定を保存できなかったことを知らせる。
+    /// 切り替えキーを続けて押したときにアラートが重ならないよう、表示中は新しく出さない
+    private func showSaveFailureAlert() {
+        guard !isShowingSaveFailureAlert else { return }
+        isShowingSaveFailureAlert = true
+        defer { isShowingSaveFailureAlert = false }
+
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "句読点の設定を変更できませんでした"
+        alert.informativeText = "日本語入力の設定ファイルに書き込めませんでした。句読点は切り替わっていません。"
+        NSApp.activate()
+        alert.runModal()
     }
 
     // MARK: - アクセシビリティの許可
@@ -68,16 +113,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
 
         // 許可を求めるダイアログを出し、許可されるまで定期的に再試行する
-        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+        let options = [Self.trustedCheckOptionPromptKey: true] as CFDictionary
         AXIsProcessTrustedWithOptions(options)
 
-        permissionRetryTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] timer in
+        permissionWaitStartDate = Date()
+        schedulePermissionRetry(interval: Self.permissionRetryInterval)
+    }
+
+    /// 許可されたかを確かめる間隔。許可した直後にすぐ反映されるよう短くする
+    private static let permissionRetryInterval: TimeInterval = 1
+
+    /// 許可されないまま `permissionRetryInterval` で確かめ続ける時間。
+    /// 許可しないまま常駐させた場合に、1秒ごとの起床を続けないため
+    private static let frequentPermissionRetryDuration: TimeInterval = 60
+
+    /// `frequentPermissionRetryDuration` を過ぎた後に確かめる間隔（メニューを開いたときにもすぐ確かめる）
+    private static let slowPermissionRetryInterval: TimeInterval = 10
+
+    private func schedulePermissionRetry(interval: TimeInterval) {
+        permissionRetryTimer?.invalidate()
+        // メインの RunLoop に登録したタイマーなので、メインスレッドで呼ばれる
+        permissionRetryTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
-                guard let self, self.keyboardMonitor.start() else { return }
-                timer.invalidate()
-                self.permissionRetryTimer = nil
-                self.updateStatusItem()
+                self?.retryKeyboardMonitor()
             }
+        }
+    }
+
+    /// アクセシビリティが許可されていれば監視を始める。許可を待っていない場合は何もしない
+    private func retryKeyboardMonitor() {
+        guard let permissionWaitStartDate else { return }
+
+        if keyboardMonitor.start() {
+            permissionRetryTimer?.invalidate()
+            permissionRetryTimer = nil
+            self.permissionWaitStartDate = nil
+            updateStatusItem()
+            return
+        }
+
+        let isFrequent = permissionRetryTimer?.timeInterval == Self.permissionRetryInterval
+        if isFrequent, Date().timeIntervalSince(permissionWaitStartDate) >= Self.frequentPermissionRetryDuration {
+            schedulePermissionRetry(interval: Self.slowPermissionRetryInterval)
         }
     }
 
@@ -115,6 +192,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         menu.addItem(.separator())
 
+        menu.addItem(withTitle: "最新版を確認…", action: #selector(openLatestRelease), keyEquivalent: "")
+            .target = self
         menu.addItem(withTitle: "PunctuationToggle について", action: #selector(showAboutPanel), keyEquivalent: "")
             .target = self
         menu.addItem(withTitle: "終了", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
@@ -123,6 +202,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
+        // 許可を待つ間隔を延ばした後も、メニューを開いたときにはすぐ確かめる
+        retryKeyboardMonitor()
         updateStatusItem()
     }
 
@@ -131,12 +212,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let triggerKey = detector.triggerKey
 
         if let button = statusItem?.button {
+            // 記号だけでは VoiceOver の読み上げで意味が伝わりにくいため、読み上げる名前を別に付ける
             if keyboardMonitor.isRunning {
                 button.title = style.symbols
                 button.toolTip = "句読点: \(style.symbols)（\(triggerKey.usageDescription)）"
+                button.setAccessibilityLabel("PunctuationToggle、句読点: \(style.spokenName)")
             } else {
                 button.title = "⚠︎"
                 button.toolTip = "アクセシビリティの許可が必要です"
+                button.setAccessibilityLabel("PunctuationToggle、アクセシビリティの許可が必要です")
             }
         }
 
@@ -209,6 +293,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
             )
         else {
+            return
+        }
+        NSWorkspace.shared.open(url)
+    }
+
+    /// 最新のリリースのページをブラウザーで開く。アプリ自身は通信せず、利用者がメニューを選んだときだけ開く
+    @objc
+    private func openLatestRelease() {
+        guard let url = URL(string: "https://github.com/Sh1n1230/PunctuationToggle/releases/latest") else {
             return
         }
         NSWorkspace.shared.open(url)

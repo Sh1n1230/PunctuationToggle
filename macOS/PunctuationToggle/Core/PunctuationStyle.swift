@@ -24,6 +24,17 @@ enum PunctuationStyle: Int, CaseIterable, Sendable {
         }
     }
 
+    /// VoiceOver などで読み上げる名前。
+    /// 記号だけ（「、。」）では読み上げで区別しにくいため、句読点の呼び名を添える
+    var spokenName: String {
+        switch self {
+        case .toutenKuten: "読点と句点（、。）"
+        case .commaKuten: "コンマと句点（，。）"
+        case .toutenPeriod: "読点とピリオド（、．）"
+        case .commaPeriod: "コンマとピリオド（，．）"
+        }
+    }
+
     /// 切り替えキーを押したときの切り替え先。
     /// 「，．」なら「、。」に、それ以外（システム設定で選んだ「，。」「、．」を含む）なら「，．」にする。
     var toggled: PunctuationStyle {

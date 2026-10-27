@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 namespace PunctuationToggle;
 
 /// <summary>句読点の2文字をそのまま描いたタスクトレイ用のアイコンを作る。</summary>
-internal static class TrayIconRenderer
+internal static partial class TrayIconRenderer
 {
     // 文字の輪郭を作るときのフォントサイズ。輪郭は後でアイコンの大きさに合わせて拡大・縮小するので、精度が足りればよい
     private const float OutlineFontSize = 100;
@@ -31,18 +31,18 @@ internal static class TrayIconRenderer
         public int y;
     }
 
-    [DllImport("user32.dll")]
+    [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool DestroyIcon(IntPtr hIcon);
+    private static partial bool DestroyIcon(IntPtr hIcon);
 
-    [DllImport("user32.dll")]
-    private static extern IntPtr MonitorFromPoint(POINT pt, uint dwFlags);
+    [LibraryImport("user32.dll")]
+    private static partial IntPtr MonitorFromPoint(POINT pt, uint dwFlags);
 
-    [DllImport("shcore.dll")]
-    private static extern int GetDpiForMonitor(IntPtr hmonitor, int dpiType, out uint dpiX, out uint dpiY);
+    [LibraryImport("shcore.dll")]
+    private static partial int GetDpiForMonitor(IntPtr hmonitor, int dpiType, out uint dpiX, out uint dpiY);
 
-    [DllImport("user32.dll")]
-    private static extern int GetSystemMetricsForDpi(int nIndex, uint dpi);
+    [LibraryImport("user32.dll")]
+    private static partial int GetSystemMetricsForDpi(int nIndex, uint dpi);
 
     /// <summary>
     /// タスクトレイに表示されるアイコンの大きさ（ピクセル）。表示倍率 100% で 16、150% で 24 になる。

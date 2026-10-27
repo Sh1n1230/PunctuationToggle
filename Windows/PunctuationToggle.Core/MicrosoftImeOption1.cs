@@ -16,6 +16,23 @@ public static class MicrosoftImeOption1
     /// <summary>option1 が無い環境（IME の設定を一度も変更していない）での既定値。句読点は「、。」。</summary>
     public const int DefaultValue = 0x00150200;
 
+    /// <summary>
+    /// レジストリから読んだ option1 の値を、読み書きに使う値にする。
+    /// </summary>
+    /// <param name="storedValue">RegistryKey.GetValue の戻り値。値が無い場合は null。</param>
+    /// <exception cref="InvalidDataException">
+    /// DWORD（int）以外の形式で保存されている場合。
+    /// 既定値から書き込むと IME のほかの設定を変えてしまうおそれがあるため、書き換えに使わない。
+    /// </exception>
+    public static int FromStoredValue(object? storedValue) => storedValue switch
+    {
+        // IME の設定を一度も変更していない環境では値が無く、IME は既定値で動いている
+        null => DefaultValue,
+        int dword => dword,
+        _ => throw new InvalidDataException(
+            $"Microsoft IME の設定値 option1 が想定と異なる形式（{storedValue.GetType().Name}）で保存されています。"),
+    };
+
     public static PunctuationStyle GetPunctuationStyle(int option1) =>
         ((option1 & PunctuationMask) >> PunctuationShift) switch
         {

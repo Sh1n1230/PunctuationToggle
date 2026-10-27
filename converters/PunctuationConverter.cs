@@ -45,12 +45,20 @@ internal static class PunctuationConverter
         }
         else if (argument == "-h" || argument == "--help")
         {
-            WriteUtf8(Console.OpenStandardOutput(), Usage);
-            return ExitSuccess;
+            try
+            {
+                WriteUtf8(Console.OpenStandardOutput(), Usage);
+                return ExitSuccess;
+            }
+            catch (IOException exception)
+            {
+                WriteError("使い方を表示できませんでした: " + exception.Message + "\n");
+                return ExitFailure;
+            }
         }
         else
         {
-            WriteUtf8(Console.OpenStandardError(), "不正な引数です: " + string.Join(" ", arguments) + "\n\n" + Usage);
+            WriteError("不正な引数です: " + string.Join(" ", arguments) + "\n\n" + Usage);
             return ExitUsageError;
         }
 
@@ -62,12 +70,12 @@ internal static class PunctuationConverter
         catch (DecoderFallbackException)
         {
             // ほかの実装と同じく、UTF-8 として正しくない入力は置き換えずにエラーにする
-            WriteUtf8(Console.OpenStandardError(), "入力を UTF-8 として読み込めませんでした。\n");
+            WriteError("入力を UTF-8 として読み込めませんでした。\n");
             return ExitFailure;
         }
         catch (IOException exception)
         {
-            WriteUtf8(Console.OpenStandardError(), "変換に失敗しました: " + exception.Message + "\n");
+            WriteError("変換に失敗しました: " + exception.Message + "\n");
             return ExitFailure;
         }
     }
@@ -96,6 +104,18 @@ internal static class PunctuationConverter
                 }
                 writer.Write(buffer, 0, length);
             }
+        }
+    }
+
+    // 標準エラー出力に書く。書き込めなくても、終了コードはほかの実装と同じにするため無視する
+    private static void WriteError(string text)
+    {
+        try
+        {
+            WriteUtf8(Console.OpenStandardError(), text);
+        }
+        catch (IOException)
+        {
         }
     }
 

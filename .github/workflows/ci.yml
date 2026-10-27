@@ -6,6 +6,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+# 同じ Pull Request に続けて push したときは、古い実行を取り消す（main への push は取り消さない）
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 
@@ -13,6 +18,8 @@ jobs:
   macos:
     name: macOS アプリ
     runs-on: macos-26
+    # ハングしたときに既定の 360 分までランナーを使い続けないよう、今の実行時間の数倍で止める（ほかのジョブも同じ）
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -20,7 +27,23 @@ jobs:
 
       - name: 単体テスト
         working-directory: macOS
-        run: swift test
+        run: swift test --enable-code-coverage
+
+      # カバレッジは、まずは結果を見えるようにするだけで、下限は設けない
+      - name: カバレッジの集計
+        working-directory: macOS
+        run: |
+          bin_path=$(swift build --show-bin-path)
+          # テストのバンドルの名前は Swift の版で違う（PunctuationToggleCorePackageTests など）ため、探して使う
+          test_bundle=$(find "$bin_path" -maxdepth 1 -name '*.xctest' | head -n 1)
+          {
+            echo "### macOS 版の Core のカバレッジ"
+            echo '```'
+            xcrun llvm-cov report -instr-profile "$bin_path/codecov/default.profdata" \
+              "$test_bundle/Contents/MacOS/$(basename "$test_bundle" .xctest)" \
+              -ignore-filename-regex='(Tests|\.build)/'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       # 設定は macOS/.swift-format
       - name: コーディング規約（swift format）
@@ -46,21 +69,50 @@ jobs:
 
   windows:
     name: Windows アプリ
-    runs-on: windows-latest
+    runs-on: windows-2025
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        env:
+          # ランナーに入っている SDK とは別の場所に入れ、global.json の版の SDK だけが使われるようにする
+          # （同じ場所にあると、rollForward によってランナーの新しい SDK が選ばれる）
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
         with:
-          dotnet-version: 10.0.x
+          global-json-file: global.json
 
       - name: ビルド
-        run: dotnet build Windows/PunctuationToggle.sln -c Release
+        run: |
+          dotnet --version
+          dotnet build Windows/PunctuationToggle.sln -c Release
 
       - name: 単体テスト
-        run: dotnet test Windows/PunctuationToggle.sln -c Release --no-build
+        run: >
+          dotnet test Windows/PunctuationToggle.sln -c Release --no-build
+          --collect:"XPlat Code Coverage" --results-directory "${{ runner.temp }}/coverage"
+
+      # カバレッジは、まずは結果を見えるようにするだけで、下限は設けない
+      # Python の出力を UTF-8 のまま書き出すよう、PowerShell ではなく Git Bash で実行する
+      - name: カバレッジの集計
+        shell: bash
+        env:
+          PYTHONUTF8: "1"
+        run: |
+          report=$(find "$RUNNER_TEMP/coverage" -name coverage.cobertura.xml | head -n 1)
+          {
+            echo "### Windows 版の Core のカバレッジ"
+            python .github/scripts/cobertura_summary.py "$report"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: カバレッジを成果物として保存
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-coverage
+          path: ${{ runner.temp }}/coverage
+          if-no-files-found: error
 
       # Windows PowerShell 5.1 で、インストール・起動・アンインストールが通ることを確認する。
       # ここに書いたスクリプトは BOM なしで保存されて 5.1 では UTF-8 として読まれないため、ASCII の文字だけで書く。
@@ -77,27 +129,63 @@ jobs:
             throw 'Installed files remain after uninstallation.'
           }
 
+  # 変換コマンドは macOS と Windows で使うことを想定しているため、3つの OS で確かめる。
+  # OS ごとに違う処理（Python の Windows での標準出力の扱い、Makefile のランタイム識別子、Native AOT のビルド）を含む
   converters:
-    name: 変換コマンド
-    runs-on: ubuntu-latest
+    name: 変換コマンド（${{ matrix.os }}）
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-26, windows-2025]
     defaults:
       run:
         working-directory: converters
+        # Windows でも Git Bash で、ほかの OS と同じスクリプトを実行する
+        shell: bash
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        env:
+          # ランナーに入っている SDK とは別の場所に入れ、global.json の版の SDK だけが使われるようにする
+          # （同じ場所にあると、rollForward によってランナーの新しい SDK が選ばれる）
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
         with:
-          dotnet-version: 10.0.x
+          global-json-file: global.json
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
 
-      - name: Native AOT のビルドに必要なパッケージ
+      # rust-toolchain.toml の版の Rust を入れる（rustup は、入っていない版を自動で入れないことがあるため明示する）
+      - name: Rust のツールチェーンの導入
+        run: |
+          rustup toolchain install
+          rustc --version
+          rustfmt --version
+
+      # macOS は Xcode、Windows は Visual Studio の C++ ツールがランナーに入っている
+      - name: Native AOT のビルドに必要なパッケージ（Linux）
+        if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+
+      # Windows のランナーには make が無いため、Chocolatey で版を固定して入れる（Chocolatey はダウンロードしたファイルを
+      # パッケージに書かれた sha256 で確かめる）。MSYS2 の make は、起動する dotnet に環境変数が正しく渡らず NuGet が失敗した。
+      # python3 も無いので python を使う
+      - name: make の導入（Windows）
+        if: runner.os == 'Windows'
+        run: |
+          # Chocolatey のフィードは一時的に 503 を返すことがあるため、少し待って3回まで試す
+          for attempt in 1 2 3; do
+            choco install make --version 4.4.1 --no-progress -y && break
+            [[ $attempt -eq 3 ]] && exit 1
+            sleep 30
+          done
+          echo "PYTHON=python" >> "$GITHUB_ENV"
 
       - name: ビルド
         run: make all csharp-dotnet
@@ -105,10 +193,17 @@ jobs:
       - name: テスト
         run: REQUIRE_ALL=1 make test
 
+      - name: Rust 実装の単体テスト
+        run: make rust-test
+
+      - name: ランダムな入力でのテスト
+        run: REQUIRE_ALL=1 make test-random
+
   # converters/README.md の「必要なツール」に書いた最も古い版で、Python 実装が動くことを確かめる
   converters-python-oldest:
     name: 変換コマンド（Python 3.10）
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: converters
@@ -128,37 +223,75 @@ jobs:
   # Swift は Xcode のツールチェーンに同梱の swift format を使うため、macOS アプリのジョブで確かめる
   lint:
     name: コーディング規約
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        env:
+          # ランナーに入っている SDK とは別の場所に入れ、global.json の版の SDK だけが使われるようにする
+          # （同じ場所にあると、rollForward によってランナーの新しい SDK が選ばれる）
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
         with:
-          dotnet-version: 10.0.x
+          global-json-file: global.json
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
 
-      # ruff と ShellCheck は、版と sha256 を固定して導入する
+      # ruff・mypy・ShellCheck・actionlint は、版と sha256 を固定して導入する
       - name: ツールの導入
         run: pip install --require-hashes --no-deps -r .github/lint/requirements.txt
 
+      # rust-toolchain.toml の版の Rust を入れる（rustup は、入っていない版を自動で入れないことがあるため明示する）
+      - name: Rust のツールチェーンの導入
+        run: |
+          rustup toolchain install
+          rustc --version
+          rustfmt --version
+
       - name: Rust（rustfmt・Clippy）
         run: |
-          rustfmt --version
           rustfmt --check --edition 2021 converters/punctuation_converter.rs
           clippy-driver --edition 2021 -D warnings -o "$RUNNER_TEMP/punctuation_converter" converters/punctuation_converter.rs
+          clippy-driver --edition 2021 -D warnings --test -o "$RUNNER_TEMP/punctuation_converter_test" converters/punctuation_converter.rs
 
-      - name: Python（ruff）
+      - name: Python（ruff・mypy）
         run: |
           ruff check converters
           ruff format --check --diff converters
+          mypy --strict --python-version 3.10 converters/punctuation_converter.py converters/tests/run_random_tests.py
 
       - name: シェルスクリプト（ShellCheck）
         run: git ls-files -z '*.sh' | xargs -0 shellcheck
+
+      # PSScriptAnalyzer は、GitHub のリリースのパッケージ（PowerShell Gallery と同じもの）を版と sha256 で固定して取得する
+      # （Install-Module は取得したパッケージを sha256 で確かめられないため使わない）。
+      # 版を変えるときは、GitHub のリリースのページに表示される sha256 も書き換える
+      - name: PSScriptAnalyzer の導入
+        env:
+          PSSCRIPTANALYZER_VERSION: 1.25.0
+          PSSCRIPTANALYZER_SHA256: 14e634c828eb98efb9f40b2918ba90f139ed5eccdf663a2a747736d996995d60
+        run: |
+          package="$RUNNER_TEMP/PSScriptAnalyzer.nupkg"
+          curl -fsSL -o "$package" "https://github.com/PowerShell/PSScriptAnalyzer/releases/download/$PSSCRIPTANALYZER_VERSION/PSScriptAnalyzer.$PSSCRIPTANALYZER_VERSION.nupkg"
+          echo "$PSSCRIPTANALYZER_SHA256  $package" | sha256sum --check
+          unzip -q "$package" -d "$RUNNER_TEMP/PSScriptAnalyzer"
+
+      - name: PowerShell（PSScriptAnalyzer）
+        shell: pwsh
+        run: |
+          Import-Module (Join-Path $env:RUNNER_TEMP 'PSScriptAnalyzer/PSScriptAnalyzer.psd1')
+          $results = Invoke-ScriptAnalyzer -Path Windows -Recurse -Settings .github/lint/PSScriptAnalyzerSettings.psd1
+          $results | Format-Table -AutoSize
+          if ($results) { throw "PSScriptAnalyzer の指摘が $($results.Count) 件あります。" }
+
+      # PATH にある shellcheck で、ワークフローの run: の中も検査する
+      - name: ワークフロー（actionlint）
+        run: actionlint
 
       - name: C#（dotnet format）
         run: |

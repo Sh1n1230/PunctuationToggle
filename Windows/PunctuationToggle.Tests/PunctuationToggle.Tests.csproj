@@ -15,6 +15,8 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0" />
+    <!-- CI でカバレッジを集計する（dotnet test の collect 引数に "XPlat Code Coverage" を渡す） -->
+    <PackageReference Include="coverlet.collector" Version="10.1.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -23,6 +25,11 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+  </ItemGroup>
+
+  <!-- macOS 版と共通のテストベクタ（TriggerKeyVectorTests が読む） -->
+  <ItemGroup>
+    <None Include="..\..\testdata\trigger_key_vectors.json" Link="testdata\trigger_key_vectors.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

@@ -3,16 +3,16 @@
 # 日本語入力の句読点の設定は、最後に切り替えた状態のまま残る。
 set -eu
 
-APP_NAME=PunctuationToggle
-BUNDLE_ID=io.github.sh1n1230.PunctuationToggle
-LEGACY_BUNDLE_ID=com.example.PunctuationToggle
-DEST="$HOME/Applications/$APP_NAME.app"
+cd "$(dirname "$0")"
+
+# shellcheck source-path=SCRIPTDIR source=app_bundle.sh
+. ./app_bundle.sh
 
 pkill -x "$APP_NAME" 2>/dev/null || true
 
 # ログイン項目は、アプリの「ログイン時に起動」をオフにしてからアンインストールすると確実に消える。
 # 残った場合は、システム設定 →「一般」→「ログイン項目と機能拡張」から削除できる。
-rm -rf "$DEST"
+remove_installed_app
 
 for id in "$BUNDLE_ID" "$LEGACY_BUNDLE_ID"; do
   tccutil reset Accessibility "$id" >/dev/null 2>&1 || true

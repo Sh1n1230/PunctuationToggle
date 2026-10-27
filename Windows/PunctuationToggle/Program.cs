@@ -1,4 +1,9 @@
 using System.ComponentModel;
+using System.Runtime.InteropServices;
+
+// P/Invoke の DLL（user32.dll など）を、exe と同じフォルダー（単一ファイルの exe では展開先）より先に探さず、
+// System32 からだけ読み込む。すべてのキー入力を監視するプロセスに、置かれた同名の DLL を読み込ませないため（CA5392）
+[assembly: DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
 
 namespace PunctuationToggle;
 
