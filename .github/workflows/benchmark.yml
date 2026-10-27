@@ -1,0 +1,101 @@
+# 変換コマンドのベンチマークを週に1回（と手動で）実行し、性能の変化に気づけるようにする。
+# 結果は実行結果のサマリーに表で書き、成果物としても保存する。前回の成功した実行の結果も並べて表示する。
+# 共有のランナーは実行のたびに性能がばらつくため、ゲート（失敗）にはしない。
+name: Benchmark
+
+on:
+  schedule:
+    # 毎週月曜日 3:00（UTC）
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  benchmark:
+    name: 変換コマンドのベンチマーク
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read # 前回の実行の成果物を取得する
+    defaults:
+      run:
+        working-directory: converters
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+
+      - name: Rust のツールチェーンの導入
+        run: rustup toolchain install
+
+      - name: ビルドと計測に必要なパッケージ
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev hyperfine
+
+      - name: ビルド
+        run: make all csharp-dotnet
+
+      - name: 計測
+        run: |
+          hyperfine --version
+          benchmark/run_benchmark.sh benchmark/repeated_text.txt --warmup 2 --runs 10
+          benchmark/run_benchmark.sh benchmark/wikipedia_programming.txt --warmup 5 --runs 30
+
+      # 前回の成功した実行の結果（無ければ表示しない）
+      - name: 前回の結果の実行を探す
+        id: previous
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          run_id=$(gh run list --workflow benchmark.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+          echo "run-id=$run_id" >> "$GITHUB_OUTPUT"
+
+      - name: 前回の結果を取得
+        if: steps.previous.outputs.run-id != ''
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: benchmark-results
+          path: converters/benchmark/previous-results
+          run-id: ${{ steps.previous.outputs.run-id }}
+          github-token: ${{ github.token }}
+
+      - name: サマリーに書き出す
+        run: |
+          {
+            echo "## 変換コマンドのベンチマーク（$(git rev-parse --short HEAD)）"
+            for result in benchmark/results/*.md; do
+              echo
+              echo "### $(basename "$result" .md)"
+              echo
+              cat "$result"
+              previous="benchmark/previous-results/$(basename "$result")"
+              if [[ -f $previous ]]; then
+                echo
+                echo "前回（実行 ${{ steps.previous.outputs.run-id }}）:"
+                echo
+                cat "$previous"
+              fi
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 成果物として保存
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: benchmark-results
+          path: converters/benchmark/results
+          if-no-files-found: error
+          retention-days: 90
