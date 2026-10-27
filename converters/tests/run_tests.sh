@@ -131,6 +131,9 @@ done
 for name in "${implementations[@]}"; do
   if command=$(command_for "$name"); then
     test_implementation "$name" "$command"
+    if [[ "$name" == python ]] && ! python3 tests/test_sigint.py; then
+      report_failure "Ctrl+C: トレースバックを表示せずに終了しませんでした"
+    fi
   else
     echo "SKIP  ${name}（ビルドされていないか、実行環境がありません）"
     skips=$((skips + 1))
