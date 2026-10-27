@@ -145,7 +145,7 @@ jobs:
         with:
           python-version: "3.13"
 
-      # ruff と ShellCheck は、版と sha256 を固定して導入する
+      # ruff・mypy・ShellCheck は、版と sha256 を固定して導入する
       - name: ツールの導入
         run: pip install --require-hashes --no-deps -r .github/lint/requirements.txt
 
@@ -156,10 +156,11 @@ jobs:
           clippy-driver --edition 2021 -D warnings -o "$RUNNER_TEMP/punctuation_converter" converters/punctuation_converter.rs
           clippy-driver --edition 2021 -D warnings --test -o "$RUNNER_TEMP/punctuation_converter_test" converters/punctuation_converter.rs
 
-      - name: Python（ruff）
+      - name: Python（ruff・mypy）
         run: |
           ruff check converters
           ruff format --check --diff converters
+          mypy --strict --python-version 3.10 converters/punctuation_converter.py
 
       - name: シェルスクリプト（ShellCheck）
         run: git ls-files -z '*.sh' | xargs -0 shellcheck

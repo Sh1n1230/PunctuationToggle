@@ -81,7 +81,7 @@ make test
 
 ### 書式の確認
 
-書式と静的解析は CI（「コーディング規約」ジョブと、macOS アプリのジョブ）で確かめています。Pull Request を送る前に、手元でも次のコマンドで確かめてください。ruff と ShellCheck は、CI と同じ版を `.github/lint/requirements.txt` から導入できます（`pip install --require-hashes --no-deps -r .github/lint/requirements.txt`）。
+書式と静的解析は CI（「コーディング規約」ジョブと、macOS アプリのジョブ）で確かめています。Pull Request を送る前に、手元でも次のコマンドで確かめてください。ruff・mypy・ShellCheck は、CI と同じ版を `.github/lint/requirements.txt` から導入できます（`pip install --require-hashes --no-deps -r .github/lint/requirements.txt`）。
 
 ```sh
 # Swift（Xcode に同梱の swift format。設定は macOS/.swift-format）
@@ -99,6 +99,7 @@ clippy-driver --edition 2021 -D warnings --test -o /tmp/punctuation_converter_te
 # Python
 ruff check converters
 ruff format --check converters
+mypy --strict --python-version 3.10 converters/punctuation_converter.py
 
 # シェルスクリプト
 git ls-files -z '*.sh' | xargs -0 shellcheck
