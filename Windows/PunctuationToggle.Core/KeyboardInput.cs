@@ -47,17 +47,37 @@ public static class KeyboardHookInput
     public const int SystemKeyUpMessage = 0x0105; // WM_SYSKEYUP
 
     /// <summary>
+    /// KBDLLHOOKSTRUCT の flags で、整合性レベルが低いプロセスから注入された入力を示すビット（LLKHF_LOWER_IL_INJECTED）。
+    /// </summary>
+    /// <remarks>
+    /// このビットが立つ入力は LLKHF_INJECTED（0x10）も立つ。
+    /// https://learn.microsoft.com/windows/win32/api/winuser/ns-winuser-kbdllhookstruct
+    /// </remarks>
+    public const int LowerIntegrityLevelInjectedFlag = 0x02;
+
+    /// <summary>
     /// フックで受け取った入力を変換する。判定に使わない入力では null を返す。
     /// </summary>
     /// <param name="message">フックの wParam（WM_KEYDOWN など）。</param>
     /// <param name="virtualKey">KBDLLHOOKSTRUCT の vkCode。</param>
+    /// <param name="flags">KBDLLHOOKSTRUCT の flags。</param>
     /// <param name="isKeyDown">
     /// 仮想キーコードのキーが押されているか（GetAsyncKeyState）。
     /// フックはキーの状態が更新される前に呼ばれるので、押し下げのキー自身は前回の状態が返る。
     /// </param>
-    public static KeyboardInput? FromHookMessage(int message, int virtualKey, Func<int, bool> isKeyDown)
+    /// <remarks>
+    /// 整合性レベルが低いプロセス（ブラウザーのサンドボックスなど）が注入した入力は、
+    /// 利用者が押していないのに句読点を切り替えたり、キーを握りつぶしたりできないよう、判定に使わない。
+    /// 同じ整合性レベルのプロセスが注入した入力（PowerToys の Keyboard Manager や AutoHotkey でキーを割り当て直したもの）は使う。
+    /// </remarks>
+    public static KeyboardInput? FromHookMessage(int message, int virtualKey, int flags, Func<int, bool> isKeyDown)
     {
         ArgumentNullException.ThrowIfNull(isKeyDown);
+
+        if ((flags & LowerIntegrityLevelInjectedFlag) != 0)
+        {
+            return null;
+        }
 
         switch (message)
         {

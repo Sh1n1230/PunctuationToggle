@@ -113,7 +113,7 @@ internal sealed class KeyboardHook : IDisposable
     private static KeyboardInput? ToKeyboardInput(int message, IntPtr lParam)
     {
         var hookStruct = Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(lParam);
-        return KeyboardHookInput.FromHookMessage(message, hookStruct.vkCode, IsKeyDown);
+        return KeyboardHookInput.FromHookMessage(message, hookStruct.vkCode, hookStruct.flags, IsKeyDown);
     }
 
     private static bool IsKeyDown(int virtualKey) => (GetAsyncKeyState(virtualKey) & KeyDownBit) != 0;
