@@ -1,8 +1,11 @@
 # v1.2.3 のようなタグを push すると、配布用のファイルをビルドして下書きのリリースを作る。
 # 内容を確認してから、GitHub のリリース画面で公開すること。
 #
-# このファイルを変更した Pull Request では、リリースは作らずに配布用ファイルのビルドまでを確かめ、
-# できたファイルを Actions の成果物として保存する。
+# 配布用ファイルのビルドに影響するファイル（このワークフロー、両 OS のアプリのソースとプロジェクトの設定、
+# SDK の版、zip に入れる LICENSE）を変更した Pull Request では、リリースは作らずに配布用ファイルのビルドまでを確かめ、
+# できたファイルを Actions の成果物として保存する。CI のビルドとは条件が違う（Windows 版は自己完結型の単一ファイル、
+# macOS 版はユニバーサルバイナリ）ため、タグを付けて初めて失敗することがないようにする。
+# 公開リポジトリでは GitHub ホストのランナーは無料のため、ソースの変更も対象にしている。
 #
 # テストやビルドでは外部のパッケージやツールのコードが動くため、それらのジョブには書き込み権限を渡さない。
 # リリースへの書き込みは、ビルド済みのファイルを受け取って添付するだけの publish ジョブに限る。
@@ -12,7 +15,15 @@ on:
   push:
     tags: ["v*"]
   pull_request:
-    paths: [".github/workflows/release.yml"]
+    paths:
+      - .github/workflows/release.yml
+      - global.json
+      - LICENSE
+      - Windows/Directory.Build.props
+      - Windows/PunctuationToggle/**
+      - Windows/PunctuationToggle.Core/**
+      - macOS/PunctuationToggle.xcodeproj/**
+      - macOS/PunctuationToggle/**
 
 # ジョブごとに必要な権限だけを付ける
 permissions: {}
