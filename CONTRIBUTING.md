@@ -10,9 +10,10 @@ PunctuationToggle/
 │   ├── PunctuationToggle/          アプリ本体
 │   │   └── Core/                   OS に依存しない判定ロジック（単体テストの対象）
 │   ├── Tests/                      Core の単体テスト（Swift Testing）
+│   ├── Scripts/                    開発用のスクリプト（アプリアイコンの PNG を作る generate_app_icon.swift）
 │   ├── Package.swift               Core をテストするための Swift パッケージ
 │   ├── PunctuationToggle.xcodeproj
-│   └── install.sh / uninstall.sh
+│   └── install.sh / uninstall.sh   （共通の手順は app_bundle.sh）
 ├── Windows/                        Windows 版（C# / .NET）
 │   ├── PunctuationToggle/          アプリ本体（Windows Forms）
 │   ├── PunctuationToggle.Core/     OS に依存しない判定ロジック（単体テストの対象）
@@ -20,10 +21,20 @@ PunctuationToggle/
 │   ├── PunctuationToggle.sln
 │   └── install.ps1 / uninstall.ps1
 ├── converters/                     句読点の変換コマンド（3言語）とベンチマーク
-└── .github/workflows/              CI とリリースの自動化
+├── .github/
+│   ├── workflows/                  CI・リリース・ベンチマークの自動化
+│   ├── lint/                       CI の「コーディング規約」ジョブのツールの版の固定と設定
+│   └── scripts/                    ワークフローから使うスクリプト
+├── global.json                     .NET SDK の版
+├── rust-toolchain.toml             Rust の版
+└── nuget.config                    NuGet のパッケージソース（nuget.org だけ）
 ```
 
 キー入力の判定（切り替えキーの単独押しの検出や、設定画面でのキーの読み取り）は、どちらの OS でも `Core` に OS の API を使わない形で切り出しています。OS の入力イベントは `KeyboardInput` に変換してから `TriggerKeyDetector` / `TriggerKeyCapture` に渡します。判定の仕様を変えるときは、まず `Core` のテストを追加・修正してください。
+
+### アプリアイコン
+
+macOS 版のアプリアイコンの PNG（`macOS/PunctuationToggle/Assets.xcassets/AppIcon.appiconset/`）は、`macOS/Scripts/generate_app_icon.swift` で描いて作っています。PNG を直接編集せず、スクリプトを直して、リポジトリのルートで `swift macOS/Scripts/generate_app_icon.swift` を実行し、できた PNG をスクリプトと一緒にコミットしてください。スクリプトも CI の `swift format lint` の対象（`Scripts`）です。
 
 ## ビルドとテスト
 
