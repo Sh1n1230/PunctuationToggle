@@ -6,6 +6,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+# 同じ Pull Request に続けて push したときは、古い実行を取り消す（main への push は取り消さない）
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 
@@ -13,6 +18,8 @@ jobs:
   macos:
     name: macOS アプリ
     runs-on: macos-26
+    # ハングしたときに既定の 360 分までランナーを使い続けないよう、今の実行時間の数倍で止める（ほかのジョブも同じ）
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -47,6 +54,7 @@ jobs:
   windows:
     name: Windows アプリ
     runs-on: windows-2025
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -80,6 +88,7 @@ jobs:
   converters:
     name: 変換コマンド
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: converters
@@ -115,6 +124,7 @@ jobs:
   converters-python-oldest:
     name: 変換コマンド（Python 3.10）
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: converters
@@ -135,6 +145,7 @@ jobs:
   lint:
     name: コーディング規約
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

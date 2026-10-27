@@ -32,6 +32,8 @@ jobs:
     name: リリースノートを作成
     if: github.event_name == 'push'
     runs-on: ubuntu-24.04
+    # ハングしたときに既定の 360 分までランナーを使い続けないよう、今の実行時間の数倍で止める（ほかのジョブも同じ）
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:
@@ -62,6 +64,7 @@ jobs:
   version:
     name: バージョン番号を確認
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:
@@ -90,6 +93,7 @@ jobs:
     # Pull Request では release-notes が実行されないので、スキップされても続ける（version の失敗では止める）
     if: ${{ !failure() && !cancelled() }}
     runs-on: windows-2025
+    timeout-minutes: 20
     permissions:
       contents: read
     strategy:
@@ -136,6 +140,7 @@ jobs:
     needs: [release-notes, version]
     if: ${{ !failure() && !cancelled() }}
     runs-on: macos-26
+    timeout-minutes: 20
     permissions:
       contents: read
     steps:
@@ -183,6 +188,7 @@ jobs:
     needs: [release-notes, windows, macos]
     if: github.event_name == 'push'
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     permissions:
       contents: write # リリースの作成とファイルの添付
       id-token: write # 来歴証明の署名に使う OIDC トークンの発行
