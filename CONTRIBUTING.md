@@ -40,7 +40,7 @@ xcodebuild -project PunctuationToggle.xcodeproj -scheme PunctuationToggle build
 
 ### Windows 版
 
-.NET 10 SDK 以降が必要です。`PunctuationToggle.Core` と単体テストは macOS や Linux でも実行でき、アプリ本体もビルド（コンパイルの確認）だけはできます。
+.NET 10 SDK が必要です。CI とリリースで使う SDK の版は、リポジトリのルートの `global.json` で固定しています（Dependabot が更新を提案します）。手元では、同じ 10.0 の、`global.json` の版以上の SDK が使われます（`rollForward` が `latestFeature`）。`global.json` は作業ディレクトリから上にたどって探されるため、リポジトリの外から `Windows/install.ps1` を実行した場合は効きません。`PunctuationToggle.Core` と単体テストは macOS や Linux でも実行でき、アプリ本体もビルド（コンパイルの確認）だけはできます。
 
 ```sh
 dotnet test Windows/PunctuationToggle.sln

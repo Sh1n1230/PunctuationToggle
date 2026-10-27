@@ -34,3 +34,12 @@ updates:
     groups:
       test-packages:
         patterns: ["*"]
+
+  # global.json の .NET SDK の版（配布する Windows 版の exe に含まれる .NET ランタイムの版も決まる）
+  - package-ecosystem: dotnet-sdk
+    directory: /
+    schedule:
+      interval: weekly
+    # 公開直後の版は、乗っ取りや不具合で取り下げられることがあるため、7日待ってから提案させる
+    cooldown:
+      default-days: 7
