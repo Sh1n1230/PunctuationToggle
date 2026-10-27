@@ -216,6 +216,27 @@ jobs:
       - name: シェルスクリプト（ShellCheck）
         run: git ls-files -z '*.sh' | xargs -0 shellcheck
 
+      # PSScriptAnalyzer は PowerShell Gallery のパッケージを版と sha256 で固定して取得する
+      # （Install-Module は取得したパッケージを sha256 で確かめられないため使わない）。
+      # 版を変えるときは、https://www.powershellgallery.com/api/v2/package/PSScriptAnalyzer/<版> の sha256 も書き換える
+      - name: PowerShell（PSScriptAnalyzer）
+        shell: pwsh
+        env:
+          PSSCRIPTANALYZER_VERSION: 1.25.0
+          PSSCRIPTANALYZER_SHA256: 14e634c828eb98efb9f40b2918ba90f139ed5eccdf663a2a747736d996995d60
+        run: |
+          # Expand-Archive は拡張子が .zip のファイルしか展開しないため、.zip として保存する
+          $package = Join-Path $env:RUNNER_TEMP 'PSScriptAnalyzer.zip'
+          Invoke-WebRequest "https://www.powershellgallery.com/api/v2/package/PSScriptAnalyzer/$env:PSSCRIPTANALYZER_VERSION" -OutFile $package
+          $hash = (Get-FileHash $package -Algorithm SHA256).Hash
+          if ($hash -ne $env:PSSCRIPTANALYZER_SHA256) { throw "PSScriptAnalyzer の sha256 が一致しません: $hash" }
+          $module = Join-Path $env:RUNNER_TEMP 'PSScriptAnalyzer'
+          Expand-Archive $package -DestinationPath $module
+          Import-Module (Join-Path $module 'PSScriptAnalyzer.psd1')
+          $results = Invoke-ScriptAnalyzer -Path Windows -Recurse -Settings .github/lint/PSScriptAnalyzerSettings.psd1
+          $results | Format-Table -AutoSize
+          if ($results) { throw "PSScriptAnalyzer の指摘が $($results.Count) 件あります。" }
+
       # PATH にある shellcheck で、ワークフローの run: の中も検査する
       - name: ワークフロー（actionlint）
         run: actionlint

@@ -105,6 +105,10 @@ mypy --strict --python-version 3.10 converters/punctuation_converter.py converte
 # シェルスクリプト
 git ls-files -z '*.sh' | xargs -0 shellcheck
 
+# PowerShell（CI と同じ版の PSScriptAnalyzer を入れて、PowerShell で実行する）
+#   Install-Module PSScriptAnalyzer -RequiredVersion 1.25.0 -Scope CurrentUser
+#   Invoke-ScriptAnalyzer -Path Windows -Recurse -Settings .github/lint/PSScriptAnalyzerSettings.psd1
+
 # GitHub Actions のワークフロー（shellcheck が PATH にあれば run: の中も検査する）
 actionlint
 ```
