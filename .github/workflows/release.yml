@@ -141,12 +141,35 @@ jobs:
           Copy-Item LICENSE publish/
           Compress-Archive -Path publish/* -DestinationPath $archive
           "ARCHIVE=$archive" >> $env:GITHUB_ENV
+          "SBOM=PunctuationToggle-$env:RELEASE_NAME-${{ matrix.runtime }}.cdx.json" >> $env:GITHUB_ENV
+
+      # 単一ファイルの exe の中身（同梱した .NET ランタイムとライブラリの版）は利用者から見えないため、
+      # 構成要素の一覧（SBOM）を添付する。単一ファイルにまとめる前の形でも同じ条件で発行し、
+      # deps.json と各 DLL の版を読み取らせる
+      - name: SBOM のための発行
+        run: >
+          dotnet publish Windows/PunctuationToggle/PunctuationToggle.csproj -c Release
+          -r ${{ matrix.runtime }} --self-contained -p:DebugType=none
+          -p:PublishDir=${{ github.workspace }}/sbom-source/
+
+      - name: SBOM を作成
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          path: sbom-source
+          format: cyclonedx-json
+          output-file: ${{ env.SBOM }}
+          # 書き込み権限を持たないジョブなので、成果物の保存とリリースへの添付は自分で行う
+          upload-artifact: false
+          upload-release-assets: false
+          dependency-snapshot: false
 
       - name: 成果物として保存
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ env.ARCHIVE }}
-          path: ${{ env.ARCHIVE }}
+          path: |
+            ${{ env.ARCHIVE }}
+            ${{ env.SBOM }}
           if-no-files-found: error
 
   macos:
@@ -217,7 +240,7 @@ jobs:
         working-directory: dist
         run: |
           mv release-notes.md ..
-          sha256sum PunctuationToggle-*.zip > SHA256SUMS.txt
+          sha256sum PunctuationToggle-*.zip PunctuationToggle-*.cdx.json > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       # 利用者が `gh attestation verify` で、このリポジトリのこのワークフローでビルドされたことを確かめられる
@@ -227,6 +250,7 @@ jobs:
         with:
           subject-path: |
             dist/PunctuationToggle-*.zip
+            dist/PunctuationToggle-*.cdx.json
             dist/SHA256SUMS.txt
 
       - name: 下書きを作成
@@ -236,4 +260,4 @@ jobs:
         run: >
           gh release create "$GITHUB_REF_NAME" --draft --verify-tag
           --title "PunctuationToggle $GITHUB_REF_NAME" --notes-file release-notes.md
-          dist/PunctuationToggle-*.zip dist/SHA256SUMS.txt
+          dist/PunctuationToggle-*.zip dist/PunctuationToggle-*.cdx.json dist/SHA256SUMS.txt

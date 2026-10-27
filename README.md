@@ -67,6 +67,8 @@ shasum -a 256 -c SHA256SUMS.txt --ignore-missing
 Get-FileHash .\PunctuationToggle-<バージョン>-win-x64.zip -Algorithm SHA256
 ```
 
+Windows 版のリリースには、exe に含まれる .NET ランタイムとライブラリの一覧（SBOM。CycloneDX 形式の `PunctuationToggle-<バージョン>-win-x64.cdx.json` など）も添付しています。.NET の脆弱性が公表されたときに、使っている版が影響を受けるかを確かめられます。SBOM にも来歴証明を付けています。macOS 版は、OS に含まれるフレームワーク以外のライブラリを使っていません。
+
 > [!CAUTION]
 > 以下で案内している警告の回避操作は、上記の確認を済ませたファイルに対してのみ行ってください。本リポジトリの [Releases](https://github.com/Sh1n1230/PunctuationToggle/releases) 以外から入手したファイルは実行しないでください。
 
