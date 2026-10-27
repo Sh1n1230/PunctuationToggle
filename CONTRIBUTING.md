@@ -47,6 +47,8 @@ dotnet test Windows/PunctuationToggle.sln
 dotnet build Windows/PunctuationToggle.sln
 ```
 
+CI では、両 OS の Core の単体テストのカバレッジを集計し、Actions の実行結果のサマリーに表示しています（下限は設けていません）。手元では `swift test --enable-code-coverage`（macOS）や `dotnet test Windows/PunctuationToggle.sln --collect:"XPlat Code Coverage"`（Windows）で同じものを作れます。
+
 テストで使う NuGet パッケージは `Windows/PunctuationToggle.Tests/packages.lock.json` で固定しています。パッケージを追加・更新したときは `dotnet restore Windows/PunctuationToggle.sln` で lock ファイルを更新し、一緒にコミットしてください（CI では lock ファイルと食い違うと失敗します）。
 
 ### 変換コマンド

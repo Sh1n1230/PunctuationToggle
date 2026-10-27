@@ -27,7 +27,21 @@ jobs:
 
       - name: 単体テスト
         working-directory: macOS
-        run: swift test
+        run: swift test --enable-code-coverage
+
+      # カバレッジは、まずは結果を見えるようにするだけで、下限は設けない
+      - name: カバレッジの集計
+        working-directory: macOS
+        run: |
+          bin_path=$(swift build --show-bin-path)
+          {
+            echo "### macOS 版の Core のカバレッジ"
+            echo '```'
+            xcrun llvm-cov report -instr-profile "$bin_path/codecov/default.profdata" \
+              "$bin_path/PunctuationToggleCoreTests.xctest/Contents/MacOS/PunctuationToggleCoreTests" \
+              -ignore-filename-regex='(Tests|\.build)/'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       # 設定は macOS/.swift-format
       - name: コーディング規約（swift format）
@@ -71,7 +85,29 @@ jobs:
           dotnet build Windows/PunctuationToggle.sln -c Release
 
       - name: 単体テスト
-        run: dotnet test Windows/PunctuationToggle.sln -c Release --no-build
+        run: >
+          dotnet test Windows/PunctuationToggle.sln -c Release --no-build
+          --collect:"XPlat Code Coverage" --results-directory "${{ runner.temp }}/coverage"
+
+      # カバレッジは、まずは結果を見えるようにするだけで、下限は設けない
+      # Python の出力を UTF-8 のまま書き出すよう、PowerShell ではなく Git Bash で実行する
+      - name: カバレッジの集計
+        shell: bash
+        env:
+          PYTHONUTF8: "1"
+        run: |
+          report=$(find "$RUNNER_TEMP/coverage" -name coverage.cobertura.xml | head -n 1)
+          {
+            echo "### Windows 版の Core のカバレッジ"
+            python .github/scripts/cobertura_summary.py "$report"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: カバレッジを成果物として保存
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-coverage
+          path: ${{ runner.temp }}/coverage
+          if-no-files-found: error
 
       # Windows PowerShell 5.1 で、インストール・起動・アンインストールが通ることを確認する。
       # ここに書いたスクリプトは BOM なしで保存されて 5.1 では UTF-8 として読まれないため、ASCII の文字だけで書く。
