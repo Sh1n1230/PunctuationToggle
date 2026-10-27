@@ -102,7 +102,8 @@ test_implementation() {
 
   # 書き込めない出力先では、トレースバックなどではなくエラーメッセージを表示して終了コード 1 にする。
   # 書き込むと必ず失敗する /dev/full は Linux にしか無いため、ほかの OS では確かめない
-  if [[ -w /dev/full ]]; then
+  # （Windows の Git Bash の /dev/full は、Windows のプログラムからは書き込みに成功する）
+  if [[ $(uname -s) == Linux && -w /dev/full ]]; then
     local status=0
     # shellcheck disable=SC2086
     $command < "$WORK_DIR/cases/long_line/input.txt" > /dev/full 2> "$errors" || status=$?

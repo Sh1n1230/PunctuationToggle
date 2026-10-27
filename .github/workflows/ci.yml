@@ -34,11 +34,13 @@ jobs:
         working-directory: macOS
         run: |
           bin_path=$(swift build --show-bin-path)
+          # テストのバンドルの名前は Swift の版で違う（PunctuationToggleCorePackageTests など）ため、探して使う
+          test_bundle=$(find "$bin_path" -maxdepth 1 -name '*.xctest' | head -n 1)
           {
             echo "### macOS 版の Core のカバレッジ"
             echo '```'
             xcrun llvm-cov report -instr-profile "$bin_path/codecov/default.profdata" \
-              "$bin_path/PunctuationToggleCoreTests.xctest/Contents/MacOS/PunctuationToggleCoreTests" \
+              "$test_bundle/Contents/MacOS/$(basename "$test_bundle" .xctest)" \
               -ignore-filename-regex='(Tests|\.build)/'
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
@@ -264,20 +266,20 @@ jobs:
       # PSScriptAnalyzer は PowerShell Gallery のパッケージを版と sha256 で固定して取得する
       # （Install-Module は取得したパッケージを sha256 で確かめられないため使わない）。
       # 版を変えるときは、https://www.powershellgallery.com/api/v2/package/PSScriptAnalyzer/<版> の sha256 も書き換える
-      - name: PowerShell（PSScriptAnalyzer）
-        shell: pwsh
+      - name: PSScriptAnalyzer の導入
         env:
           PSSCRIPTANALYZER_VERSION: 1.25.0
           PSSCRIPTANALYZER_SHA256: 14e634c828eb98efb9f40b2918ba90f139ed5eccdf663a2a747736d996995d60
         run: |
-          # Expand-Archive は拡張子が .zip のファイルしか展開しないため、.zip として保存する
-          $package = Join-Path $env:RUNNER_TEMP 'PSScriptAnalyzer.zip'
-          Invoke-WebRequest "https://www.powershellgallery.com/api/v2/package/PSScriptAnalyzer/$env:PSSCRIPTANALYZER_VERSION" -OutFile $package
-          $hash = (Get-FileHash $package -Algorithm SHA256).Hash
-          if ($hash -ne $env:PSSCRIPTANALYZER_SHA256) { throw "PSScriptAnalyzer の sha256 が一致しません: $hash" }
-          $module = Join-Path $env:RUNNER_TEMP 'PSScriptAnalyzer'
-          Expand-Archive $package -DestinationPath $module
-          Import-Module (Join-Path $module 'PSScriptAnalyzer.psd1')
+          package="$RUNNER_TEMP/PSScriptAnalyzer.nupkg"
+          curl -fsSL -o "$package" "https://www.powershellgallery.com/api/v2/package/PSScriptAnalyzer/$PSSCRIPTANALYZER_VERSION"
+          echo "$PSSCRIPTANALYZER_SHA256  $package" | sha256sum --check
+          unzip -q "$package" -d "$RUNNER_TEMP/PSScriptAnalyzer"
+
+      - name: PowerShell（PSScriptAnalyzer）
+        shell: pwsh
+        run: |
+          Import-Module (Join-Path $env:RUNNER_TEMP 'PSScriptAnalyzer/PSScriptAnalyzer.psd1')
           $results = Invoke-ScriptAnalyzer -Path Windows -Recurse -Settings .github/lint/PSScriptAnalyzerSettings.psd1
           $results | Format-Table -AutoSize
           if ($results) { throw "PSScriptAnalyzer の指摘が $($results.Count) 件あります。" }
