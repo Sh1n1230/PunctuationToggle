@@ -14,6 +14,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let changeTriggerKeyMenuItem = NSMenuItem()
     private let launchAtLoginMenuItem = NSMenuItem()
 
+    /// `kAXTrustedCheckOptionPrompt` の値（ApplicationServices の AXUIElement.h）。
+    /// 定数はグローバルな `var` として読み込まれ、Swift 6 の言語モードでは並行処理で安全でないとして使えないため、値を書く
+    private static let trustedCheckOptionPromptKey = "AXTrustedCheckOptionPrompt"
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         createStatusItem()
 
@@ -68,13 +72,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
 
         // 許可を求めるダイアログを出し、許可されるまで定期的に再試行する
-        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+        let options = [Self.trustedCheckOptionPromptKey: true] as CFDictionary
         AXIsProcessTrustedWithOptions(options)
 
-        permissionRetryTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] timer in
+        // メインの RunLoop に登録したタイマーなので、メインスレッドで呼ばれる
+        permissionRetryTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self, self.keyboardMonitor.start() else { return }
-                timer.invalidate()
+                self.permissionRetryTimer?.invalidate()
                 self.permissionRetryTimer = nil
                 self.updateStatusItem()
             }
