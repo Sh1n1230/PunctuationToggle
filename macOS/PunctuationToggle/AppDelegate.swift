@@ -20,6 +20,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private static let trustedCheckOptionPromptKey = "AXTrustedCheckOptionPrompt"
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // 二重に起動すると切り替えキーで2回切り替わって元に戻ってしまうため、後から起動した方は何もせずに終わる
+        // （~/Applications のアプリとビルドしたアプリなど、別の場所のアプリでも同じバンドル ID なら対象にする）
+        if isAnotherInstanceRunning() {
+            NSApp.terminate(nil)
+            return
+        }
+
         createStatusItem()
 
         keyboardMonitor.inputHandler = { [weak self] input in
@@ -41,6 +48,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         keyboardMonitor.stop()
+    }
+
+    /// 先に起動した同じアプリが動いているか。
+    /// 同時に起動した場合に両方が終わらないよう、起動した時刻（同じならプロセス ID）が早い方を残す
+    private func isAnotherInstanceRunning() -> Bool {
+        guard let bundleIdentifier = Bundle.main.bundleIdentifier else { return false }
+        let current = NSRunningApplication.current
+        let currentOrder = (current.launchDate ?? .distantFuture, current.processIdentifier)
+        return NSRunningApplication.runningApplications(withBundleIdentifier: bundleIdentifier).contains { other in
+            other.processIdentifier != current.processIdentifier && !other.isTerminated
+                && (other.launchDate ?? .distantFuture, other.processIdentifier) < currentOrder
+        }
     }
 
     // MARK: - 入力の処理
