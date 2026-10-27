@@ -103,6 +103,16 @@ make test-random
 - 切り替えキーで切り替えたとき、入力中のアプリ（メモ帳など）に句読点がすぐ反映される（`FocusBouncer`）。
 - ハイコントラストを有効にして設定画面を開くと、案内がテーマの文字色で表示される。
 
+## ブランチとコミット
+
+今の運用を書き起こしたものです。
+
+- main には直接 push せず、ブランチを作って Pull Request を送ります。
+- ブランチ名は `<種類>/<内容を表す英語の短い名前>` にします（例: `fix/windows-trigger-key-save-failure`、`feat/windows-tray-icon-dpi`、`ci/lint`）。リリースは `release/vX.Y.Z` です。
+- 種類は [Conventional Commits](https://www.conventionalcommits.org/ja/v1.0.0/) のものを使います: `feat`（機能の追加）・`fix`（不具合の修正）・`docs`（文書）・`test`（テスト）・`refactor`（動作を変えない整理）・`perf`（性能）・`build`（ビルドの設定・依存）・`ci`（CI）・`chore`（そのほか）。
+- コミットメッセージと Pull Request のタイトルは、`<種類>: <日本語の説明>` にします（例: `fix: Windows 版で、切り替えキーを保存できなくても異常終了しないようにする`）。説明の句読点は「、。」で、文末の「。」は付けません。リリースの Pull Request は `vX.Y.Z をリリースする` です。
+- 関係する Issue は、Pull Request の本文に `Fixes #45` のように書きます（マージすると Issue が閉じます）。閉じない関係は `Refs #45` と書きます。
+
 ## コーディング規約
 
 - 各言語の標準的な命名規則と書式に従います（Swift: [API Design Guidelines](https://www.swift.org/documentation/api-design-guidelines/)、C#: [.NET のコーディング規則](https://learn.microsoft.com/dotnet/csharp/fundamentals/coding-style/coding-conventions)、Rust: `rustfmt`、Python: PEP 8）。インデントなどの基本設定は `.editorconfig` にあります。
