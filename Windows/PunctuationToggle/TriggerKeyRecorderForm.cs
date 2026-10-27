@@ -127,8 +127,19 @@ internal sealed class TriggerKeyRecorderForm : Form
 
     private void ShowRejectedMessage(int virtualKey)
     {
-        statusLabel.Text = $"そのキー（仮想キーコード 0x{virtualKey:X2}）は使えません。{Environment.NewLine}{InstructionText}";
+        statusLabel.Text = $"そのキー（{KeyName(virtualKey)}）は使えません。{Environment.NewLine}{InstructionText}";
         statusLabel.ForeColor = Color.Firebrick;
+    }
+
+    /// <summary>利用者に示すキーの名前。名前を求められないキーは仮想キーコードで示す。</summary>
+    private static string KeyName(int virtualKey)
+    {
+        if (VirtualKeyNames.For(virtualKey) is { } name)
+        {
+            return name;
+        }
+        var key = (Keys)virtualKey;
+        return Enum.IsDefined(key) ? key.ToString() : $"仮想キーコード 0x{virtualKey:X2}";
     }
 
     private void Finish(TriggerKey? key)
