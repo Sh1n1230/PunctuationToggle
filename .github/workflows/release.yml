@@ -31,7 +31,7 @@ jobs:
   release-notes:
     name: リリースノートを作成
     if: github.event_name == 'push'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
@@ -61,7 +61,7 @@ jobs:
   # Pull Request では、Windows 版と macOS 版のバージョン番号が一致しているかだけを確かめる
   version:
     name: バージョン番号を確認
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
@@ -89,7 +89,7 @@ jobs:
     needs: [release-notes, version]
     # Pull Request では release-notes が実行されないので、スキップされても続ける（version の失敗では止める）
     if: ${{ !failure() && !cancelled() }}
-    runs-on: windows-latest
+    runs-on: windows-2025
     permissions:
       contents: read
     strategy:
@@ -182,7 +182,7 @@ jobs:
     name: 下書きのリリースを作成
     needs: [release-notes, windows, macos]
     if: github.event_name == 'push'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write # リリースの作成とファイルの添付
       id-token: write # 来歴証明の署名に使う OIDC トークンの発行
