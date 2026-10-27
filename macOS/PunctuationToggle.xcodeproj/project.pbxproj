@@ -86,10 +86,10 @@
 				};
 			};
 			buildConfigurationList = 4A90E65F3063A8DE00461B27 /* Build configuration list for PBXProject "PunctuationToggle" */;
-			developmentRegion = en;
+			developmentRegion = ja;
 			hasScannedForEncodings = 0;
 			knownRegions = (
-				en,
+				ja,
 				Base,
 			);
 			mainGroup = 4A90E65B3063A8DE00461B27;
