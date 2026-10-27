@@ -15,7 +15,7 @@ internal sealed class TrayApplication : ApplicationContext
     private readonly NotifyIcon notifyIcon = new();
     private readonly ToolStripMenuItem toggleMenuItem = new();
     private readonly ToolStripMenuItem usageMenuItem = new() { Enabled = false };
-    private readonly ToolStripMenuItem launchAtLoginMenuItem = new("ログイン時に起動");
+    private readonly ToolStripMenuItem launchAtLoginMenuItem = new("ログイン時に起動(&L)");
     private readonly TriggerKeyDetector detector = new(AppSettings.TriggerKey);
     private readonly FocusBouncer focusBouncer = new();
     private readonly System.Windows.Forms.Timer pollTimer = new() { Interval = PollIntervalMilliseconds };
@@ -122,15 +122,17 @@ internal sealed class TrayApplication : ApplicationContext
         toggleMenuItem.Click += (_, _) => TogglePunctuationStyle(bounceFocus: false);
         launchAtLoginMenuItem.Click += (_, _) => ToggleLaunchAtLogin();
 
+        // キーボードだけでも選べるよう、日本語の Windows アプリの慣習どおり項目名の後ろに (&X) の形でアクセスキーを付ける。
+        // 操作の説明（usageMenuItem）は選べない項目なので付けない
         var menu = new ContextMenuStrip();
         menu.Items.Add(toggleMenuItem);
         menu.Items.Add(usageMenuItem);
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("切り替えキーを変更…", null, (_, _) => ShowTriggerKeyRecorder());
+        menu.Items.Add("切り替えキーを変更(&K)…", null, (_, _) => ShowTriggerKeyRecorder());
         menu.Items.Add(launchAtLoginMenuItem);
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("バージョン情報", null, (_, _) => ShowAbout());
-        menu.Items.Add("終了", null, (_, _) => ExitThread());
+        menu.Items.Add("バージョン情報(&A)", null, (_, _) => ShowAbout());
+        menu.Items.Add("終了(&X)", null, (_, _) => ExitThread());
         menu.Opening += (_, _) =>
         {
             launchAtLoginMenuItem.Checked = AppSettings.LaunchAtLogin;
@@ -145,8 +147,8 @@ internal sealed class TrayApplication : ApplicationContext
         var triggerKey = detector.TriggerKey;
 
         toggleMenuItem.Text = style == PunctuationStyle.CommaPeriod
-            ? $"「、。」に切り替え（{triggerKey.DisplayName}）"
-            : $"「，．」に切り替え（{triggerKey.DisplayName}）";
+            ? $"「、。」に切り替え(&T)（{triggerKey.DisplayName}）"
+            : $"「，．」に切り替え(&T)（{triggerKey.DisplayName}）";
         usageMenuItem.Text = triggerKey.UsageDescription;
         notifyIcon.Text = $"PunctuationToggle: {style.Symbols()}";
 
