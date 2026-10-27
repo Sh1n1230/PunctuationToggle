@@ -39,3 +39,5 @@ trim_trailing_whitespace = unset
 # P/Invoke で読み込む DLL を System32 からだけ探すようにする（exe と同じフォルダーの同名の DLL を読み込まない）。
 # 属性の付け忘れをビルドエラーにする（TreatWarningsAsErrors）
 dotnet_diagnostic.CA5392.severity = warning
+# P/Invoke は LibraryImport で宣言する（DllImport を書くとビルドエラーにする）
+dotnet_diagnostic.SYSLIB1054.severity = warning

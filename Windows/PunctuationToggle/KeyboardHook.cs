@@ -10,7 +10,7 @@ namespace PunctuationToggle;
 /// フックはこのオブジェクトを作ったスレッドのメッセージループで呼ばれる。
 /// 処理に時間がかかると Windows にフックを外されるため、ハンドラーでは重い処理をしないこと。
 /// </remarks>
-internal sealed class KeyboardHook : IDisposable
+internal sealed partial class KeyboardHook : IDisposable
 {
     private const int WH_KEYBOARD_LL = 13;
     private const int WH_MOUSE_LL = 14;
@@ -25,37 +25,40 @@ internal sealed class KeyboardHook : IDisposable
     // フックの処理を終え、入力をほかのアプリに渡さないことを示す戻り値
     private static readonly IntPtr SuppressInput = 1;
 
+    // https://learn.microsoft.com/windows/win32/api/winuser/ns-winuser-kbdllhookstruct
     [StructLayout(LayoutKind.Sequential)]
     private struct KBDLLHOOKSTRUCT
     {
-        public int vkCode;
-        public int scanCode;
-        public int flags;
-        public int time;
-        public IntPtr dwExtraInfo;
+        public uint vkCode;
+        public uint scanCode;
+        public uint flags;
+        public uint time;
+        public nuint dwExtraInfo;
     }
 
     private delegate IntPtr HookProc(int nCode, IntPtr wParam, IntPtr lParam);
 
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern IntPtr SetWindowsHookEx(int idHook, HookProc lpfn, IntPtr hMod, uint dwThreadId);
+    // LibraryImport はデリゲートの引数を扱えない（SYSLIB1051）ため、関数ポインターを渡す
+    [LibraryImport("user32.dll", EntryPoint = "SetWindowsHookExW", SetLastError = true)]
+    private static partial IntPtr SetWindowsHookEx(int idHook, IntPtr lpfn, IntPtr hMod, uint dwThreadId);
 
-    [DllImport("user32.dll")]
+    [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool UnhookWindowsHookEx(IntPtr hhk);
+    private static partial bool UnhookWindowsHookEx(IntPtr hhk);
 
-    [DllImport("user32.dll")]
-    private static extern IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
+    [LibraryImport("user32.dll")]
+    private static partial IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
 
-    [DllImport("user32.dll")]
-    private static extern short GetAsyncKeyState(int vKey);
+    [LibraryImport("user32.dll")]
+    private static partial short GetAsyncKeyState(int vKey);
 
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
-    private static extern IntPtr GetModuleHandle(string? lpModuleName);
+    // LibraryImport は末尾の W を補わないため、Unicode 版の名前を書く
+    [LibraryImport("kernel32.dll", EntryPoint = "GetModuleHandleW", StringMarshalling = StringMarshalling.Utf16)]
+    private static partial IntPtr GetModuleHandle(string? lpModuleName);
 
     private readonly Func<KeyboardInput, bool> inputHandler;
 
-    // GC に回収されないよう、デリゲートをフィールドで保持する
+    // 関数ポインターだけを渡したデリゲートが GC に回収されないよう、フィールドで保持する
     private readonly HookProc keyboardProc;
     private readonly HookProc mouseProc;
     private readonly IntPtr keyboardHook;
@@ -70,14 +73,15 @@ internal sealed class KeyboardHook : IDisposable
         mouseProc = MouseProc;
 
         var module = GetModuleHandle(null);
-        keyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboardProc, module, 0);
+        keyboardHook = SetWindowsHookEx(
+            WH_KEYBOARD_LL, Marshal.GetFunctionPointerForDelegate(keyboardProc), module, 0);
         if (keyboardHook == IntPtr.Zero)
         {
             throw new Win32Exception(Marshal.GetLastWin32Error());
         }
 
         // マウスのフックは Ctrl＋クリックの判定に使うだけなので、登録できなくても動作は続ける
-        mouseHook = SetWindowsHookEx(WH_MOUSE_LL, mouseProc, module, 0);
+        mouseHook = SetWindowsHookEx(WH_MOUSE_LL, Marshal.GetFunctionPointerForDelegate(mouseProc), module, 0);
     }
 
     public void Dispose()
@@ -113,7 +117,8 @@ internal sealed class KeyboardHook : IDisposable
     private static KeyboardInput? ToKeyboardInput(int message, IntPtr lParam)
     {
         var hookStruct = Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(lParam);
-        return KeyboardHookInput.FromHookMessage(message, hookStruct.vkCode, hookStruct.flags, IsKeyDown);
+        // 仮想キーコードは 1〜254、flags は下位の数ビットだけを使うので、int に収まる
+        return KeyboardHookInput.FromHookMessage(message, (int)hookStruct.vkCode, (int)hookStruct.flags, IsKeyDown);
     }
 
     private static bool IsKeyDown(int virtualKey) => (GetAsyncKeyState(virtualKey) & KeyDownBit) != 0;
