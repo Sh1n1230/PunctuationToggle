@@ -97,6 +97,21 @@ test_implementation() {
     if [[ $status -ne 1 ]] || ! grep -q "^変換に失敗しました: " "$errors"; then
       report_failure "書き込めない出力先: 終了コード 1 とエラーメッセージを期待しましたが、終了コードは $status でした: $(head -c 200 "$errors")"
     fi
+
+    # 使い方を書き出せない場合も、トレースバックや panic のメッセージを出さずに、
+    # --help は終了コード 1、不正な引数は（エラーを書き出せなくても）終了コード 2 にする
+    status=0
+    # shellcheck disable=SC2086
+    $command --help < /dev/null > /dev/full 2> "$errors" || status=$?
+    if [[ $status -ne 1 ]] || grep -qE "Traceback|Exception|panicked" "$errors"; then
+      report_failure "使い方を書き出せない: 終了コード 1 を期待しましたが、終了コードは $status でした: $(head -c 200 "$errors")"
+    fi
+    status=0
+    # shellcheck disable=SC2086
+    $command --unknown < /dev/null > "$output" 2> /dev/full || status=$?
+    if [[ $status -ne 2 ]]; then
+      report_failure "不正な引数のエラーを書き出せない: 終了コード 2 を期待しましたが、終了コードは $status でした"
+    fi
   fi
 
   # オプションは1つだけ受け付け、大文字小文字の違いや "--"・"-" も不正な引数とする。

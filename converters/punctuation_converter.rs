@@ -43,11 +43,24 @@ fn main() -> ExitCode {
         [] => &TO_COMMA_PERIOD,
         ["-r" | "--reverse"] => &TO_TOUTEN_KUTEN,
         ["-h" | "--help"] => {
-            print!("{USAGE}");
-            return ExitCode::SUCCESS;
+            // print! は書き込めないと panic するため、結果を見て終了コードを決める
+            let mut stdout = io::stdout().lock();
+            return match stdout
+                .write_all(USAGE.as_bytes())
+                .and_then(|()| stdout.flush())
+            {
+                Ok(()) => ExitCode::SUCCESS,
+                Err(error) => {
+                    write_error(&format!("使い方を表示できませんでした: {error}\n"));
+                    ExitCode::FAILURE
+                }
+            };
         }
         _ => {
-            eprint!("不正な引数です: {}\n\n{USAGE}", arguments.join(" "));
+            write_error(&format!(
+                "不正な引数です: {}\n\n{USAGE}",
+                arguments.join(" ")
+            ));
             return ExitCode::from(EXIT_USAGE_ERROR);
         }
     };
@@ -55,10 +68,16 @@ fn main() -> ExitCode {
     match convert_stream(io::stdin().lock(), io::stdout().lock(), replacements) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
-            eprintln!("変換に失敗しました: {error}");
+            write_error(&format!("変換に失敗しました: {error}\n"));
             ExitCode::FAILURE
         }
     }
+}
+
+/// 標準エラー出力に書く。eprint! は書き込めないと panic するため使わない。
+/// 書き込めなくても、終了コードはほかの実装と同じにするため無視する
+fn write_error(message: &str) {
+    let _ = io::stderr().write_all(message.as_bytes());
 }
 
 /// 入力を一定のバイト数ずつ読み、変換して書き出す。置換する文字はどれも1文字なので、
