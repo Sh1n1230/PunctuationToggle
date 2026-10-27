@@ -114,6 +114,17 @@ make test-random
 - コミットメッセージと Pull Request のタイトルは、`<種類>: <日本語の説明>` にします（例: `fix: Windows 版で、切り替えキーを保存できなくても異常終了しないようにする`）。説明の句読点は「、。」で、文末の「。」は付けません。リリースの Pull Request は `vX.Y.Z をリリースする` です。
 - 関係する Issue は、Pull Request の本文に `Fixes #45` のように書きます（マージすると Issue が閉じます）。閉じない関係は `Refs #45` と書きます。
 
+### OS や IME を更新したときの確認
+
+本ツールは、macOS の日本語入力の設定（`com.apple.inputmethod.Kotoeri` の `JIMPrefPunctuationTypeKey` と分散通知）と、Microsoft IME の設定（レジストリの `option1` のビット16〜17）という、公開されていない仕様に依存しています。OS の大型アップデートやベータ版の公開のときは、実機で次を確かめ、README の「動作を確かめた OS の版」の表を更新してください。
+
+1. 切り替えキーで「、。」⇔「，．」が切り替わり、メモ（メモ帳）・ブラウザー・ターミナルで入力する句読点が変わる。変換中の未確定の文字が消えない。
+2. OS の設定画面（システム設定の日本語入力、Microsoft IME の設定）の句読点の表示も切り替わる。逆に、設定画面で変えると、メニューバー・タスクトレイの表示が追従する。
+3. ログアウトしてログインし直す（または再起動する）と、最後に切り替えた句読点が保たれている。
+4. 上の「手動での動作確認」の項目。
+
+動かなくなった場合は、設定の保存先や通知の名前が変わっていないか（macOS は `defaults read com.apple.inputmethod.Kotoeri`、Windows は `reg query HKCU\Software\Microsoft\IME\15.0\IMEJP\MSIME`）を確かめ、Issue に記録してください。
+
 ## コーディング規約
 
 - 各言語の標準的な命名規則と書式に従います（Swift: [API Design Guidelines](https://www.swift.org/documentation/api-design-guidelines/)、C#: [.NET のコーディング規則](https://learn.microsoft.com/dotnet/csharp/fundamentals/coding-style/coding-conventions)、Rust: `rustfmt`、Python: PEP 8）。インデントなどの基本設定は `.editorconfig` にあります。
@@ -164,9 +175,10 @@ actionlint
    - `## [Unreleased]` の下にたまった項目を、新しい見出し `## [X.Y.Z] - YYYY-MM-DD`（例: `## [1.3.0] - 2026-10-15`）の下に移し、`## [Unreleased]` は空のまま残します。リリースのワークフローは `## [X.Y.Z]` の見出しを探してリリースノートを作るため、見出しの形を間違えると失敗します。
    - 新しい見出しのすぐ下に、そのリリースの要約を1段落書きます。
    - ファイルの末尾の比較リンクで、`[Unreleased]` の比較元を新しいタグにし（`compare/vX.Y.Z...HEAD`）、新しいバージョンのリンク（`[X.Y.Z]: .../compare/v<前のバージョン>...vX.Y.Z`）を追加します。
-2. バージョン番号を更新します（macOS: `PunctuationToggle.xcodeproj` の `MARKETING_VERSION` と `CURRENT_PROJECT_VERSION`、Windows: `Windows/Directory.Build.props` の `Version`）。
-3. main ブランチで `v1.2.3` のようなタグを付けて push します。タグと手順 2 のバージョン番号が一致しない場合、リリースのワークフローはビルドの前に失敗します。一致していれば、GitHub Actions が macOS 版と Windows 版をビルドし、来歴証明（artifact attestation）を付けて、zip と `SHA256SUMS.txt` を添付した下書きのリリースを作ります。
-4. リリースの内容を確認して公開します。添付された zip は、README の「ダウンロードしたファイルの確認」の手順で検証できます。
+2. README の「動作を確かめた OS の版」を、リリースする版で確かめた結果に更新します（手順は「OS や IME を更新したときの確認」）。
+3. バージョン番号を更新します（macOS: `PunctuationToggle.xcodeproj` の `MARKETING_VERSION` と `CURRENT_PROJECT_VERSION`、Windows: `Windows/Directory.Build.props` の `Version`）。
+4. main ブランチで `v1.2.3` のようなタグを付けて push します。タグと手順 3 のバージョン番号が一致しない場合、リリースのワークフローはビルドの前に失敗します。一致していれば、GitHub Actions が macOS 版と Windows 版をビルドし、来歴証明（artifact attestation）を付けて、zip と `SHA256SUMS.txt` を添付した下書きのリリースを作ります。
+5. リリースの内容を確認して公開します。添付された zip は、README の「ダウンロードしたファイルの確認」の手順で検証できます。
 
 CI とリリースのランナーは、`windows-latest` のようなラベルではなく、イメージの版（`windows-2025`・`ubuntu-24.04`・`macos-26`）で指定しています。GitHub が `-latest` の指す先を変えても、リポジトリを変えないままビルド環境が変わらないようにするためです。新しいイメージに上げるときは、3つのワークフロー（`ci.yml`・`release.yml`・`security.yml`）の版をそろえて書き換え、Pull Request で CI とリリースのビルド（`release.yml` の Pull Request での実行）が通ることを確かめてからマージしてください。
 
