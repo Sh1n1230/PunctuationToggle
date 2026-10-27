@@ -47,7 +47,7 @@
 
 ### ダウンロードしたファイルの確認
 
-本ツールはすべてのキー入力を監視する権限を必要とするため、入手したファイルが本リポジトリでビルドされたものであることを、起動する前に確認してください。v1.1.0 より後のリリースでは、GitHub Actions がビルドした各ファイルに[来歴証明（artifact attestation）](https://docs.github.com/ja/actions/security-for-github-actions/using-artifact-attestations/using-artifact-attestations-to-establish-provenance-for-builds)を付け、SHA-256 のチェックサムを `SHA256SUMS.txt` として添付しています。
+本ツールはすべてのキー入力を監視する権限を必要とするため、入手したファイルが本リポジトリでビルドされたものであることを、起動する前に確認してください。v1.1.0 より後のリリースでは、GitHub Actions がビルドした各ファイルに[来歴証明（artifact attestation）](https://docs.github.com/ja/actions/how-tos/secure-your-work/use-artifact-attestations/use-artifact-attestations)を付け、SHA-256 のチェックサムを `SHA256SUMS.txt` として添付しています。
 
 [GitHub CLI](https://cli.github.com/) を利用できる場合は、次のコマンドで来歴証明を検証します。`Verification succeeded!` と表示されれば、本リポジトリのリリース用ワークフローでビルドされたファイルです。
 
