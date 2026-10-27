@@ -7,6 +7,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var detector = TriggerKeyDetector(triggerKey: TriggerKeyStore.triggerKey)
     private var triggerKeyRecorder: TriggerKeyRecorderWindowController?
     private var permissionRetryTimer: Timer?
+    /// アクセシビリティの許可を待ち始めた時刻。待っていないときは nil
+    private var permissionWaitStartDate: Date?
     private var isShowingSaveFailureAlert = false
 
     private var statusItem: NSStatusItem?
@@ -114,14 +116,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let options = [Self.trustedCheckOptionPromptKey: true] as CFDictionary
         AXIsProcessTrustedWithOptions(options)
 
+        permissionWaitStartDate = Date()
+        schedulePermissionRetry(interval: Self.permissionRetryInterval)
+    }
+
+    /// 許可されたかを確かめる間隔。許可した直後にすぐ反映されるよう短くする
+    private static let permissionRetryInterval: TimeInterval = 1
+
+    /// 許可されないまま `permissionRetryInterval` で確かめ続ける時間。
+    /// 許可しないまま常駐させた場合に、1秒ごとの起床を続けないため
+    private static let frequentPermissionRetryDuration: TimeInterval = 60
+
+    /// `frequentPermissionRetryDuration` を過ぎた後に確かめる間隔（メニューを開いたときにもすぐ確かめる）
+    private static let slowPermissionRetryInterval: TimeInterval = 10
+
+    private func schedulePermissionRetry(interval: TimeInterval) {
+        permissionRetryTimer?.invalidate()
         // メインの RunLoop に登録したタイマーなので、メインスレッドで呼ばれる
-        permissionRetryTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+        permissionRetryTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
-                guard let self, self.keyboardMonitor.start() else { return }
-                self.permissionRetryTimer?.invalidate()
-                self.permissionRetryTimer = nil
-                self.updateStatusItem()
+                self?.retryKeyboardMonitor()
             }
+        }
+    }
+
+    /// アクセシビリティが許可されていれば監視を始める。許可を待っていない場合は何もしない
+    private func retryKeyboardMonitor() {
+        guard let permissionWaitStartDate else { return }
+
+        if keyboardMonitor.start() {
+            permissionRetryTimer?.invalidate()
+            permissionRetryTimer = nil
+            self.permissionWaitStartDate = nil
+            updateStatusItem()
+            return
+        }
+
+        let isFrequent = permissionRetryTimer?.timeInterval == Self.permissionRetryInterval
+        if isFrequent, Date().timeIntervalSince(permissionWaitStartDate) >= Self.frequentPermissionRetryDuration {
+            schedulePermissionRetry(interval: Self.slowPermissionRetryInterval)
         }
     }
 
@@ -169,6 +202,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
+        // 許可を待つ間隔を延ばした後も、メニューを開いたときにはすぐ確かめる
+        retryKeyboardMonitor()
         updateStatusItem()
     }
 
