@@ -179,7 +179,12 @@ jobs:
       - name: make の導入（Windows）
         if: runner.os == 'Windows'
         run: |
-          choco install make --version 4.4.1 --no-progress -y
+          # Chocolatey のフィードは一時的に 503 を返すことがあるため、少し待って3回まで試す
+          for attempt in 1 2 3; do
+            choco install make --version 4.4.1 --no-progress -y && break
+            [[ $attempt -eq 3 ]] && exit 1
+            sleep 30
+          done
           echo "PYTHON=python" >> "$GITHUB_ENV"
 
       - name: ビルド
@@ -263,16 +268,16 @@ jobs:
       - name: シェルスクリプト（ShellCheck）
         run: git ls-files -z '*.sh' | xargs -0 shellcheck
 
-      # PSScriptAnalyzer は PowerShell Gallery のパッケージを版と sha256 で固定して取得する
+      # PSScriptAnalyzer は、GitHub のリリースのパッケージ（PowerShell Gallery と同じもの）を版と sha256 で固定して取得する
       # （Install-Module は取得したパッケージを sha256 で確かめられないため使わない）。
-      # 版を変えるときは、https://www.powershellgallery.com/api/v2/package/PSScriptAnalyzer/<版> の sha256 も書き換える
+      # 版を変えるときは、GitHub のリリースのページに表示される sha256 も書き換える
       - name: PSScriptAnalyzer の導入
         env:
           PSSCRIPTANALYZER_VERSION: 1.25.0
           PSSCRIPTANALYZER_SHA256: 14e634c828eb98efb9f40b2918ba90f139ed5eccdf663a2a747736d996995d60
         run: |
           package="$RUNNER_TEMP/PSScriptAnalyzer.nupkg"
-          curl -fsSL -o "$package" "https://www.powershellgallery.com/api/v2/package/PSScriptAnalyzer/$PSSCRIPTANALYZER_VERSION"
+          curl -fsSL -o "$package" "https://github.com/PowerShell/PSScriptAnalyzer/releases/download/$PSSCRIPTANALYZER_VERSION/PSScriptAnalyzer.$PSSCRIPTANALYZER_VERSION.nupkg"
           echo "$PSSCRIPTANALYZER_SHA256  $package" | sha256sum --check
           unzip -q "$package" -d "$RUNNER_TEMP/PSScriptAnalyzer"
 
