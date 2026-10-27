@@ -138,12 +138,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let triggerKey = detector.triggerKey
 
         if let button = statusItem?.button {
+            // 記号だけでは VoiceOver の読み上げで意味が伝わりにくいため、読み上げる名前を別に付ける
             if keyboardMonitor.isRunning {
                 button.title = style.symbols
                 button.toolTip = "句読点: \(style.symbols)（\(triggerKey.usageDescription)）"
+                button.setAccessibilityLabel("PunctuationToggle、句読点: \(style.spokenName)")
             } else {
                 button.title = "⚠︎"
                 button.toolTip = "アクセシビリティの許可が必要です"
+                button.setAccessibilityLabel("PunctuationToggle、アクセシビリティの許可が必要です")
             }
         }
 

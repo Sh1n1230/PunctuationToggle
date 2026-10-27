@@ -156,7 +156,8 @@ internal sealed class TrayApplication : ApplicationContext
             ? $"「、。」に切り替え(&T)（{triggerKey.DisplayName}）"
             : $"「，．」に切り替え(&T)（{triggerKey.DisplayName}）";
         usageMenuItem.Text = triggerKey.UsageDescription;
-        notifyIcon.Text = $"PunctuationToggle: {style.Symbols()}";
+        // タスクトレイのアイコンの名前としてナレーターが読み上げるため、記号だけでなく句読点の呼び名も入れる
+        notifyIcon.Text = $"PunctuationToggle 句読点: {style.SpokenName()}";
 
         // 表示倍率の変更は、トレイ用のウィンドウが無く WM_DPICHANGED を受け取れないため、設定を読み直すたびに確かめる
         var iconSize = TrayIconRenderer.CurrentIconSize;

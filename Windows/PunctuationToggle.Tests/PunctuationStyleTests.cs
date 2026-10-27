@@ -13,6 +13,16 @@ public class PunctuationStyleTests
     }
 
     [Theory]
+    [InlineData(PunctuationStyle.ToutenKuten, "読点と句点（、。）")]
+    [InlineData(PunctuationStyle.CommaKuten, "コンマと句点（，。）")]
+    [InlineData(PunctuationStyle.ToutenPeriod, "読点とピリオド（、．）")]
+    [InlineData(PunctuationStyle.CommaPeriod, "コンマとピリオド（，．）")]
+    public void 読み上げる名前(PunctuationStyle style, string expected)
+    {
+        Assert.Equal(expected, style.SpokenName());
+    }
+
+    [Theory]
     [InlineData(PunctuationStyle.ToutenKuten, PunctuationStyle.CommaPeriod)]
     [InlineData(PunctuationStyle.CommaPeriod, PunctuationStyle.ToutenKuten)]
     [InlineData(PunctuationStyle.CommaKuten, PunctuationStyle.CommaPeriod)]

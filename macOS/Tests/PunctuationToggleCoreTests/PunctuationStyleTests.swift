@@ -12,6 +12,14 @@ struct PunctuationStyleTests {
         #expect(PunctuationStyle(rawValue: 4) == nil)
     }
 
+    @Test("読み上げる名前に、句読点の呼び名と記号が入っている")
+    func spokenName() {
+        #expect(PunctuationStyle.toutenKuten.spokenName == "読点と句点（、。）")
+        #expect(PunctuationStyle.commaKuten.spokenName == "コンマと句点（，。）")
+        #expect(PunctuationStyle.toutenPeriod.spokenName == "読点とピリオド（、．）")
+        #expect(PunctuationStyle.commaPeriod.spokenName == "コンマとピリオド（，．）")
+    }
+
     @Test("設定が無いときは「、。」とみなす")
     func systemDefault() {
         #expect(PunctuationStyle.systemDefault == .toutenKuten)
