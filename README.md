@@ -88,7 +88,6 @@ Xcode 26 以降が必要です。リポジトリを取得後、付属のイン�
 ```sh
 git clone https://github.com/Sh1n1230/PunctuationToggle.git
 cd PunctuationToggle
-rm -rf Windows  # Windows 版のため不要
 ./macOS/install.sh
 ```
 
@@ -114,21 +113,27 @@ rm -rf Windows  # Windows 版のため不要
 ```powershell
 git clone https://github.com/Sh1n1230/PunctuationToggle.git
 cd PunctuationToggle
-Remove-Item -Recurse -Force macOS  # macOS 版のため不要
 powershell -ExecutionPolicy Bypass -File .\Windows\install.ps1
 ```
 
 ソースからビルドして実行する場合、実行環境に [.NET 10 デスクトップ ランタイム](https://dotnet.microsoft.com/download/dotnet/10.0)（SDK に同梱）が導入されている必要があります。
 
-### 不要なコードの削除
+### 使わないフォルダー
 
-本リポジトリには、macOS 版（Swift、`macOS/`）、Windows 版（C#、`Windows/`）、および句読点変換コマンド（Rust・C#・Python、`converters/`）が含まれていますが、各コンポーネントは互いに独立しており依存関係を持ちません。ソースコードからビルドして利用する際は、不要なフォルダーを削除して管理できます。
+本リポジトリには、macOS 版（Swift、`macOS/`）、Windows 版（C#、`Windows/`）、および句読点変換コマンド（Rust・C#・Python、`converters/`）が含まれていますが、各コンポーネントは互いに独立しており依存関係を持ちません。使わない OS のフォルダーや `converters/` は、ビルドの対象にならないため、そのまま残しておいて差し支えありません（ディスクの使用量もわずかです）。
 
-- Windows 環境では `macOS/` は不要です（macOS 環境では `Windows/` が不要です）。前述のビルド手順に示すとおり、Windows 環境では PowerShell の `Remove-Item -Recurse -Force macOS`（PowerShell における `rm` は `Remove-Item` のエイリアスであり、`-rf` 引数を解釈しないため）を用いて削除できます。
-- 句読点変換コマンドを利用しない場合は `converters/` ディレクトリ全体を削除できます。利用する場合でも、利用対象とする言語の実装1つ（たとえば Rust を使用する場合は `punctuation_converter.rs` のみ）を残し、他の実装ファイルを削除して差し支えありません（詳細は [必要な実装の選定と不要ファイルの整理](converters/README.md#必要な実装の選定と不要ファイルの整理) を参照してください）。
+フォルダーを取得したくない場合は、削除ではなく、Git の sparse-checkout で必要なフォルダーだけを取得する方法を勧めます（作業フォルダーを間違えて、無関係な同名のフォルダーを消すおそれがありません）。
+
+```sh
+git clone --filter=blob:none --sparse https://github.com/Sh1n1230/PunctuationToggle.git
+cd PunctuationToggle
+git sparse-checkout set macOS     # Windows では Windows
+```
+
+句読点変換コマンドは、利用する言語の実装1つだけを残して使えます（詳細は [必要な実装の選定と不要ファイルの整理](converters/README.md#必要な実装の選定と不要ファイルの整理) を参照してください）。
 
 > [!NOTE]
-> 本リポジトリに対して Pull Request を作成する場合は、ローカル環境における不要コードの削除をコミットに含めないでください。
+> 本リポジトリに対して Pull Request を作成する場合は、手元で削除したファイルをコミットに含めないでください。
 
 ### 新しいバージョンの確認
 
