@@ -43,3 +43,12 @@ updates:
     # 公開直後の版は、乗っ取りや不具合で取り下げられることがあるため、7日待ってから提案させる
     cooldown:
       default-days: 7
+
+  # rust-toolchain.toml の Rust の版（変換コマンドの Rust 実装と、rustfmt・Clippy の検査に使う）
+  - package-ecosystem: rust-toolchain
+    directory: /
+    schedule:
+      interval: weekly
+    # 公開直後の版は、乗っ取りや不具合で取り下げられることがあるため、7日待ってから提案させる
+    cooldown:
+      default-days: 7

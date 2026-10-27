@@ -1,0 +1,7 @@
+# 変換コマンドの Rust 実装のビルドと、rustfmt・Clippy の検査に使う Rust の版。
+# rustup が、このディレクトリー以下での rustc・rustfmt・clippy-driver をこの版にする（Dependabot が更新を提案する）。
+# CI の「コーディング規約」ジョブはリポジトリのルートで、「変換コマンド」ジョブは converters/ で実行するため、ルートに置く。
+[toolchain]
+channel = "1.99.1"
+components = ["rustfmt", "clippy"]
+profile = "minimal"

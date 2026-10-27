@@ -109,6 +109,13 @@ jobs:
         with:
           python-version: "3.13"
 
+      # rust-toolchain.toml の版の Rust を入れる（rustup は、入っていない版を自動で入れないことがあるため明示する）
+      - name: Rust のツールチェーンの導入
+        run: |
+          rustup toolchain install
+          rustc --version
+          rustfmt --version
+
       - name: Native AOT のビルドに必要なパッケージ
         run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
 
@@ -168,9 +175,15 @@ jobs:
       - name: ツールの導入
         run: pip install --require-hashes --no-deps -r .github/lint/requirements.txt
 
+      # rust-toolchain.toml の版の Rust を入れる（rustup は、入っていない版を自動で入れないことがあるため明示する）
+      - name: Rust のツールチェーンの導入
+        run: |
+          rustup toolchain install
+          rustc --version
+          rustfmt --version
+
       - name: Rust（rustfmt・Clippy）
         run: |
-          rustfmt --version
           rustfmt --check --edition 2021 converters/punctuation_converter.rs
           clippy-driver --edition 2021 -D warnings -o "$RUNNER_TEMP/punctuation_converter" converters/punctuation_converter.rs
           clippy-driver --edition 2021 -D warnings --test -o "$RUNNER_TEMP/punctuation_converter_test" converters/punctuation_converter.rs
