@@ -55,7 +55,7 @@
 gh attestation verify PunctuationToggle-<バージョン>-macOS.zip --repo Sh1n1230/PunctuationToggle
 ```
 
-GitHub CLI を利用しない場合は、チェックサムを計算し、同じリリースの `SHA256SUMS.txt` に記載された値と一致することを確認します。
+GitHub CLI を利用しない場合は、チェックサムを計算し、同じリリースの `SHA256SUMS.txt` に記載された値と一致することを確認します。ただし、チェックサムが一致することは、ファイルが `SHA256SUMS.txt` と同じものであることしか示しません。v1.3.0 より後のリリースでは `SHA256SUMS.txt` 自体にも来歴証明を付けているため、GitHub CLI を使える別の端末があれば `gh attestation verify SHA256SUMS.txt --repo Sh1n1230/PunctuationToggle` で、照合先の `SHA256SUMS.txt` が本リポジトリのワークフローで作られたものであることも確かめられます。
 
 ```sh
 # macOS（ダウンロードしたフォルダーで実行）
