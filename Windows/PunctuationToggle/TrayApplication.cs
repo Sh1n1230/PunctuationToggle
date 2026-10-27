@@ -20,6 +20,9 @@ internal sealed class TrayApplication : ApplicationContext
     private const int PollIntervalWithoutWatcherMilliseconds = 2000;
     private const int PollIntervalWithWatcherMilliseconds = 10000;
 
+    // 通知の表示時間。Windows 10 以降は OS の設定が優先され、この値は使われないが、引数として必要
+    private const int BalloonTipTimeoutMilliseconds = 10000;
+
     private readonly NotifyIcon notifyIcon = new();
     private readonly ToolStripMenuItem toggleMenuItem = new();
     private readonly ToolStripMenuItem usageMenuItem = new() { Enabled = false };
@@ -31,6 +34,7 @@ internal sealed class TrayApplication : ApplicationContext
     private readonly KeyboardHook keyboardHook;
 
     private RegistryChangeWatcher? imeSettingsWatcher;
+    private bool isImeSettingsUnreadable;
     private TriggerKeyRecorderForm? triggerKeyRecorder;
     private Icon? currentIcon;
     private PunctuationStyle? displayedStyle;
@@ -165,7 +169,10 @@ internal sealed class TrayApplication : ApplicationContext
 
     private void UpdateDisplay()
     {
-        var style = MicrosoftImeSettings.PunctuationStyle;
+        var readStyle = MicrosoftImeSettings.TryReadPunctuationStyle();
+        NotifyIfImeSettingsUnreadable(readStyle is null);
+        // 読み込めない間は、前回表示した句読点のまま表示を続ける
+        var style = readStyle ?? displayedStyle ?? MicrosoftImeSettings.PunctuationStyle;
         var triggerKey = detector.TriggerKey;
 
         toggleMenuItem.Text = style == PunctuationStyle.CommaPeriod
@@ -173,7 +180,9 @@ internal sealed class TrayApplication : ApplicationContext
             : $"「，．」に切り替え(&T)（{triggerKey.DisplayName}）";
         usageMenuItem.Text = triggerKey.UsageDescription;
         // タスクトレイのアイコンの名前としてナレーターが読み上げるため、記号だけでなく句読点の呼び名も入れる
-        notifyIcon.Text = $"PunctuationToggle 句読点: {style.SpokenName()}";
+        notifyIcon.Text = isImeSettingsUnreadable
+            ? "PunctuationToggle 句読点の設定を読み込めません"
+            : $"PunctuationToggle 句読点: {style.SpokenName()}";
 
         // 表示倍率の変更は、トレイ用のウィンドウが無く WM_DPICHANGED を受け取れないため、
         // 画面の設定の変更（DisplaySettingsChanged）と、設定を読み直すたびに確かめる
@@ -189,6 +198,23 @@ internal sealed class TrayApplication : ApplicationContext
         currentIcon = TrayIconRenderer.Render(style.Symbols(), AppSettings.IsTaskbarLight, iconSize);
         notifyIcon.Icon = currentIcon;
         previousIcon?.Dispose();
+    }
+
+    /// <summary>
+    /// 句読点の設定を読み込めなくなったときに、1回だけ通知で知らせる。
+    /// 表示を更新するたびに読むため、ダイアログを繰り返し出さないよう、読み込めるようになるまでは知らせ直さない。
+    /// </summary>
+    private void NotifyIfImeSettingsUnreadable(bool isUnreadable)
+    {
+        if (isUnreadable && !isImeSettingsUnreadable)
+        {
+            notifyIcon.ShowBalloonTip(
+                BalloonTipTimeoutMilliseconds,
+                "PunctuationToggle",
+                "Microsoft IME の句読点の設定を読み込めません。レジストリのアクセス権が変更されていないか確認してください。",
+                ToolTipIcon.Warning);
+        }
+        isImeSettingsUnreadable = isUnreadable;
     }
 
     private void StartWatchingImeSettings()

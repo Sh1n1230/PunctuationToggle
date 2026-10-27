@@ -23,32 +23,38 @@ internal static class MicrosoftImeSettings
     /// </exception>
     public static PunctuationStyle PunctuationStyle
     {
-        get
-        {
-            try
-            {
-                using var key = Registry.CurrentUser.OpenSubKey(KeyPath);
-                return MicrosoftImeOption1.GetPunctuationStyle(
-                    MicrosoftImeOption1.FromStoredValue(key?.GetValue(Option1ValueName)));
-            }
-            // 表示に使うだけなので、想定外の形式でも既定値とみなす（書き込みでは書き換えない）
-            catch (InvalidDataException)
-            {
-                return MicrosoftImeOption1.GetPunctuationStyle(MicrosoftImeOption1.DefaultValue);
-            }
-            // 表示を更新するたびに読むため、読み込めなくても異常終了させない。
-            // IME も同じユーザーとして読むので、読み込めない場合は値が無い場合と同じく既定値で動いていると考えられる。
-            // 書き込み（set）は自分で option1 を読み直し、読み込めなければ例外にするので、ほかのビットを既定値で上書きすることはない
-            catch (Exception exception) when (RegistryErrors.IsAccessFailure(exception))
-            {
-                return MicrosoftImeOption1.GetPunctuationStyle(MicrosoftImeOption1.DefaultValue);
-            }
-        }
+        // 読み込めない場合は、値が無い場合と同じく既定値で動いているとみなす。
+        // IME も同じユーザーとして読むので、IME も既定値で動いていると考えられる。
+        // 書き込み（set）は自分で option1 を読み直し、読み込めなければ例外にするので、ほかのビットを既定値で上書きすることはない
+        get => TryReadPunctuationStyle()
+            ?? MicrosoftImeOption1.GetPunctuationStyle(MicrosoftImeOption1.DefaultValue);
         set
         {
             using var key = Registry.CurrentUser.CreateSubKey(KeyPath);
             var option1 = MicrosoftImeOption1.FromStoredValue(key.GetValue(Option1ValueName));
             key.SetValue(Option1ValueName, MicrosoftImeOption1.WithPunctuationStyle(option1, value), RegistryValueKind.DWord);
+        }
+    }
+
+    /// <summary>
+    /// 句読点の設定を読む。レジストリを読み込めない場合（アクセス権が変更されている場合など）は null。
+    /// </summary>
+    public static PunctuationStyle? TryReadPunctuationStyle()
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(KeyPath);
+            return MicrosoftImeOption1.GetPunctuationStyle(
+                MicrosoftImeOption1.FromStoredValue(key?.GetValue(Option1ValueName)));
+        }
+        // 表示に使うだけなので、想定外の形式でも既定値とみなす（書き込みでは書き換えない）
+        catch (InvalidDataException)
+        {
+            return MicrosoftImeOption1.GetPunctuationStyle(MicrosoftImeOption1.DefaultValue);
+        }
+        catch (Exception exception) when (RegistryErrors.IsAccessFailure(exception))
+        {
+            return null;
         }
     }
 
