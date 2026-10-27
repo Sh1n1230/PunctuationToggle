@@ -22,9 +22,10 @@
 | 句読点設定の読み書き | `JapaneseInputPunctuation.swift`（非公開の設定キーと通知） | `MicrosoftImeSettings.cs` + `MicrosoftImeOption1.cs`（レジストリ option1 のビット16〜17） |
 | 切り替えキーの保存 | `TriggerKeyStore.swift`（UserDefaults） | `PunctuationToggle/AppSettings.cs`（HKCU） |
 | テスト | `macOS/Tests/`（Swift Testing） | `PunctuationToggle.Tests/`（xUnit） |
+| 共通のテストベクタ | `testdata/trigger_key_vectors.json`（`TriggerKeyVectorTests.swift`） | 同じファイル（`TriggerKeyVectorTests.cs`） |
 
 - 依存の向きは「アプリ本体 → Core」の一方向。Core から OS の API（AppKit、CoreGraphics、Win32、レジストリ）を使わない。
-- 判定の仕様を変えるときは、先に Core のテストを追加・修正する。
+- 判定の仕様を変えるときは、先に Core のテストを追加・修正する。両 OS に共通の判定は `testdata/trigger_key_vectors.json` に書く（両方のテストが読む）。
 
 ## 作業時の注意
 

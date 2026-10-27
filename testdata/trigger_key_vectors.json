@@ -1,0 +1,352 @@
+{
+  "description": "切り替えキーの判定（TriggerKeyDetector）と、設定画面でのキーの読み取り（TriggerKeyCapture）の、macOS 版と Windows 版に共通のテストベクタ。両 OS の Core のテストが読み込む（macOS/Tests の TriggerKeyVectorTests.swift、Windows/PunctuationToggle.Tests の TriggerKeyVectorTests.cs）。",
+  "format": {
+    "keys": "キーは OS に依存しない名前で書き、各 OS のテストが自分のキーコードに読み替える。rightModifier は macOS の右Command・Windows の右Ctrl、rightOtherModifier は右Option・右Alt、sameModifierOtherSide は左Command・左Ctrl。",
+    "inputs": "modifierDown・modifierUp（otherModifiersHeld）、modifierRepeat（Windows だけ。macOS は修飾キーのリピートが届かないので飛ばす）、keyDown（isRepeat・modifiersHeld）、keyUp、mouse。active が false の入力は、設定画面が前面にない間の入力（handleWhileInactive）として渡す。",
+    "expect": "expect がある入力だけ結果を確かめる。toggle・suppress を省いた場合は false とみなす。読み取りの outcome は waiting・captured・rejected・cancelled で、captured と rejected では key も確かめる。suppress を省いた場合は確かめない。"
+  },
+  "keys": {
+    "rightModifier": { "macOS": 54, "windows": 163 },
+    "rightOtherModifier": { "macOS": 61, "windows": 165 },
+    "sameModifierOtherSide": { "macOS": 55, "windows": 162 },
+    "leftShift": { "macOS": 56, "windows": 160 },
+    "f13": { "macOS": 105, "windows": 124 },
+    "letterA": { "macOS": 0, "windows": 65 },
+    "letterC": { "macOS": 8, "windows": 67 },
+    "letterS": { "macOS": 1, "windows": 83 },
+    "escape": { "macOS": 53, "windows": 27 }
+  },
+  "detector": [
+    {
+      "name": "修飾キー: 単独で押して離すと切り替える",
+      "trigger": "rightModifier",
+      "inputs": [
+        { "input": "modifierDown", "key": "rightModifier", "expect": {} },
+        { "input": "modifierUp", "key": "rightModifier", "expect": { "toggle": true } }
+      ]
+    },
+    {
+      "name": "修飾キー: 押しっぱなしのリピートがあっても単独押しとして切り替える",
+      "trigger": "rightModifier",
+      "inputs": [
+        { "input": "modifierDown", "key": "rightModifier" },
+        { "input": "modifierRepeat", "key": "rightModifier", "expect": {} },
+        { "input": "modifierRepeat", "key": "rightModifier", "expect": {} },
+        { "input": "modifierUp", "key": "rightModifier", "expect": { "toggle": true } }
+      ]
+    },
+    {
+      "name": "修飾キー: 押すたびに切り替える",
+      "trigger": "rightModifier",
+      "inputs": [
+        { "input": "modifierDown", "key": "rightModifier" },
+        { "input": "modifierUp", "key": "rightModifier", "expect": { "toggle": true } },
+        { "input": "modifierDown", "key": "rightModifier" },
+        { "input": "modifierUp", "key": "rightModifier", "expect": { "toggle": true } },
+        { "input": "modifierDown", "key": "rightModifier" },
+        { "input": "modifierUp", "key": "rightModifier", "expect": { "toggle": true } }
+      ]
+    },
+    {
+      "name": "修飾キー: ショートカットでは切り替えず、次の単独押しは切り替える",
+      "trigger": "rightModifier",
+      "inputs": [
+        { "input": "modifierDown", "key": "rightModifier" },
+        { "input": "keyDown", "key": "letterC", "modifiersHeld": true, "expect": {} },
+        { "input": "keyUp", "key": "letterC" },
+        { "input": "modifierUp", "key": "rightModifier", "expect": {} },
+        { "input": "modifierDown", "key": "rightModifier" },
+        { "input": "modifierUp", "key": "rightModifier", "expect": { "toggle": true } }
+      ]
+    },
+    {
+      "name": "修飾キー: 押している間にほかの修飾キーを押したら切り替えない",
+      "trigger": "rightModifier",
+      "inputs": [
+        { "input": "modifierDown", "key": "rightModifier" },
+        { "input": "modifierDown", "key": "leftShift", "otherModifiersHeld": true },
+        { "input": "modifierUp", "key": "leftShift", "otherModifiersHeld": true },
+        { "input": "modifierUp", "key": "rightModifier", "expect": {} }
+      ]
+    },
+    {
+      "name": "修飾キー: ほかの修飾キーを押したまま押した場合は切り替えない",
+      "trigger": "rightModifier",
+      "inputs": [
+        { "input": "modifierDown", "key": "leftShift" },
+        { "input": "modifierDown", "key": "rightModifier", "otherModifiersHeld": true },
+        { "input": "modifierUp", "key": "rightModifier", "otherModifiersHeld": true, "expect": {} }
+      ]
+    },
+    {
+      "name": "修飾キー: 押したままクリックしたら切り替えない",
+      "trigger": "rightModifier",
+      "inputs": [
+        { "input": "modifierDown", "key": "rightModifier" },
+        { "input": "mouse", "expect": {} },
+        { "input": "modifierUp", "key": "rightModifier", "expect": {} }
+      ]
+    },
+    {
+      "name": "修飾キー: 押している間にスクロールしたら切り替えない",
+      "trigger": "rightModifier",
+      "inputs": [
+        { "input": "modifierDown", "key": "rightModifier" },
+        { "input": "mouse" },
+        { "input": "mouse" },
+        { "input": "modifierUp", "key": "rightModifier", "expect": {} }
+      ]
+    },
+    {
+      "name": "修飾キー: 左右が反対の同じ修飾キーの単独押しでは切り替えない",
+      "trigger": "rightModifier",
+      "inputs": [
+        { "input": "modifierDown", "key": "sameModifierOtherSide" },
+        { "input": "modifierUp", "key": "sameModifierOtherSide", "expect": {} }
+      ]
+    },
+    {
+      "name": "修飾キー: 押していないのに離された入力だけが来ても切り替えない",
+      "trigger": "rightModifier",
+      "inputs": [{ "input": "modifierUp", "key": "rightModifier", "expect": {} }]
+    },
+    {
+      "name": "修飾キー: 離した入力を取りこぼしても次の押し下げからやり直す",
+      "trigger": "rightModifier",
+      "inputs": [
+        { "input": "modifierDown", "key": "rightModifier" },
+        { "input": "keyDown", "key": "letterC", "modifiersHeld": true },
+        { "input": "modifierDown", "key": "rightModifier" },
+        { "input": "modifierUp", "key": "rightModifier", "expect": { "toggle": true } }
+      ]
+    },
+    {
+      "name": "修飾キー: 押す前のほかのキーの入力は単独押しの判定に影響しない",
+      "trigger": "rightModifier",
+      "inputs": [
+        { "input": "keyDown", "key": "letterA" },
+        { "input": "keyUp", "key": "letterA" },
+        { "input": "mouse" },
+        { "input": "modifierDown", "key": "rightModifier" },
+        { "input": "modifierUp", "key": "rightModifier", "expect": { "toggle": true } }
+      ]
+    },
+    {
+      "name": "修飾キー: 押している間にほかのキーを離しただけなら切り替える",
+      "trigger": "rightModifier",
+      "inputs": [
+        { "input": "keyDown", "key": "letterA" },
+        { "input": "modifierDown", "key": "rightModifier" },
+        { "input": "keyUp", "key": "letterA", "expect": {} },
+        { "input": "modifierUp", "key": "rightModifier", "expect": { "toggle": true } }
+      ]
+    },
+    {
+      "name": "修飾キー: 入力は渡さないことがない",
+      "trigger": "rightModifier",
+      "inputs": [
+        { "input": "modifierDown", "key": "rightModifier", "expect": {} },
+        { "input": "keyDown", "key": "letterC", "modifiersHeld": true, "expect": {} },
+        { "input": "keyUp", "key": "letterC", "expect": {} },
+        { "input": "mouse", "expect": {} },
+        { "input": "modifierUp", "key": "rightModifier", "expect": {} },
+        { "input": "modifierDown", "key": "rightModifier", "expect": {} },
+        { "input": "modifierUp", "key": "rightModifier", "expect": { "toggle": true } }
+      ]
+    },
+    {
+      "name": "修飾キー以外: 押したときに切り替え、入力は渡さない",
+      "trigger": "f13",
+      "inputs": [
+        { "input": "keyDown", "key": "f13", "expect": { "toggle": true, "suppress": true } },
+        { "input": "keyUp", "key": "f13", "expect": { "suppress": true } }
+      ]
+    },
+    {
+      "name": "修飾キー以外: 押しっぱなしのリピートでは切り替えないが、入力は渡さない",
+      "trigger": "f13",
+      "inputs": [
+        { "input": "keyDown", "key": "f13" },
+        { "input": "keyDown", "key": "f13", "isRepeat": true, "expect": { "suppress": true } },
+        { "input": "keyDown", "key": "f13", "isRepeat": true, "expect": { "suppress": true } },
+        { "input": "keyUp", "key": "f13", "expect": { "suppress": true } }
+      ]
+    },
+    {
+      "name": "修飾キー以外: 修飾キーと一緒に押された場合はショートカットとしてそのまま渡す",
+      "trigger": "f13",
+      "inputs": [
+        { "input": "keyDown", "key": "f13", "modifiersHeld": true, "expect": {} },
+        { "input": "keyUp", "key": "f13", "expect": {} }
+      ]
+    },
+    {
+      "name": "修飾キー以外: ほかのキーには影響しない",
+      "trigger": "f13",
+      "inputs": [
+        { "input": "keyDown", "key": "letterA", "expect": {} },
+        { "input": "keyUp", "key": "letterA", "expect": {} },
+        { "input": "modifierDown", "key": "rightModifier", "expect": {} },
+        { "input": "modifierUp", "key": "rightModifier", "expect": {} },
+        { "input": "mouse", "expect": {} }
+      ]
+    },
+    {
+      "name": "修飾キー以外: 押したまま修飾キーを押しても、離したときの入力は渡さない",
+      "trigger": "f13",
+      "inputs": [
+        { "input": "keyDown", "key": "f13" },
+        { "input": "keyDown", "key": "f13", "isRepeat": true, "modifiersHeld": true, "expect": { "suppress": true } },
+        { "input": "keyUp", "key": "f13", "expect": { "suppress": true } }
+      ]
+    },
+    {
+      "name": "修飾キー以外: 押すたびに切り替える",
+      "trigger": "f13",
+      "inputs": [
+        { "input": "keyDown", "key": "f13", "expect": { "toggle": true, "suppress": true } },
+        { "input": "keyUp", "key": "f13" },
+        { "input": "keyDown", "key": "f13", "expect": { "toggle": true, "suppress": true } },
+        { "input": "keyUp", "key": "f13" },
+        { "input": "keyDown", "key": "f13", "expect": { "toggle": true, "suppress": true } },
+        { "input": "keyUp", "key": "f13" }
+      ]
+    },
+    {
+      "name": "修飾キー以外: 離した入力を取りこぼしても、次に押したときは切り替える",
+      "trigger": "f13",
+      "inputs": [
+        { "input": "keyDown", "key": "f13" },
+        { "input": "keyDown", "key": "f13", "expect": { "toggle": true, "suppress": true } },
+        { "input": "keyUp", "key": "f13", "expect": { "suppress": true } }
+      ]
+    },
+    {
+      "name": "修飾キー以外: 離した入力を取りこぼした後に修飾キーと一緒に押した場合は、離したときの入力も渡す",
+      "trigger": "f13",
+      "inputs": [
+        { "input": "keyDown", "key": "f13" },
+        { "input": "keyDown", "key": "f13", "modifiersHeld": true, "expect": {} },
+        { "input": "keyUp", "key": "f13", "expect": {} }
+      ]
+    },
+    {
+      "name": "修飾キー以外: 起動前から押されていたキーのリピートでは切り替えない",
+      "trigger": "f13",
+      "inputs": [{ "input": "keyDown", "key": "f13", "isRepeat": true, "expect": { "suppress": true } }]
+    }
+  ],
+  "capture": [
+    {
+      "name": "修飾キーは単独で押して離したときに読み取る",
+      "inputs": [
+        { "input": "modifierDown", "key": "rightOtherModifier", "expect": { "outcome": "waiting", "suppress": false } },
+        { "input": "modifierRepeat", "key": "rightOtherModifier", "expect": { "outcome": "waiting", "suppress": false } },
+        { "input": "modifierUp", "key": "rightOtherModifier", "expect": { "outcome": "captured", "key": "rightOtherModifier", "suppress": false } }
+      ]
+    },
+    {
+      "name": "修飾キーの組み合わせは読み取らない",
+      "inputs": [
+        { "input": "modifierDown", "key": "leftShift" },
+        { "input": "modifierDown", "key": "rightModifier", "otherModifiersHeld": true },
+        { "input": "modifierUp", "key": "rightModifier", "otherModifiersHeld": true, "expect": { "outcome": "waiting" } },
+        { "input": "modifierUp", "key": "leftShift", "expect": { "outcome": "waiting" } }
+      ]
+    },
+    {
+      "name": "修飾キーを押したままクリックした場合は読み取らない",
+      "inputs": [
+        { "input": "modifierDown", "key": "rightModifier" },
+        { "input": "mouse" },
+        { "input": "modifierUp", "key": "rightModifier", "expect": { "outcome": "waiting" } }
+      ]
+    },
+    {
+      "name": "修飾キー以外は押したときに読み取り、押し下げと離したときの入力は渡さない",
+      "inputs": [
+        { "input": "keyDown", "key": "f13", "expect": { "outcome": "captured", "key": "f13", "suppress": true } },
+        { "input": "keyUp", "key": "f13", "expect": { "outcome": "waiting", "suppress": true } }
+      ]
+    },
+    {
+      "name": "文字キーは使えないキーとして扱い、入力は渡さない",
+      "inputs": [
+        { "input": "keyDown", "key": "letterA", "expect": { "outcome": "rejected", "key": "letterA", "suppress": true } },
+        { "input": "keyUp", "key": "letterA", "expect": { "outcome": "waiting", "suppress": true } }
+      ]
+    },
+    {
+      "name": "Esc でキャンセルし、離したときの入力も渡さない",
+      "inputs": [
+        { "input": "keyDown", "key": "escape", "expect": { "outcome": "cancelled", "suppress": true } },
+        { "input": "keyUp", "key": "escape", "expect": { "outcome": "waiting", "suppress": true } }
+      ]
+    },
+    {
+      "name": "ほかのキーと一緒に押した修飾キーは、離しても読み取らない",
+      "inputs": [
+        { "input": "modifierDown", "key": "rightModifier" },
+        { "input": "keyDown", "key": "f13", "modifiersHeld": true },
+        { "input": "modifierUp", "key": "rightModifier", "expect": { "outcome": "waiting" } }
+      ]
+    },
+    {
+      "name": "修飾キーと一緒に押したキーも読み取る",
+      "inputs": [
+        { "input": "keyDown", "key": "f13", "modifiersHeld": true, "expect": { "outcome": "captured", "key": "f13", "suppress": true } }
+      ]
+    },
+    {
+      "name": "使えないキーを押したあとも読み取りを続ける",
+      "inputs": [
+        { "input": "keyDown", "key": "letterA" },
+        { "input": "keyUp", "key": "letterA" },
+        { "input": "modifierDown", "key": "leftShift" },
+        { "input": "modifierUp", "key": "leftShift", "expect": { "outcome": "captured", "key": "leftShift" } }
+      ]
+    },
+    {
+      "name": "離したときの入力を渡さないのは、最後に押したキーだけ（今の仕様）",
+      "inputs": [
+        { "input": "keyDown", "key": "letterA" },
+        { "input": "keyDown", "key": "letterS" },
+        { "input": "keyUp", "key": "letterA", "expect": { "outcome": "waiting", "suppress": false } },
+        { "input": "keyUp", "key": "letterS", "expect": { "outcome": "waiting", "suppress": true } }
+      ]
+    },
+    {
+      "name": "修飾キーは押し下げも離したときの入力も渡す",
+      "inputs": [
+        { "input": "modifierDown", "key": "leftShift", "expect": { "outcome": "waiting", "suppress": false } },
+        { "input": "modifierUp", "key": "leftShift", "expect": { "outcome": "captured", "key": "leftShift", "suppress": false } }
+      ]
+    },
+    {
+      "name": "押し下げを渡したキーの、離したときの入力は渡す",
+      "inputs": [{ "input": "keyUp", "key": "letterA", "expect": { "outcome": "waiting", "suppress": false } }]
+    },
+    {
+      "name": "設定画面が前面にない間は、キーを読み取らず入力も渡す",
+      "inputs": [
+        { "input": "keyDown", "key": "letterA", "active": false, "expect": { "outcome": "waiting", "suppress": false } },
+        { "input": "keyUp", "key": "letterA", "active": false, "expect": { "outcome": "waiting", "suppress": false } },
+        { "input": "keyDown", "key": "f13", "active": false, "expect": { "outcome": "waiting", "suppress": false } }
+      ]
+    },
+    {
+      "name": "設定画面が前面にない間に押し始めた修飾キーは、前面に戻ってから離しても読み取らない",
+      "inputs": [
+        { "input": "modifierDown", "key": "rightModifier", "active": false },
+        { "input": "modifierUp", "key": "rightModifier", "expect": { "outcome": "waiting" } }
+      ]
+    },
+    {
+      "name": "前面にあるときに渡さなかったキーは、前面でなくなってから離しても渡さない",
+      "inputs": [
+        { "input": "keyDown", "key": "letterA" },
+        { "input": "keyUp", "key": "letterA", "active": false, "expect": { "outcome": "waiting", "suppress": true } }
+      ]
+    }
+  ]
+}

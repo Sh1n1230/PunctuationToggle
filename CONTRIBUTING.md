@@ -21,6 +21,7 @@ PunctuationToggle/
 │   ├── PunctuationToggle.sln
 │   └── install.ps1 / uninstall.ps1
 ├── converters/                     句読点の変換コマンド（3言語）とベンチマーク
+├── testdata/                       両 OS の Core のテストに共通のテストベクタ
 ├── docs/                           脅威モデルなどの文書
 ├── .github/
 │   ├── workflows/                  CI・リリース・ベンチマークの自動化
@@ -31,7 +32,7 @@ PunctuationToggle/
 └── nuget.config                    NuGet のパッケージソース（nuget.org だけ）
 ```
 
-キー入力の判定（切り替えキーの単独押しの検出や、設定画面でのキーの読み取り）は、どちらの OS でも `Core` に OS の API を使わない形で切り出しています。OS の入力イベントは `KeyboardInput` に変換してから `TriggerKeyDetector` / `TriggerKeyCapture` に渡します。判定の仕様を変えるときは、まず `Core` のテストを追加・修正してください。
+キー入力の判定（切り替えキーの単独押しの検出や、設定画面でのキーの読み取り）は、どちらの OS でも `Core` に OS の API を使わない形で切り出しています。OS の入力イベントは `KeyboardInput` に変換してから `TriggerKeyDetector` / `TriggerKeyCapture` に渡します。判定の仕様を変えるときは、まず `Core` のテストを追加・修正してください。両 OS に共通の判定（`TriggerKeyDetector`・`TriggerKeyCapture`）のテストは、`testdata/trigger_key_vectors.json` に入力の列と期待する結果を書き、macOS 版（`TriggerKeyVectorTests.swift`）と Windows 版（`TriggerKeyVectorTests.cs`）の両方のテストが同じものを読みます。片方の OS だけのキーや、入力の列で表せない操作のテストだけを、それぞれのテストに書きます。
 
 ### アプリアイコン
 
