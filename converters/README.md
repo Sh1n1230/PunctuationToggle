@@ -46,7 +46,7 @@ python3 punctuation_converter.py --reverse < 提出用.txt > 原稿.txt  # 「�
 | C#（.NET Native AOT） | [.NET 10 SDK](https://dotnet.microsoft.com/download) 以降と、Native AOT 用のツール（macOS は Xcode Command Line Tools、Linux は clang と zlib、Windows は Visual Studio の「C++ によるデスクトップ開発」） |
 | Python | Python 3.10 以降 |
 | Rust | Rust（`rustc`） |
-| ベンチマーク | [hyperfine](https://github.com/sharkdp/hyperfine)（macOS は `brew install hyperfine`、Windows は `winget install sharkdp.hyperfine`） |
+| ベンチマーク | [hyperfine](https://github.com/sharkdp/hyperfine) 1.16.0 以降（macOS は `brew install hyperfine`、Windows は `winget install sharkdp.hyperfine`） |
 
 ## ビルドとテスト
 
@@ -69,7 +69,7 @@ make benchmark                                                                # 
 benchmark/run_benchmark.sh benchmark/wikipedia_programming.txt --warmup 5 --runs 30  # 実際の文章で計測
 ```
 
-ビルド済みの実装をすべて hyperfine で計測し、結果を `benchmark/results/` に Markdown の表で保存します。合成データ（「、。」を500万回繰り返した1行）は、初回に `benchmark/generate_repeated_text.sh` で作ります。
+ビルド済みの実装をすべて hyperfine で計測し、結果を `benchmark/results/` に Markdown の表で保存します。入力ファイルは `--input` で渡すため hyperfine 1.16.0 以降が必要です（パスに空白を含んでいても計測できます）。合成データ（「、。」を500万回繰り返した1行）は、初回に `benchmark/generate_repeated_text.sh` で作ります。
 
 ## 実装する言語の選定
 

@@ -24,6 +24,10 @@ fi
 if [[ $input_file == benchmark/repeated_text.txt && ! -f $input_file ]]; then
   benchmark/generate_repeated_text.sh
 fi
+if [[ ! -f $input_file ]]; then
+  echo "入力ファイルが見つかりません: $input_file" >&2
+  exit 1
+fi
 
 # 「名前|実行に必要なファイル|コマンド」の組。ビルドされていないものは除く。
 candidates=(
@@ -36,7 +40,7 @@ arguments=()
 for candidate in "${candidates[@]}"; do
   IFS='|' read -r name required_file command <<< "$candidate"
   if [[ -e $required_file ]] && command -v "${command%% *}" >/dev/null; then
-    arguments+=(--command-name "$name" "$command < $input_file")
+    arguments+=(--command-name "$name" "$command")
   else
     echo "スキップ: ${name}（ビルドされていないか、実行環境がありません）" >&2
   fi
@@ -44,5 +48,5 @@ done
 
 mkdir -p benchmark/results
 result_file="benchmark/results/$(basename "$input_file" .txt).md"
-hyperfine "${hyperfine_options[@]}" --sort mean-time --export-markdown "$result_file" "${arguments[@]}"
+hyperfine "${hyperfine_options[@]}" --input "$input_file" --sort mean-time --export-markdown "$result_file" "${arguments[@]}"
 echo "結果を保存しました: $result_file"
