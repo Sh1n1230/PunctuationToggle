@@ -29,7 +29,12 @@ internal static class MicrosoftImeSettings
             {
                 using var key = Registry.CurrentUser.OpenSubKey(KeyPath);
                 return MicrosoftImeOption1.GetPunctuationStyle(
-                    key?.GetValue(Option1ValueName) is int option1 ? option1 : MicrosoftImeOption1.DefaultValue);
+                    MicrosoftImeOption1.FromStoredValue(key?.GetValue(Option1ValueName)));
+            }
+            // 表示に使うだけなので、想定外の形式でも既定値とみなす（書き込みでは書き換えない）
+            catch (InvalidDataException)
+            {
+                return MicrosoftImeOption1.GetPunctuationStyle(MicrosoftImeOption1.DefaultValue);
             }
             // 表示を更新するたびに読むため、読み込めなくても異常終了させない。
             // IME も同じユーザーとして読むので、読み込めない場合は値が無い場合と同じく既定値で動いていると考えられる。
@@ -42,14 +47,7 @@ internal static class MicrosoftImeSettings
         set
         {
             using var key = Registry.CurrentUser.CreateSubKey(KeyPath);
-            var option1 = key.GetValue(Option1ValueName) switch
-            {
-                // IME の設定を一度も変更していない環境では値が無く、IME は既定値で動いている
-                null => MicrosoftImeOption1.DefaultValue,
-                int dword => dword,
-                _ => throw new InvalidDataException(
-                    $"Microsoft IME の設定値 {Option1ValueName} が想定と異なる形式（{key.GetValueKind(Option1ValueName)}）で保存されています。"),
-            };
+            var option1 = MicrosoftImeOption1.FromStoredValue(key.GetValue(Option1ValueName));
             key.SetValue(Option1ValueName, MicrosoftImeOption1.WithPunctuationStyle(option1, value), RegistryValueKind.DWord);
         }
     }
