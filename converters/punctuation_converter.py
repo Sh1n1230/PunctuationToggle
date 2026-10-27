@@ -2,6 +2,7 @@
 
 import io
 import os
+import signal
 import sys
 
 USAGE = """\
@@ -36,6 +37,9 @@ def convert(text: str, replacements: dict[str, str]) -> str:
 
 
 def main(arguments: list[str]) -> int:
+    # ほかの実装と同じく、Ctrl+C ではトレースバックを表示せずに終了する。
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+
     # Windows では標準出力・標準エラー出力の既定の文字コードが UTF-8 ではなく（cp932 など）、
     # 改行も CRLF に変わるため、使い方やエラーの表示もほかの実装と同じ UTF-8・LF に揃える
     sys.stdout.reconfigure(encoding="utf-8", newline="\n")
