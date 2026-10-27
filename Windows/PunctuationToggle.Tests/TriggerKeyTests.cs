@@ -55,10 +55,27 @@ public class TriggerKeyTests
         Assert.Equal(virtualKey, key.VirtualKey);
     }
 
+    // README の「切り替えキーの変更」の表と、設定画面の案内（TriggerKeyRecorderForm）に書いた名前
+    [Theory]
+    [InlineData(VirtualKeys.Convert, "変換")]
+    [InlineData(VirtualKeys.NonConvert, "無変換")]
+    [InlineData(VirtualKeys.Applications, "アプリケーション")]
+    [InlineData(VirtualKeys.Pause, "Pause")]
+    [InlineData(VirtualKeys.ScrollLock, "Scroll Lock")]
+    public void 変換や無変換などのキーの表示名(int virtualKey, string expectedName)
+    {
+        var key = TriggerKey.FromVirtualKey(virtualKey);
+        Assert.NotNull(key);
+        Assert.Equal(expectedName, key.DisplayName);
+        Assert.False(key.IsModifier);
+    }
+
     [Fact]
     public void 選べるキーは修飾キー8個とそれ以外の5個とF1からF24()
     {
         Assert.Equal(VirtualKeys.Modifiers.Count + 5 + VirtualKeys.FunctionKeyCount, TriggerKey.SupportedKeys.Count);
+        // README の表と食い違わないよう、数そのものでも確かめる（8 + 5 + 24）
+        Assert.Equal(37, TriggerKey.SupportedKeys.Count);
     }
 
     [Theory]
