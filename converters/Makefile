@@ -21,7 +21,7 @@ else
 endif
 DOTNET_RID ?= $(DOTNET_OS)-$(DOTNET_ARCH)
 
-.PHONY: all rust rust-test csharp-dotnet test benchmark clean
+.PHONY: all rust rust-test csharp-dotnet test test-random benchmark clean
 
 # csharp-dotnet は .NET SDK が無い環境でも `make` が通るよう、all に含めない
 all: rust
@@ -42,6 +42,10 @@ rust-test: | $(BIN_DIR)
 
 test:
 	tests/run_tests.sh
+
+# ランダムに作った入力で、各実装が同じ仕様を満たすかを確かめる（RANDOM_SEED で入力を再現できる）
+test-random:
+	python3 tests/run_random_tests.py
 
 benchmark:
 	benchmark/run_benchmark.sh

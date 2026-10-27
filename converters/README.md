@@ -57,9 +57,12 @@ make                      # Rust をビルド（bin/ に出力）
 make csharp-dotnet        # C#（.NET Native AOT）をビルド（.NET SDK が無い環境でも make が通るよう、別にしている）
 make test                 # すべての実装をテストする
 make rust-test            # Rust 実装の単体テスト（UTF-8 の文字の区切りの処理など）
+make test-random          # ランダムに作った入力で、すべての実装をテストする（Python 3.10 以降が必要）
 ```
 
 `make test`（`tests/run_tests.sh`）は、`tests/cases/` の入力をそれぞれの実装に与え、出力が期待どおりかをバイト単位で比べます。CRLF や CR だけの改行、最後の行に改行が無い文章、空の入力、BOM や絵文字、読み込みの区切りをまたぐ長い1行、UTF-8 として正しくない入力、書き込めない出力先（`/dev/full` がある Linux のみ）などを確かめています。ビルドされていない実装は SKIP になります。特定の実装だけを確かめるときは `tests/run_tests.sh rust python` のように指定します。
+
+`make test-random`（`tests/run_random_tests.py`）は、句読点・似た記号・全角半角・3種類の改行・絵文字・BOM を混ぜた入力を毎回ランダムに作り、出力が句読点だけを置き換えたものになること、変換が冪等であること、変換してから逆変換しても逆変換だけの結果と同じになること、正しくない UTF-8 を混ぜると終了コード 1 になることを確かめます。失敗したときは乱数の種が表示されるので、`RANDOM_SEED=<種> make test-random` で同じ入力を再現できます。再現した入力は、最小の形にして `tests/cases/` に追加してください。
 
 `make rust-test` は、Rust 実装だけが持つ処理（入力を一定のバイト数ずつ読み、途中で切れた UTF-8 の文字を次の読み込みに回す処理）を、文字の何バイト目で切れるかや、1回の読み込みで返るバイト数を狙って確かめます。
 

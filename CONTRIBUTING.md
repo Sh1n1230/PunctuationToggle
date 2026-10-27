@@ -55,6 +55,7 @@ dotnet build Windows/PunctuationToggle.sln
 cd converters
 make all csharp-dotnet
 make test
+make test-random
 ```
 
 詳しくは [converters/README.md](converters/README.md) を参照してください。
@@ -99,7 +100,7 @@ clippy-driver --edition 2021 -D warnings --test -o /tmp/punctuation_converter_te
 # Python
 ruff check converters
 ruff format --check converters
-mypy --strict --python-version 3.10 converters/punctuation_converter.py
+mypy --strict --python-version 3.10 converters/punctuation_converter.py converters/tests/run_random_tests.py
 
 # シェルスクリプト
 git ls-files -z '*.sh' | xargs -0 shellcheck

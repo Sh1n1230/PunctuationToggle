@@ -108,6 +108,9 @@ jobs:
       - name: Rust 実装の単体テスト
         run: make rust-test
 
+      - name: ランダムな入力でのテスト
+        run: REQUIRE_ALL=1 make test-random
+
   # converters/README.md の「必要なツール」に書いた最も古い版で、Python 実装が動くことを確かめる
   converters-python-oldest:
     name: 変換コマンド（Python 3.10）
@@ -160,7 +163,7 @@ jobs:
         run: |
           ruff check converters
           ruff format --check --diff converters
-          mypy --strict --python-version 3.10 converters/punctuation_converter.py
+          mypy --strict --python-version 3.10 converters/punctuation_converter.py converters/tests/run_random_tests.py
 
       - name: シェルスクリプト（ShellCheck）
         run: git ls-files -z '*.sh' | xargs -0 shellcheck
