@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using System.Diagnostics;
 using Microsoft.Win32;
 
 namespace PunctuationToggle;
@@ -8,6 +10,9 @@ namespace PunctuationToggle;
 internal sealed class TrayApplication : ApplicationContext
 {
     private const string RepositoryUrl = "https://github.com/Sh1n1230/PunctuationToggle";
+
+    // 最新のリリースのページ。アプリ自身は通信せず、利用者がメニューを選んだときだけブラウザーで開く
+    private const string LatestReleaseUrl = RepositoryUrl + "/releases/latest";
 
     // IME の設定画面側で変更された場合も表示を追従させるための、設定を読み直す間隔
     private const int PollIntervalMilliseconds = 2000;
@@ -131,6 +136,7 @@ internal sealed class TrayApplication : ApplicationContext
         menu.Items.Add("切り替えキーを変更(&K)…", null, (_, _) => ShowTriggerKeyRecorder());
         menu.Items.Add(launchAtLoginMenuItem);
         menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add("最新版を確認(&U)…", null, (_, _) => OpenLatestRelease());
         menu.Items.Add("バージョン情報(&A)", null, (_, _) => ShowAbout());
         menu.Items.Add("終了(&X)", null, (_, _) => ExitThread());
         menu.Opening += (_, _) =>
@@ -223,6 +229,23 @@ internal sealed class TrayApplication : ApplicationContext
         {
             MessageBox.Show(
                 $"「ログイン時に起動」を変更できませんでした。{Environment.NewLine}{exception.Message}",
+                "PunctuationToggle",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+        }
+    }
+
+    private static void OpenLatestRelease()
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo(LatestReleaseUrl) { UseShellExecute = true });
+        }
+        // 既定のブラウザーが設定されていない場合など
+        catch (Win32Exception exception)
+        {
+            MessageBox.Show(
+                $"ブラウザーを開けませんでした。次のページで最新版を確認してください。{Environment.NewLine}{LatestReleaseUrl}{Environment.NewLine}{exception.Message}",
                 "PunctuationToggle",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);

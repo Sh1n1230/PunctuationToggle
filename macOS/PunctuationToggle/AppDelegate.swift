@@ -120,6 +120,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         menu.addItem(.separator())
 
+        menu.addItem(withTitle: "最新版を確認…", action: #selector(openLatestRelease), keyEquivalent: "")
+            .target = self
         menu.addItem(withTitle: "PunctuationToggle について", action: #selector(showAboutPanel), keyEquivalent: "")
             .target = self
         menu.addItem(withTitle: "終了", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
@@ -214,6 +216,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
             )
         else {
+            return
+        }
+        NSWorkspace.shared.open(url)
+    }
+
+    /// 最新のリリースのページをブラウザーで開く。アプリ自身は通信せず、利用者がメニューを選んだときだけ開く
+    @objc
+    private func openLatestRelease() {
+        guard let url = URL(string: "https://github.com/Sh1n1230/PunctuationToggle/releases/latest") else {
             return
         }
         NSWorkspace.shared.open(url)
