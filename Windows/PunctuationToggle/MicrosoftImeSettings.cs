@@ -51,4 +51,12 @@ internal static class MicrosoftImeSettings
             key.SetValue(Option1ValueName, MicrosoftImeOption1.WithPunctuationStyle(option1, value), RegistryValueKind.DWord);
         }
     }
+
+    /// <summary>
+    /// 句読点の設定（option1）が変わったときに知らせる。IME の設定画面で変えた場合も含む。
+    /// キーがまだ無い（IME の設定を一度も変えていない）場合などは監視できず、null を返す。
+    /// </summary>
+    /// <param name="onChanged">スレッドプールのスレッドで呼ばれる。</param>
+    public static RegistryChangeWatcher? WatchChanges(Action onChanged) =>
+        RegistryChangeWatcher.TryStart(KeyPath, onChanged);
 }
