@@ -1,0 +1,14 @@
+# Pull Request のレビューを依頼する人。後に書いた行が優先される。
+* @Sh1n1230
+
+# 権限やリリースに関わるため、特に確認が必要なもの
+/.github/workflows/ @Sh1n1230
+/.github/lint/ @Sh1n1230
+/macOS/install.sh @Sh1n1230
+/macOS/uninstall.sh @Sh1n1230
+/macOS/app_bundle.sh @Sh1n1230
+/Windows/install.ps1 @Sh1n1230
+/Windows/uninstall.ps1 @Sh1n1230
+/global.json @Sh1n1230
+/nuget.config @Sh1n1230
+/rust-toolchain.toml @Sh1n1230
