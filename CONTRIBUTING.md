@@ -21,6 +21,7 @@ PunctuationToggle/
 │   ├── PunctuationToggle.sln
 │   └── install.ps1 / uninstall.ps1
 ├── converters/                     句読点の変換コマンド（3言語）とベンチマーク
+├── docs/                           脅威モデルなどの文書
 ├── .github/
 │   ├── workflows/                  CI・リリース・ベンチマークの自動化
 │   ├── lint/                       CI の「コーディング規約」ジョブのツールの版の固定と設定
