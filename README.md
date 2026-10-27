@@ -64,7 +64,24 @@ shasum -a 256 -c SHA256SUMS.txt --ignore-missing
 
 ```powershell
 # Windows（PowerShell）
-Get-FileHash .\PunctuationToggle-<バージョン>-win-x64.zip -Algorithm SHA256
+$zip = 'PunctuationToggle-<バージョン>-win-x64.zip'
+$entries = @(Get-Content .\SHA256SUMS.txt | Where-Object {
+    $parts = $_ -split '\s+', 2
+    $parts.Count -eq 2 -and $parts[1] -eq $zip
+})
+
+if ($entries.Count -ne 1) {
+    Write-Error "SHA256SUMS.txt に $zip のチェックサムが1件だけ見つかりません。このファイルは実行しないでください。"
+} else {
+    $expected = ($entries[0] -split '\s+', 2)[0]
+    $actual = (Get-FileHash -LiteralPath ".\$zip" -Algorithm SHA256).Hash
+
+    if ($actual -ieq $expected) {
+        '一致しました'
+    } else {
+        Write-Error '一致しません。このファイルは実行しないでください。'
+    }
+}
 ```
 
 > [!CAUTION]
