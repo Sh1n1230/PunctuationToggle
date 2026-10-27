@@ -6,6 +6,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- Windows 版（Windows/Directory.Build.props）と同じ水準のコード分析を行う -->
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
     <PublishAot>true</PublishAot>
     <InvariantGlobalization>true</InvariantGlobalization>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
