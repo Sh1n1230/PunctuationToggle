@@ -94,6 +94,7 @@ dotnet format converters/dotnet/PunctuationConverter.csproj --verify-no-changes
 # Rust
 rustfmt --check --edition 2021 converters/punctuation_converter.rs
 clippy-driver --edition 2021 -D warnings -o /tmp/punctuation_converter converters/punctuation_converter.rs
+clippy-driver --edition 2021 -D warnings --test -o /tmp/punctuation_converter_test converters/punctuation_converter.rs
 
 # Python
 ruff check converters

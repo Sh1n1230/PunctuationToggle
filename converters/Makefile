@@ -21,7 +21,7 @@ else
 endif
 DOTNET_RID ?= $(DOTNET_OS)-$(DOTNET_ARCH)
 
-.PHONY: all rust csharp-dotnet test benchmark clean
+.PHONY: all rust rust-test csharp-dotnet test benchmark clean
 
 # csharp-dotnet は .NET SDK が無い環境でも `make` が通るよう、all に含めない
 all: rust
@@ -34,6 +34,11 @@ csharp-dotnet: | $(BIN_DIR)
 
 rust: | $(BIN_DIR)
 	rustc --edition 2021 -O -o $(BIN_DIR)/punctuation_converter_rust punctuation_converter.rs
+
+# Rust 実装の内部の関数（UTF-8 の文字の区切りの処理など）の単体テスト
+rust-test: | $(BIN_DIR)
+	rustc --edition 2021 --test -o $(BIN_DIR)/punctuation_converter_rust_test punctuation_converter.rs
+	$(BIN_DIR)/punctuation_converter_rust_test
 
 test:
 	tests/run_tests.sh

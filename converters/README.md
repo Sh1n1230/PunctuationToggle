@@ -56,9 +56,12 @@ python3 punctuation_converter.py --reverse < 提出用.txt > 原稿.txt  # 「�
 make                      # Rust をビルド（bin/ に出力）
 make csharp-dotnet        # C#（.NET Native AOT）をビルド（.NET SDK が無い環境でも make が通るよう、別にしている）
 make test                 # すべての実装をテストする
+make rust-test            # Rust 実装の単体テスト（UTF-8 の文字の区切りの処理など）
 ```
 
 `make test`（`tests/run_tests.sh`）は、`tests/cases/` の入力をそれぞれの実装に与え、出力が期待どおりかをバイト単位で比べます。CRLF や CR だけの改行、最後の行に改行が無い文章、空の入力、BOM や絵文字、読み込みの区切りをまたぐ長い1行、UTF-8 として正しくない入力、書き込めない出力先（`/dev/full` がある Linux のみ）などを確かめています。ビルドされていない実装は SKIP になります。特定の実装だけを確かめるときは `tests/run_tests.sh rust python` のように指定します。
+
+`make rust-test` は、Rust 実装だけが持つ処理（入力を一定のバイト数ずつ読み、途中で切れた UTF-8 の文字を次の読み込みに回す処理）を、文字の何バイト目で切れるかや、1回の読み込みで返るバイト数を狙って確かめます。
 
 `make clean` で生成物を削除できます。
 

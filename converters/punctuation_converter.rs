@@ -161,3 +161,87 @@ fn convert(text: &str, replacements: &Replacements) -> String {
         })
         .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 1回の read で最大 `chunk_length` バイトしか返さない入力（パイプなどを模す）
+    struct ShortReads<'a> {
+        remaining: &'a [u8],
+        chunk_length: usize,
+    }
+
+    impl Read for ShortReads<'_> {
+        fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+            let length = self
+                .remaining
+                .len()
+                .min(self.chunk_length)
+                .min(buffer.len());
+            buffer[..length].copy_from_slice(&self.remaining[..length]);
+            self.remaining = &self.remaining[length..];
+            Ok(length)
+        }
+    }
+
+    fn convert_bytes(input: impl Read) -> io::Result<Vec<u8>> {
+        let mut output = Vec::new();
+        convert_stream(input, &mut output, &TO_COMMA_PERIOD)?;
+        Ok(output)
+    }
+
+    #[test]
+    fn 空とascii_だけなら全体が完全な文字() {
+        assert_eq!(complete_prefix_len(b""), 0);
+        assert_eq!(complete_prefix_len(b"abc"), 3);
+    }
+
+    #[test]
+    fn 二バイトの文字の途中で終わる() {
+        // é = C3 A9
+        assert_eq!(complete_prefix_len(b"a\xc3"), 1);
+        assert_eq!(complete_prefix_len(b"a\xc3\xa9"), 3);
+    }
+
+    #[test]
+    fn 三バイトの文字の途中で終わる() {
+        // 、 = E3 80 81
+        assert_eq!(complete_prefix_len(b"a\xe3"), 1);
+        assert_eq!(complete_prefix_len(b"a\xe3\x80"), 1);
+        assert_eq!(complete_prefix_len(b"a\xe3\x80\x81"), 4);
+    }
+
+    #[test]
+    fn 四バイトの文字の途中で終わる() {
+        // 😀 = F0 9F 98 80
+        assert_eq!(complete_prefix_len(b"a\xf0"), 1);
+        assert_eq!(complete_prefix_len(b"a\xf0\x9f"), 1);
+        assert_eq!(complete_prefix_len(b"a\xf0\x9f\x98"), 1);
+        assert_eq!(complete_prefix_len(b"a\xf0\x9f\x98\x80"), 5);
+    }
+
+    #[test]
+    fn 一バイトずつしか読めなくても一度に読んだ場合と同じ結果になる() {
+        let input = "😀、𠮷。a，b．é\r\n".repeat(3);
+        let expected = convert_bytes(input.as_bytes()).unwrap();
+        for chunk_length in 1..=4 {
+            let reader = ShortReads {
+                remaining: input.as_bytes(),
+                chunk_length,
+            };
+            assert_eq!(
+                convert_bytes(reader).unwrap(),
+                expected,
+                "chunk_length = {chunk_length}"
+            );
+        }
+        assert_eq!(expected, "😀，𠮷．a，b．é\r\n".repeat(3).as_bytes());
+    }
+
+    #[test]
+    fn 末尾で文字が切れたまま終わると不正なデータ() {
+        let error = convert_bytes(&b"a\xe3\x80"[..]).unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::InvalidData);
+    }
+}

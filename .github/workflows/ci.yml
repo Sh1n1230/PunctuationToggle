@@ -105,6 +105,9 @@ jobs:
       - name: テスト
         run: REQUIRE_ALL=1 make test
 
+      - name: Rust 実装の単体テスト
+        run: make rust-test
+
   # converters/README.md の「必要なツール」に書いた最も古い版で、Python 実装が動くことを確かめる
   converters-python-oldest:
     name: 変換コマンド（Python 3.10）
@@ -151,6 +154,7 @@ jobs:
           rustfmt --version
           rustfmt --check --edition 2021 converters/punctuation_converter.rs
           clippy-driver --edition 2021 -D warnings -o "$RUNNER_TEMP/punctuation_converter" converters/punctuation_converter.rs
+          clippy-driver --edition 2021 -D warnings --test -o "$RUNNER_TEMP/punctuation_converter_test" converters/punctuation_converter.rs
 
       - name: Python（ruff）
         run: |
