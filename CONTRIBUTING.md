@@ -1,6 +1,6 @@
 # 開発ガイド
 
-PunctuationToggle への貢献を歓迎します。不具合の報告や要望は [Issues](https://github.com/Sh1n1230/PunctuationToggle/issues) へ、修正は Pull Request でお送りください。参加にあたっては [行動規範](CODE_OF_CONDUCT.md) を守ってください。
+PunctuationToggle への貢献を歓迎します。送っていただいたコードは、本リポジトリと同じ [Mozilla Public License 2.0](LICENSE) のもとで公開されます。不具合の報告や要望は [Issues](https://github.com/Sh1n1230/PunctuationToggle/issues) へ、修正は Pull Request でお送りください。参加にあたっては [行動規範](CODE_OF_CONDUCT.md) を守ってください。
 
 ## ディレクトリ構成
 

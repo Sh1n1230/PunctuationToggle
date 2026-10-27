@@ -64,6 +64,11 @@ jobs:
             echo "CHANGELOG.md に $version の項目がありません。" >&2
             exit 1
           fi
+          # MPL-2.0 の 3.2 により、実行形式を配布するときはソースコードの入手方法を示す
+          {
+            echo
+            echo "ソースコード: https://github.com/$GITHUB_REPOSITORY/tree/$GITHUB_REF_NAME （Mozilla Public License 2.0）"
+          } >> release-notes.md
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
