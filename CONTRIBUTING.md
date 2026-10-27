@@ -149,7 +149,10 @@ actionlint
 
 ## リリースの手順
 
-1. `CHANGELOG.md` に新しいバージョンの項目を追加します。
+1. `CHANGELOG.md` を、[Keep a Changelog](https://keepachangelog.com/ja/1.1.0/) の形で次のように更新します（v1.3.0 の #44 が例です）。
+   - `## [Unreleased]` の下にたまった項目を、新しい見出し `## [X.Y.Z] - YYYY-MM-DD`（例: `## [1.3.0] - 2026-10-15`）の下に移し、`## [Unreleased]` は空のまま残します。リリースのワークフローは `## [X.Y.Z]` の見出しを探してリリースノートを作るため、見出しの形を間違えると失敗します。
+   - 新しい見出しのすぐ下に、そのリリースの要約を1段落書きます。
+   - ファイルの末尾の比較リンクで、`[Unreleased]` の比較元を新しいタグにし（`compare/vX.Y.Z...HEAD`）、新しいバージョンのリンク（`[X.Y.Z]: .../compare/v<前のバージョン>...vX.Y.Z`）を追加します。
 2. バージョン番号を更新します（macOS: `PunctuationToggle.xcodeproj` の `MARKETING_VERSION` と `CURRENT_PROJECT_VERSION`、Windows: `Windows/Directory.Build.props` の `Version`）。
 3. main ブランチで `v1.2.3` のようなタグを付けて push します。タグと手順 2 のバージョン番号が一致しない場合、リリースのワークフローはビルドの前に失敗します。一致していれば、GitHub Actions が macOS 版と Windows 版をビルドし、来歴証明（artifact attestation）を付けて、zip と `SHA256SUMS.txt` を添付した下書きのリリースを作ります。
 4. リリースの内容を確認して公開します。添付された zip は、README の「ダウンロードしたファイルの確認」の手順で検証できます。
