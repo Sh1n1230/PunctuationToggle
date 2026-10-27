@@ -14,10 +14,6 @@ internal sealed class KeyboardHook : IDisposable
 {
     private const int WH_KEYBOARD_LL = 13;
     private const int WH_MOUSE_LL = 14;
-    private const int WM_KEYDOWN = 0x0100;
-    private const int WM_KEYUP = 0x0101;
-    private const int WM_SYSKEYDOWN = 0x0104;
-    private const int WM_SYSKEYUP = 0x0105;
     private const int WM_LBUTTONDOWN = 0x0201;
     private const int WM_RBUTTONDOWN = 0x0204;
     private const int WM_MBUTTONDOWN = 0x0207;
@@ -116,24 +112,8 @@ internal sealed class KeyboardHook : IDisposable
 
     private static KeyboardInput? ToKeyboardInput(int message, IntPtr lParam)
     {
-        var virtualKey = Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(lParam).vkCode;
-
-        switch (message)
-        {
-            case WM_KEYDOWN or WM_SYSKEYDOWN:
-                // フックはキーの状態が更新される前に呼ばれるので、
-                // このキーがすでに押されていればリピートと判断できる
-                var isRepeat = IsKeyDown(virtualKey);
-                var otherModifiersHeld = VirtualKeys.Modifiers.Any(
-                    modifier => modifier != virtualKey && IsKeyDown(modifier));
-                return KeyboardInput.KeyDown(virtualKey, isRepeat, otherModifiersHeld);
-
-            case WM_KEYUP or WM_SYSKEYUP:
-                return KeyboardInput.KeyUp(virtualKey);
-
-            default:
-                return null;
-        }
+        var hookStruct = Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(lParam);
+        return KeyboardHookInput.FromHookMessage(message, hookStruct.vkCode, IsKeyDown);
     }
 
     private static bool IsKeyDown(int virtualKey) => (GetAsyncKeyState(virtualKey) & KeyDownBit) != 0;
