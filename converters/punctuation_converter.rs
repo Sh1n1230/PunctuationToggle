@@ -19,7 +19,17 @@ const USAGE: &str = "\
   （なし）       「、」を「，」に、「。」を「．」に変換する
   -r, --reverse  「，」を「、」に、「．」を「。」に変換する
   -h, --help     この使い方を表示する
+  --version      版を表示する
+
+終了コード:
+  0  成功
+  1  読み書きに失敗した、または入力が UTF-8 として正しくない
+  2  不正な引数
 ";
+
+/// 版。リポジトリのアプリと同じ番号（Windows/Directory.Build.props の Version）にする。
+/// リリースのワークフローが一致を確かめる
+const VERSION: &str = "1.3.0";
 
 const EXIT_USAGE_ERROR: u8 = 2;
 
@@ -61,16 +71,21 @@ fn main() -> ExitCode {
     let replacements = match arguments.as_slice() {
         [] => &TO_COMMA_PERIOD,
         ["-r" | "--reverse"] => &TO_TOUTEN_KUTEN,
-        ["-h" | "--help"] => {
+        [option @ ("-h" | "--help" | "--version")] => {
+            let text = if *option == "--version" {
+                format!("punctuation_converter {VERSION}\n")
+            } else {
+                USAGE.to_string()
+            };
             // print! は書き込めないと panic するため、結果を見て終了コードを決める
             let mut stdout = io::stdout().lock();
             return match stdout
-                .write_all(USAGE.as_bytes())
+                .write_all(text.as_bytes())
                 .and_then(|()| stdout.flush())
             {
                 Ok(()) => ExitCode::SUCCESS,
                 Err(error) => {
-                    write_error(&format!("使い方を表示できませんでした: {error}\n"));
+                    write_error(&format!("表示できませんでした: {error}\n"));
                     ExitCode::FAILURE
                 }
             };

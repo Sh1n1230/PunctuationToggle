@@ -178,7 +178,7 @@ actionlint
    - 新しい見出しのすぐ下に、そのリリースの要約を1段落書きます。
    - ファイルの末尾の比較リンクで、`[Unreleased]` の比較元を新しいタグにし（`compare/vX.Y.Z...HEAD`）、新しいバージョンのリンク（`[X.Y.Z]: .../compare/v<前のバージョン>...vX.Y.Z`）を追加します。
 2. README の「動作を確かめた OS の版」を、リリースする版で確かめた結果に更新します（手順は「OS や IME を更新したときの確認」）。
-3. バージョン番号を更新します（macOS: `PunctuationToggle.xcodeproj` の `MARKETING_VERSION` と `CURRENT_PROJECT_VERSION`、Windows: `Windows/Directory.Build.props` の `Version`）。
+3. バージョン番号を更新します（macOS: `PunctuationToggle.xcodeproj` の `MARKETING_VERSION` と `CURRENT_PROJECT_VERSION`、Windows: `Windows/Directory.Build.props` の `Version`、変換コマンド: 3つの実装の `VERSION`（`--version` で表示する版））。
 4. main ブランチで `v1.2.3` のようなタグを付けて push します。タグと手順 3 のバージョン番号が一致しない場合、リリースのワークフローはビルドの前に失敗します。一致していれば、GitHub Actions が macOS 版と Windows 版をビルドし、来歴証明（artifact attestation）を付けて、zip と `SHA256SUMS.txt` を添付した下書きのリリースを作ります。
 5. リリースの内容を確認して公開します。添付された zip は、README の「ダウンロードしたファイルの確認」の手順で検証できます。
 

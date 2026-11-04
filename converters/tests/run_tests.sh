@@ -14,6 +14,8 @@ ALL_IMPLEMENTATIONS=(csharp-dotnet python rust)
 CASES_DIR=tests/cases
 # 3つの実装が --help で書き出す使い方（不正な引数のときは標準エラー出力にも書く）
 USAGE_FILE=tests/usage.txt
+# --version で表示する版。アプリと同じ番号にする
+EXPECTED_VERSION=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' ../Windows/Directory.Build.props)
 # UTF-8 として正しくない入力のときに、3つの実装が標準エラー出力に書くメッセージ
 INVALID_UTF8_MESSAGE="入力を UTF-8 として読み込めませんでした。"
 WORK_DIR=$(mktemp -d)
@@ -113,6 +115,14 @@ test_implementation() {
     fi
   done
 
+  # --version は、リポジトリの版（Windows/Directory.Build.props の Version）を1行で書く
+  # shellcheck disable=SC2086
+  if ! $command --version < /dev/null > "$output" 2> "$errors"; then
+    report_failure "--version: 異常終了しました: $(head -c 200 "$errors")"
+  elif [[ $(cat "$output") != "punctuation_converter $EXPECTED_VERSION" || -s $errors ]]; then
+    report_failure "--version: 「punctuation_converter $EXPECTED_VERSION」を期待しましたが「$(head -c 200 "$output")」でした"
+  fi
+
   # 不正な引数では、標準エラー出力に「不正な引数です: <引数>」・空行・使い方を書く
   local expected_errors="$WORK_DIR/expected_errors"
   { printf '不正な引数です: --unknown\n\n'; cat "$USAGE_FILE"; } > "$expected_errors"
@@ -180,7 +190,7 @@ test_implementation() {
 
   # オプションは1つだけ受け付け、大文字小文字の違いや "--"・"-" も不正な引数とする。
   # UTF-8 でない引数（macOS や Linux で渡せる）も、異常終了させずに不正な引数として扱う
-  for arguments in "--unknown" "-r -r" "extra" "-h -r" "--reverse --help" "-R" "--" "-" $'\xff'; do
+  for arguments in "--unknown" "-r -r" "extra" "-h -r" "--reverse --help" "-R" "-V" "--version -r" "--" "-" $'\xff'; do
     local status=0
     # shellcheck disable=SC2086
     $command $arguments < /dev/null > "$output" 2> "$errors" || status=$?

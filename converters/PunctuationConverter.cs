@@ -14,7 +14,17 @@ internal static class PunctuationConverter
         "オプション:\n" +
         "  （なし）       「、」を「，」に、「。」を「．」に変換する\n" +
         "  -r, --reverse  「，」を「、」に、「．」を「。」に変換する\n" +
-        "  -h, --help     この使い方を表示する\n";
+        "  -h, --help     この使い方を表示する\n" +
+        "  --version      版を表示する\n" +
+        "\n" +
+        "終了コード:\n" +
+        "  0  成功\n" +
+        "  1  読み書きに失敗した、または入力が UTF-8 として正しくない\n" +
+        "  2  不正な引数\n";
+
+    // 版。リポジトリのアプリと同じ番号（Windows/Directory.Build.props の Version）にする。
+    // リリースのワークフローが一致を確かめる
+    private const string Version = "1.3.0";
 
     private const int ExitSuccess = 0;
     private const int ExitFailure = 1;
@@ -43,16 +53,17 @@ internal static class PunctuationConverter
             sources = CommaPeriod;
             targets = ToutenKuten;
         }
-        else if (argument == "-h" || argument == "--help")
+        else if (argument == "-h" || argument == "--help" || argument == "--version")
         {
+            var text = argument == "--version" ? "punctuation_converter " + Version + "\n" : Usage;
             try
             {
-                WriteUtf8(Console.OpenStandardOutput(), Usage);
+                WriteUtf8(Console.OpenStandardOutput(), text);
                 return ExitSuccess;
             }
             catch (IOException exception)
             {
-                WriteError("使い方を表示できませんでした: " + exception.Message + "\n");
+                WriteError("表示できませんでした: " + exception.Message + "\n");
                 return ExitFailure;
             }
         }

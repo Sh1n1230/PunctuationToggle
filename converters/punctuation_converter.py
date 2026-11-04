@@ -16,7 +16,17 @@ USAGE = """\
   （なし）       「、」を「，」に、「。」を「．」に変換する
   -r, --reverse  「，」を「、」に、「．」を「。」に変換する
   -h, --help     この使い方を表示する
+  --version      版を表示する
+
+終了コード:
+  0  成功
+  1  読み書きに失敗した、または入力が UTF-8 として正しくない
+  2  不正な引数
 """
+
+# 版。リポジトリのアプリと同じ番号（Windows/Directory.Build.props の Version）にする。
+# リリースのワークフローが一致を確かめる
+VERSION = "1.3.0"
 
 EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
@@ -50,13 +60,14 @@ def main(arguments: list[str]) -> int:
 
     if arguments in ([], ["-r"], ["--reverse"]):
         replacements = TO_TOUTEN_KUTEN if arguments else TO_COMMA_PERIOD
-    elif arguments in (["-h"], ["--help"]):
+    elif arguments in (["-h"], ["--help"], ["--version"]):
+        text = USAGE if arguments != ["--version"] else f"punctuation_converter {VERSION}\n"
         try:
-            sys.stdout.write(USAGE)
+            sys.stdout.write(text)
             sys.stdout.flush()
         except OSError as error:
             discard_output(sys.stdout)
-            write_error(f"使い方を表示できませんでした: {error}\n")
+            write_error(f"表示できませんでした: {error}\n")
             return EXIT_FAILURE
         return EXIT_SUCCESS
     else:
