@@ -144,6 +144,8 @@ cd PunctuationToggle
 powershell -ExecutionPolicy Bypass -File .\Windows\install.ps1
 ```
 
+管理者ではない、ふだんの PowerShell で実行してください（インストール先はユーザーのフォルダーなので、管理者権限は要りません。管理者として実行した場合は、アプリが管理者権限で動かないよう、起動はせずに案内だけを表示します）。
+
 ソースからビルドして実行する場合、実行環境に [.NET 10 デスクトップ ランタイム](https://dotnet.microsoft.com/download/dotnet/10.0)（SDK に同梱）が導入されている必要があります。
 
 ### 使わないフォルダー

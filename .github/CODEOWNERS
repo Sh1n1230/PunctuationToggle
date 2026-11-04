@@ -14,6 +14,7 @@
 /macOS/app_bundle.sh @Sh1n1230
 /Windows/install.ps1 @Sh1n1230
 /Windows/uninstall.ps1 @Sh1n1230
+/Windows/InstallCommon.ps1 @Sh1n1230
 /global.json @Sh1n1230
 /nuget.config @Sh1n1230
 /rust-toolchain.toml @Sh1n1230

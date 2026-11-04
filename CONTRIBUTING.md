@@ -19,7 +19,7 @@ PunctuationToggle/
 │   ├── PunctuationToggle.Core/     OS に依存しない判定ロジック（単体テストの対象）
 │   ├── PunctuationToggle.Tests/    Core の単体テスト（xUnit）
 │   ├── PunctuationToggle.sln
-│   └── install.ps1 / uninstall.ps1
+│   └── install.ps1 / uninstall.ps1   （共通の手順は InstallCommon.ps1）
 ├── converters/                     句読点の変換コマンド（3言語）とベンチマーク
 │   ├── tests/run_tests.sh          全実装に tests/cases/ の入力を与えて出力を比べるテスト（make test）
 │   ├── tests/run_random_tests.py   ランダムな入力でのテスト（make test-random）
@@ -63,7 +63,7 @@ xcodebuild -project PunctuationToggle.xcodeproj -scheme PunctuationToggle build
 
 ### Windows 版
 
-.NET 10 SDK が必要です。CI とリリースで使う SDK の版は、リポジトリのルートの `global.json` で固定しています（Dependabot が更新を提案します）。手元では、同じ 10.0 の、`global.json` の版以上の SDK が使われます（`rollForward` が `latestFeature`）。`global.json` は作業ディレクトリから上にたどって探されるため、リポジトリの外から `Windows/install.ps1` を実行した場合は効きません。`PunctuationToggle.Core` と単体テストは macOS や Linux でも実行でき、アプリ本体もビルド（コンパイルの確認）だけはできます。
+.NET 10 SDK が必要です。CI とリリースで使う SDK の版は、リポジトリのルートの `global.json` で固定しています（Dependabot が更新を提案します）。手元では、同じ 10.0 の、`global.json` の版以上の SDK が使われます（`rollForward` が `latestFeature`）。`global.json` は作業ディレクトリから上にたどって探されますが、`Windows/install.ps1` はリポジトリのルートに移ってから SDK を確かめて発行するので、ほかのフォルダーから実行しても効きます。`PunctuationToggle.Core` と単体テストは macOS や Linux でも実行でき、アプリ本体もビルド（コンパイルの確認）だけはできます。
 
 ```sh
 dotnet test Windows/PunctuationToggle.sln

@@ -136,6 +136,11 @@ jobs:
         shell: powershell
         run: |
           .\Windows\install.ps1
+          # The runner is an administrator, so install.ps1 does not start the app (it would run elevated).
+          # Start it here so that the installed exe is checked.
+          if (-not (Get-Process PunctuationToggle -ErrorAction SilentlyContinue)) {
+            Start-Process (Join-Path $env:LOCALAPPDATA 'Programs\PunctuationToggle\PunctuationToggle.exe')
+          }
           # Wait up to 30 seconds for the process to start, instead of a fixed sleep.
           $process = $null
           for ($attempt = 0; $attempt -lt 30 -and -not $process; $attempt++) {
