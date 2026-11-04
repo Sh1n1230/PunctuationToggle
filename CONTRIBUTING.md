@@ -31,6 +31,7 @@ PunctuationToggle/
 ├── docs/                           脅威モデルなどの文書
 ├── .github/
 │   ├── workflows/                  CI・リリース・ベンチマークの自動化
+│   ├── actions/                    ワークフローで共通の手順（.NET SDK・Rust の導入）の複合アクション
 │   ├── lint/                       CI の「コーディング規約」ジョブのツールの版の固定と設定
 │   └── scripts/                    ワークフローから使うスクリプト
 ├── ruff.toml                       Python の ruff の設定
@@ -159,9 +160,7 @@ dotnet format Windows/PunctuationToggle.sln --verify-no-changes
 dotnet format converters/dotnet/PunctuationConverter.csproj --verify-no-changes
 
 # Rust
-rustfmt --check --edition 2024 converters/punctuation_converter.rs
-clippy-driver --edition 2024 -D warnings -o /tmp/punctuation_converter converters/punctuation_converter.rs
-clippy-driver --edition 2024 -D warnings --test -o /tmp/punctuation_converter_test converters/punctuation_converter.rs
+make -C converters lint-rust    # rustfmt と Clippy（引数とエディションは converters/Makefile）
 
 # Python
 ruff check converters .github/scripts

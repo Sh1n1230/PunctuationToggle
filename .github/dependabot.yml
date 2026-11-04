@@ -4,7 +4,8 @@ version: 2
 updates:
   # ワークフローのアクションはコミット SHA で固定しているため、人手では更新が漏れる
   - package-ecosystem: github-actions
-    directory: /
+    # .github/actions/ の複合アクションの中のアクションも更新する
+    directories: ["/", "/.github/actions/*"]
     schedule:
       interval: weekly
     # 公開直後の版は、乗っ取りや不具合で取り下げられることがあるため、7日待ってから提案させる

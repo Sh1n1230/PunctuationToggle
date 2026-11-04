@@ -36,10 +36,10 @@ endif
 # Python のコマンド名。Windows では python3 が無いことがあるので、make PYTHON=python のように指定する
 PYTHON ?= python3
 
-# Rust のエディション。CI の rustfmt・Clippy と CONTRIBUTING のコマンドも同じ値にする
+# Rust のエディション。ビルドと lint-rust（CI の rustfmt・Clippy）がこの値を使う
 RUST_EDITION := 2024
 
-.PHONY: all rust rust-test csharp-dotnet test test-random benchmark clean clean-benchmark
+.PHONY: all rust rust-test lint-rust csharp-dotnet test test-random benchmark clean clean-benchmark
 
 RUST_BINARY := $(BIN_DIR)/punctuation_converter_rust$(EXE)
 RUST_TEST_BINARY := $(BIN_DIR)/punctuation_converter_rust_test$(EXE)
@@ -71,6 +71,12 @@ rust-test: $(RUST_TEST_BINARY)
 
 $(RUST_TEST_BINARY): punctuation_converter.rs | $(BIN_DIR)
 	rustc --edition $(RUST_EDITION) --test -o $@ punctuation_converter.rs
+
+# Rust 実装の書式（rustfmt）と Clippy の検査（本体とテスト）。CI の「コーディング規約」ジョブも使う
+lint-rust: | $(BIN_DIR)
+	rustfmt --check --edition $(RUST_EDITION) punctuation_converter.rs
+	clippy-driver --edition $(RUST_EDITION) -D warnings -o $(BIN_DIR)/clippy_punctuation_converter$(EXE) punctuation_converter.rs
+	clippy-driver --edition $(RUST_EDITION) -D warnings --test -o $(BIN_DIR)/clippy_punctuation_converter_test$(EXE) punctuation_converter.rs
 
 # ビルド済みの実装がソースより古ければ作り直してからテストする（ビルドしていない実装は SKIP のまま）
 test:

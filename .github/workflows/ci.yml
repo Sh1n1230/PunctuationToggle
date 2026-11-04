@@ -87,13 +87,8 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
-        env:
-          # ランナーに入っている SDK とは別の場所に入れ、global.json の版の SDK だけが使われるようにする
-          # （同じ場所にあると、rollForward によってランナーの新しい SDK が選ばれる）
-          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
-        with:
-          global-json-file: global.json
+      - name: .NET SDK の導入
+        uses: ./.github/actions/setup-dotnet
 
       - name: ビルド
         shell: pwsh
@@ -170,24 +165,15 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
-        env:
-          # ランナーに入っている SDK とは別の場所に入れ、global.json の版の SDK だけが使われるようにする
-          # （同じ場所にあると、rollForward によってランナーの新しい SDK が選ばれる）
-          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
-        with:
-          global-json-file: global.json
+      - name: .NET SDK の導入
+        uses: ./.github/actions/setup-dotnet
 
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.13"
 
-      # rust-toolchain.toml の版の Rust を入れる（rustup は、入っていない版を自動で入れないことがあるため明示する）
       - name: Rust のツールチェーンの導入
-        run: |
-          rustup toolchain install
-          rustc --version
-          rustfmt --version
+        uses: ./.github/actions/setup-rust
 
       # macOS は Xcode、Windows は Visual Studio の C++ ツールがランナーに入っている
       - name: Native AOT のビルドに必要なパッケージ（Linux）
@@ -270,13 +256,8 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
-        env:
-          # ランナーに入っている SDK とは別の場所に入れ、global.json の版の SDK だけが使われるようにする
-          # （同じ場所にあると、rollForward によってランナーの新しい SDK が選ばれる）
-          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
-        with:
-          global-json-file: global.json
+      - name: .NET SDK の導入
+        uses: ./.github/actions/setup-dotnet
 
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
@@ -286,18 +267,12 @@ jobs:
       - name: ツールの導入
         run: pip install --require-hashes --no-deps -r .github/lint/requirements.txt
 
-      # rust-toolchain.toml の版の Rust を入れる（rustup は、入っていない版を自動で入れないことがあるため明示する）
       - name: Rust のツールチェーンの導入
-        run: |
-          rustup toolchain install
-          rustc --version
-          rustfmt --version
+        uses: ./.github/actions/setup-rust
 
+      # 引数とエディションは converters/Makefile の lint-rust にまとめてある
       - name: Rust（rustfmt・Clippy）
-        run: |
-          rustfmt --check --edition 2024 converters/punctuation_converter.rs
-          clippy-driver --edition 2024 -D warnings -o "$RUNNER_TEMP/punctuation_converter" converters/punctuation_converter.rs
-          clippy-driver --edition 2024 -D warnings --test -o "$RUNNER_TEMP/punctuation_converter_test" converters/punctuation_converter.rs
+        run: make -C converters lint-rust
 
       - name: CI 用のスクリプトのテスト
         run: python -m unittest discover -s .github/scripts/tests

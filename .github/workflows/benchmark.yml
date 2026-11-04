@@ -38,20 +38,15 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
-        env:
-          # ランナーに入っている SDK とは別の場所に入れ、global.json の版の SDK だけが使われるようにする
-          # （同じ場所にあると、rollForward によってランナーの新しい SDK が選ばれる）
-          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
-        with:
-          global-json-file: global.json
+      - name: .NET SDK の導入
+        uses: ./.github/actions/setup-dotnet
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
 
       - name: Rust のツールチェーンの導入
-        run: rustup toolchain install
+        uses: ./.github/actions/setup-rust
 
       - name: ビルドと計測に必要なパッケージ
         run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev hyperfine
