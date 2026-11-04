@@ -8,11 +8,8 @@ set -eu
 
 cd "$(dirname "$0")"
 
-APP_NAME=PunctuationToggle
-BUNDLE_ID=io.github.sh1n1230.PunctuationToggle
-# v1.0.0 までのバンドルID（古い許可を削除するため）
-LEGACY_BUNDLE_ID=com.example.PunctuationToggle
-DEST="$HOME/Applications/$APP_NAME.app"
+# shellcheck source-path=SCRIPTDIR source=app_bundle.sh
+. ./app_bundle.sh
 BUILD_DIR=build
 
 if ! command -v xcodebuild >/dev/null 2>&1; then
@@ -26,8 +23,9 @@ xcodebuild -project "$APP_NAME.xcodeproj" -scheme "$APP_NAME" \
   -configuration Release -destination "platform=macOS" \
   -derivedDataPath "$BUILD_DIR" -quiet
 
-mkdir -p "$HOME/Applications"
-rm -rf "$DEST"
+check_dest_parent
+mkdir -p "$DEST_PARENT"
+remove_installed_app
 cp -R "$BUILD_DIR/Build/Products/Release/$APP_NAME.app" "$DEST"
 
 tccutil reset Accessibility "$BUNDLE_ID" >/dev/null 2>&1 || true

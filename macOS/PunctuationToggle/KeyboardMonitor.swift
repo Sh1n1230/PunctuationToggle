@@ -30,12 +30,15 @@ final class KeyboardMonitor {
                 return Unmanaged.passUnretained(event)
             }
 
+            // CGEvent は Sendable でないため、メインアクターに渡す前に判定に使う値だけを取り出す
+            let values = EventValues(event)
+            let monitor = Unmanaged<KeyboardMonitor>.fromOpaque(userInfo)
+
             // タップはメインの RunLoop に登録しているので、メインスレッドで呼ばれる
-            return MainActor.assumeIsolated {
-                let monitor = Unmanaged<KeyboardMonitor>.fromOpaque(userInfo).takeUnretainedValue()
-                let shouldSuppress = monitor.handle(type: type, event: event)
-                return shouldSuppress ? nil : Unmanaged.passUnretained(event)
+            let shouldSuppress = MainActor.assumeIsolated {
+                monitor.takeUnretainedValue().handle(type: type, values: values)
             }
+            return shouldSuppress ? nil : Unmanaged.passUnretained(event)
         }
 
         guard
@@ -76,7 +79,7 @@ final class KeyboardMonitor {
         runLoopSource = nil
     }
 
-    private func handle(type: CGEventType, event: CGEvent) -> Bool {
+    private func handle(type: CGEventType, values: EventValues) -> Bool {
         switch type {
         case .tapDisabledByTimeout, .tapDisabledByUserInput:
             // 処理が遅いなどの理由で macOS にタップを無効化された場合は、有効に戻す
@@ -86,48 +89,43 @@ final class KeyboardMonitor {
             return false
 
         default:
-            guard let input = KeyboardInput(type: type, event: event) else { return false }
+            guard let kind = KeyboardEventKind(type),
+                let input = KeyboardInput(
+                    kind: kind,
+                    keyCode: values.keyCode,
+                    flags: values.flags,
+                    isAutorepeat: values.isAutorepeat
+                )
+            else {
+                return false
+            }
             return inputHandler?(input) ?? false
         }
     }
 }
 
-extension KeyboardInput {
-    /// Command・Shift・Option・Control（左右を区別しない）
-    private static let shortcutModifierFlags: CGEventFlags = [
-        .maskCommand, .maskShift, .maskAlternate, .maskControl,
-    ]
+/// `CGEvent` から取り出した、判定に使う値
+private struct EventValues: Sendable {
+    let keyCode: UInt16
+    let flags: UInt64
+    let isAutorepeat: Bool
 
-    /// `CGEvent` から変換する。判定に使わない入力（Caps Lock など）では nil を返す。
-    init?(type: CGEventType, event: CGEvent) {
-        let keyCode = UInt16(truncatingIfNeeded: event.getIntegerValueField(.keyboardEventKeycode))
-        let flags = event.flags
+    nonisolated init(_ event: CGEvent) {
+        keyCode = UInt16(truncatingIfNeeded: event.getIntegerValueField(.keyboardEventKeycode))
+        flags = event.flags.rawValue
+        isAutorepeat = event.getIntegerValueField(.keyboardEventAutorepeat) != 0
+    }
+}
 
+extension KeyboardEventKind {
+    /// 判定に使わない種類（タップの無効化の通知など）では nil を返す。
+    init?(_ type: CGEventType) {
         switch type {
-        case .flagsChanged:
-            guard let modifier = TriggerKey.Modifier(keyCode: keyCode) else { return nil }
-            let otherModifierMasks = TriggerKey.Modifier.allFlagMasks & ~modifier.flagMask
-            self = .modifierChanged(
-                keyCode: keyCode,
-                isPressed: flags.rawValue & modifier.flagMask != 0,
-                otherModifiersHeld: flags.rawValue & otherModifierMasks != 0
-            )
-
-        case .keyDown:
-            self = .keyDown(
-                keyCode: keyCode,
-                isRepeat: event.getIntegerValueField(.keyboardEventAutorepeat) != 0,
-                modifiersHeld: !flags.intersection(Self.shortcutModifierFlags).isEmpty
-            )
-
-        case .keyUp:
-            self = .keyUp(keyCode: keyCode)
-
-        case .leftMouseDown, .rightMouseDown, .otherMouseDown, .scrollWheel:
-            self = .mouse
-
-        default:
-            return nil
+        case .keyDown: self = .keyDown
+        case .keyUp: self = .keyUp
+        case .flagsChanged: self = .flagsChanged
+        case .leftMouseDown, .rightMouseDown, .otherMouseDown, .scrollWheel: self = .mouse
+        default: return nil
         }
     }
 }

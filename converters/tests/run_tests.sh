@@ -15,11 +15,23 @@ CASES_DIR=tests/cases
 WORK_DIR=$(mktemp -d)
 trap 'rm -rf "$WORK_DIR"' EXIT
 
+# Python のコマンド名。Windows では python3 が無く python だけのことがある
+python_command() {
+  if command -v python3 >/dev/null; then
+    echo python3
+  elif command -v python >/dev/null; then
+    echo python
+  else
+    return 1
+  fi
+}
+
 # 実装名から実行コマンドを求める。実行できない場合は失敗を返す。
+# Windows（Git Bash）でも、.exe を省いたパスで実行ファイルを確かめ、実行できる
 command_for() {
   case "$1" in
     csharp-dotnet) [[ -x bin/dotnet/PunctuationConverter ]] && echo "bin/dotnet/PunctuationConverter" ;;
-    python) [[ -f punctuation_converter.py ]] && command -v python3 >/dev/null && echo "python3 punctuation_converter.py" ;;
+    python) [[ -f punctuation_converter.py ]] && python_name=$(python_command) && echo "$python_name punctuation_converter.py" ;;
     rust) [[ -x bin/punctuation_converter_rust ]] && echo "bin/punctuation_converter_rust" ;;
     *) return 1 ;;
   esac
@@ -74,9 +86,10 @@ test_implementation() {
     fi
   done
 
-  # UTF-8 として正しくない入力（不正なバイト、末尾で途中までしかない文字）は、置き換えずに終了コード 1 にする
+  # UTF-8 として正しくない入力（不正なバイト、末尾で途中までしかない文字、先頭バイトの無い継続バイト、
+  # 冗長な符号化、サロゲートの符号化、U+10FFFF を超える符号位置）は、置き換えずに終了コード 1 にする
   local invalid_input="$WORK_DIR/invalid_input"
-  for invalid_bytes in 'a\xff\xe3\x80\x81\n' 'a\xe3\x80'; do
+  for invalid_bytes in 'a\xff\xe3\x80\x81\n' 'a\xe3\x80' '\x80' '\xc0\xaf' '\xed\xa0\x80' '\xf4\x90\x80\x80'; do
     # shellcheck disable=SC2059 # 不正なバイト列を作るため、printf の書式として解釈させる
     printf "$invalid_bytes" > "$invalid_input"
     local status=0
@@ -89,16 +102,34 @@ test_implementation() {
 
   # 書き込めない出力先では、トレースバックなどではなくエラーメッセージを表示して終了コード 1 にする。
   # 書き込むと必ず失敗する /dev/full は Linux にしか無いため、ほかの OS では確かめない
-  if [[ -w /dev/full ]]; then
+  # （Windows の Git Bash の /dev/full は、Windows のプログラムからは書き込みに成功する）
+  if [[ $(uname -s) == Linux && -w /dev/full ]]; then
     local status=0
     # shellcheck disable=SC2086
     $command < "$WORK_DIR/cases/long_line/input.txt" > /dev/full 2> "$errors" || status=$?
     if [[ $status -ne 1 ]] || ! grep -q "^変換に失敗しました: " "$errors"; then
       report_failure "書き込めない出力先: 終了コード 1 とエラーメッセージを期待しましたが、終了コードは $status でした: $(head -c 200 "$errors")"
     fi
+
+    # 使い方を書き出せない場合も、トレースバックや panic のメッセージを出さずに、
+    # --help は終了コード 1、不正な引数は（エラーを書き出せなくても）終了コード 2 にする
+    status=0
+    # shellcheck disable=SC2086
+    $command --help < /dev/null > /dev/full 2> "$errors" || status=$?
+    if [[ $status -ne 1 ]] || grep -qE "Traceback|Exception|panicked" "$errors"; then
+      report_failure "使い方を書き出せない: 終了コード 1 を期待しましたが、終了コードは $status でした: $(head -c 200 "$errors")"
+    fi
+    status=0
+    # shellcheck disable=SC2086
+    $command --unknown < /dev/null > "$output" 2> /dev/full || status=$?
+    if [[ $status -ne 2 ]]; then
+      report_failure "不正な引数のエラーを書き出せない: 終了コード 2 を期待しましたが、終了コードは $status でした"
+    fi
   fi
 
-  for arguments in "--unknown" "-r -r" "extra"; do
+  # オプションは1つだけ受け付け、大文字小文字の違いや "--"・"-" も不正な引数とする。
+  # UTF-8 でない引数（macOS や Linux で渡せる）も、異常終了させずに不正な引数として扱う
+  for arguments in "--unknown" "-r -r" "extra" "-h -r" "--reverse --help" "-R" "--" "-" $'\xff'; do
     local status=0
     # shellcheck disable=SC2086
     $command $arguments < /dev/null > "$output" 2> "$errors" || status=$?
@@ -131,7 +162,7 @@ done
 for name in "${implementations[@]}"; do
   if command=$(command_for "$name"); then
     test_implementation "$name" "$command"
-    if [[ "$name" == python ]] && ! python3 tests/test_sigint.py; then
+    if [[ "$name" == python ]] && ! "$(python_command)" tests/test_sigint.py; then
       report_failure "Ctrl+C: トレースバックを表示せずに終了しませんでした"
     fi
   else

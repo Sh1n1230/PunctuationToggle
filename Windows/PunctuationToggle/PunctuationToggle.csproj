@@ -9,6 +9,8 @@
     <AssemblyName>PunctuationToggle</AssemblyName>
     <!-- macOS や Linux でもビルド（コンパイルの確認）だけはできるようにする -->
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <!-- P/Invoke を LibraryImport（コンパイル時にマーシャリングのコードを生成する）で宣言するのに必要 -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>

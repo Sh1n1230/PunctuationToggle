@@ -26,13 +26,21 @@ enum JapaneseInputPunctuation {
         return style
     }
 
-    static func set(_ style: PunctuationStyle) {
+    /// 設定を保存し、日本語入力に知らせる。
+    /// - Returns: 保存できたか。保存できなかった場合は日本語入力に知らせない
+    ///   （今の入力だけ切り替わり、再ログインなどで元に戻る、という食い違いを起こさないため）。
+    static func set(_ style: PunctuationStyle) -> Bool {
+        let previousValue = CFPreferencesCopyAppValue(punctuationTypeKey as CFString, preferencesDomain)
         CFPreferencesSetAppValue(
             punctuationTypeKey as CFString,
             style.rawValue as CFNumber,
             preferencesDomain
         )
-        CFPreferencesAppSynchronize(preferencesDomain)
+        guard CFPreferencesAppSynchronize(preferencesDomain) else {
+            // このプロセスの中だけに残った新しい値を、メニューバーの表示などで読まないよう戻す
+            CFPreferencesSetAppValue(punctuationTypeKey as CFString, previousValue, preferencesDomain)
+            return false
+        }
 
         // 日本語入力は userInfo に入った値を見て設定を更新する
         DistributedNotificationCenter.default().postNotificationName(
@@ -41,5 +49,6 @@ enum JapaneseInputPunctuation {
             userInfo: [punctuationTypeKey: style.rawValue],
             deliverImmediately: true
         )
+        return true
     }
 }

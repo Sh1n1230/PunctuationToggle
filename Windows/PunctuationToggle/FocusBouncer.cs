@@ -7,27 +7,27 @@ namespace PunctuationToggle;
 /// Microsoft IME は入力欄にフォーカスが戻ったときにレジストリの設定を読み直すので、
 /// これで書き換えた句読点の設定が入力中のアプリにも反映される。
 /// </summary>
-internal sealed class FocusBouncer : IDisposable
+internal sealed partial class FocusBouncer : IDisposable
 {
     // フォーカスを戻すまでの時間。短すぎると IME が設定を読み直さないことがある。
     private const int ReturnDelayMilliseconds = 50;
 
-    [DllImport("user32.dll")]
-    private static extern IntPtr GetForegroundWindow();
+    [LibraryImport("user32.dll")]
+    private static partial IntPtr GetForegroundWindow();
 
-    [DllImport("user32.dll")]
+    [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool SetForegroundWindow(IntPtr hWnd);
+    private static partial bool SetForegroundWindow(IntPtr hWnd);
 
-    [DllImport("user32.dll")]
-    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, IntPtr lpdwProcessId);
+    [LibraryImport("user32.dll")]
+    private static partial uint GetWindowThreadProcessId(IntPtr hWnd, IntPtr lpdwProcessId);
 
-    [DllImport("kernel32.dll")]
-    private static extern uint GetCurrentThreadId();
+    [LibraryImport("kernel32.dll")]
+    private static partial uint GetCurrentThreadId();
 
-    [DllImport("user32.dll")]
+    [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, [MarshalAs(UnmanagedType.Bool)] bool fAttach);
+    private static partial bool AttachThreadInput(uint idAttach, uint idAttachTo, [MarshalAs(UnmanagedType.Bool)] bool fAttach);
 
     /// <summary>画面外に置く、タスクバーにも Alt+Tab にも出ない 1px の透明なウィンドウ。</summary>
     private sealed class BounceWindow : Form

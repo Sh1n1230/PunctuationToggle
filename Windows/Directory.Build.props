@@ -7,7 +7,7 @@
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <Version>1.3.0</Version>
     <Authors>Sh1n1230</Authors>
-    <Copyright>© 2026 Sh1n1230. MIT License.</Copyright>
+    <Copyright>© 2026 Sh1n1230. Mozilla Public License 2.0.</Copyright>
     <Product>PunctuationToggle</Product>
   </PropertyGroup>
 </Project>

@@ -15,6 +15,12 @@ internal sealed class TriggerKeyRecorderForm : Form
         "修飾キー（Shift・Ctrl・Alt・Windows）は単独で押して離してください。" +
         "ほかに F1〜F24、変換、無変換、アプリケーション、Pause、Scroll Lock が使えます。Esc でキャンセルします。";
 
+    // 案内の文字色。ウィンドウの背景（SystemColors.Control。Windows 11 の既定で #F0F0F0）に対して、
+    // WCAG 2.2 の達成基準 1.4.3 が通常の大きさの文字に求める 4.5:1 以上のコントラスト比にする。
+    // #9C4A00 は 5.43:1（以前の Color.DarkOrange は 2.05:1 で足りなかった）、Firebrick（#B22222）は 5.86:1
+    private static readonly Color InactiveMessageColor = Color.FromArgb(0x9C, 0x4A, 0x00);
+    private static readonly Color RejectedMessageColor = Color.Firebrick;
+
     private readonly TriggerKeyCapture capture = new();
     private readonly Font bodyFont = new("Yu Gothic UI", 9F);
     private readonly Font titleFont = new("Yu Gothic UI", 9F, FontStyle.Bold);
@@ -50,6 +56,9 @@ internal sealed class TriggerKeyRecorderForm : Form
             ForeColor = SystemColors.GrayText,
             AutoSize = true,
             MaximumSize = new Size(380, 0),
+            // 案内の文言が変わったこと（使えないキーを押したときなど）を、ナレーターなどのスクリーンリーダーに知らせる。
+            // LiveSetting を設定したラベルは、Text を変えるとライブ リージョンの変化を UI オートメーションに通知する
+            LiveSetting = System.Windows.Forms.Automation.AutomationLiveSetting.Polite,
         };
 
         var resetButton = new Button { Text = $"初期設定（{TriggerKey.Default.DisplayName}）に戻す", AutoSize = true };
@@ -122,13 +131,31 @@ internal sealed class TriggerKeyRecorderForm : Form
     private void ShowInactiveMessage()
     {
         statusLabel.Text = $"このウィンドウをクリックしてから、キーを押してください。{Environment.NewLine}{InstructionText}";
-        statusLabel.ForeColor = Color.DarkOrange;
+        statusLabel.ForeColor = StatusColor(InactiveMessageColor);
     }
 
     private void ShowRejectedMessage(int virtualKey)
     {
-        statusLabel.Text = $"そのキー（仮想キーコード 0x{virtualKey:X2}）は使えません。{Environment.NewLine}{InstructionText}";
-        statusLabel.ForeColor = Color.Firebrick;
+        statusLabel.Text = $"そのキー（{KeyName(virtualKey)}）は使えません。{Environment.NewLine}{InstructionText}";
+        statusLabel.ForeColor = StatusColor(RejectedMessageColor);
+    }
+
+    /// <summary>
+    /// 案内の文字色。ハイコントラスト（コントラスト テーマ）では、テーマの文字色に従う。
+    /// 色だけで状態を伝えないよう、文言も変えている。
+    /// </summary>
+    private static Color StatusColor(Color normalColor) =>
+        SystemInformation.HighContrast ? SystemColors.ControlText : normalColor;
+
+    /// <summary>利用者に示すキーの名前。名前を求められないキーは仮想キーコードで示す。</summary>
+    private static string KeyName(int virtualKey)
+    {
+        if (VirtualKeyNames.For(virtualKey) is { } name)
+        {
+            return name;
+        }
+        var key = (Keys)virtualKey;
+        return Enum.IsDefined(key) ? key.ToString() : $"仮想キーコード 0x{virtualKey:X2}";
     }
 
     private void Finish(TriggerKey? key)

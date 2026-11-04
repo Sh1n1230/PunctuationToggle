@@ -17,6 +17,7 @@ final class TriggerKeyRecorderWindowController: NSWindowController, NSWindowDele
     private var isFinished = false
 
     private let statusLabel = NSTextField(wrappingLabelWithString: "")
+    private var lastAnnouncement: String?
 
     init(currentKey: TriggerKey, completion: @escaping (TriggerKey?) -> Void) {
         self.completion = completion
@@ -118,13 +119,33 @@ final class TriggerKeyRecorderWindowController: NSWindowController, NSWindowDele
         """
 
     private func showInactiveMessage() {
-        statusLabel.stringValue = "このウィンドウをクリックしてから、キーを押してください。\n" + Self.instructionText
+        let message = "このウィンドウをクリックしてから、キーを押してください。"
+        statusLabel.stringValue = message + "\n" + Self.instructionText
         statusLabel.textColor = .systemOrange
+        announce(message)
     }
 
     private func showRejectedMessage(keyCode: UInt16) {
-        statusLabel.stringValue = "そのキー（キーコード \(keyCode)）は使えません。\n" + Self.instructionText
+        let message = "そのキー（キーコード \(keyCode)）は使えません。"
+        statusLabel.stringValue = message + "\n" + Self.instructionText
         statusLabel.textColor = .systemRed
+        announce(message)
+    }
+
+    /// 案内が変わったことを VoiceOver に読み上げさせる。
+    /// 画面を見ていない利用者に、キーを押しても何も起きないように見えないようにする。
+    /// 同じ案内を続けて読み上げないよう、前回と同じ文は送らない
+    private func announce(_ message: String) {
+        guard message != lastAnnouncement else { return }
+        lastAnnouncement = message
+        NSAccessibility.post(
+            element: statusLabel,
+            notification: .announcementRequested,
+            userInfo: [
+                .announcement: message,
+                .priority: NSAccessibilityPriorityLevel.high.rawValue,
+            ]
+        )
     }
 
     @objc

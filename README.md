@@ -23,7 +23,7 @@
 | 切り替えキーを単独で押して離す（修飾キーの場合） | 「、。」と「，．」を切り替え |
 | 切り替えキーを押す（非修飾キーの場合） | 「、。」と「，．」を切り替え |
 | 切り替えキーと他のキーの組み合わせ（例: Command＋C） | 通常のショートカットとして動作（切り替えは発生しない） |
-| メニューバーまたはタスクトレイのメニュー | 句読点の切り替え、切り替えキーの変更、ログイン時起動の設定 |
+| メニューバーまたはタスクトレイのメニュー | 句読点の切り替え、切り替えキーの変更、ログイン時起動の設定、最新版の確認 |
 
 現在の設定は、メニューバー（macOS）またはタスクトレイ（Windows）に「、。」または「，．」のアイコンとして表示されます。Windows ではタスクトレイのアイコンを左クリックしても切り替えられます。
 
@@ -47,7 +47,7 @@
 
 ### ダウンロードしたファイルの確認
 
-本ツールはすべてのキー入力を監視する権限を必要とするため、入手したファイルが本リポジトリでビルドされたものであることを、起動する前に確認してください。v1.1.0 より後のリリースでは、GitHub Actions がビルドした各ファイルに[来歴証明（artifact attestation）](https://docs.github.com/ja/actions/security-for-github-actions/using-artifact-attestations/using-artifact-attestations-to-establish-provenance-for-builds)を付け、SHA-256 のチェックサムを `SHA256SUMS.txt` として添付しています。
+本ツールはすべてのキー入力を監視する権限を必要とするため、入手したファイルが本リポジトリでビルドされたものであることを、起動する前に確認してください。v1.1.0 より後のリリースでは、GitHub Actions がビルドした各ファイルに[来歴証明（artifact attestation）](https://docs.github.com/ja/actions/how-tos/secure-your-work/use-artifact-attestations/use-artifact-attestations)を付け、SHA-256 のチェックサムを `SHA256SUMS.txt` として添付しています。
 
 [GitHub CLI](https://cli.github.com/) を利用できる場合は、次のコマンドで来歴証明を検証します。`Verification succeeded!` と表示されれば、本リポジトリのリリース用ワークフローでビルドされたファイルです。
 
@@ -55,7 +55,7 @@
 gh attestation verify PunctuationToggle-<バージョン>-macOS.zip --repo Sh1n1230/PunctuationToggle
 ```
 
-GitHub CLI を利用しない場合は、チェックサムを計算し、同じリリースの `SHA256SUMS.txt` に記載された値と一致することを確認します。
+GitHub CLI を利用しない場合は、チェックサムを計算し、同じリリースの `SHA256SUMS.txt` に記載された値と一致することを確認します。ただし、チェックサムが一致することは、ファイルが `SHA256SUMS.txt` と同じものであることしか示しません。v1.3.0 より後のリリースでは `SHA256SUMS.txt` 自体にも来歴証明を付けているため、GitHub CLI を使える別の端末があれば `gh attestation verify SHA256SUMS.txt --repo Sh1n1230/PunctuationToggle` で、照合先の `SHA256SUMS.txt` が本リポジトリのワークフローで作られたものであることも確かめられます。
 
 ```sh
 # macOS（ダウンロードしたフォルダーで実行）
@@ -84,6 +84,8 @@ if ($entries.Count -ne 1) {
 }
 ```
 
+Windows 版のリリースには、exe に含まれる .NET ランタイムとライブラリの一覧（SBOM。CycloneDX 形式の `PunctuationToggle-<バージョン>-win-x64.cdx.json` など）も添付しています。.NET の脆弱性が公表されたときに、使っている版が影響を受けるかを確かめられます。SBOM にも来歴証明を付けています。macOS 版は、OS に含まれるフレームワーク以外のライブラリを使っていません。
+
 > [!CAUTION]
 > 以下で案内している警告の回避操作は、上記の確認を済ませたファイルに対してのみ行ってください。本リポジトリの [Releases](https://github.com/Sh1n1230/PunctuationToggle/releases) 以外から入手したファイルは実行しないでください。
 
@@ -103,7 +105,6 @@ Xcode 26 以降が必要です。リポジトリを取得後、付属のイン�
 ```sh
 git clone https://github.com/Sh1n1230/PunctuationToggle.git
 cd PunctuationToggle
-rm -rf Windows  # Windows 版のため不要
 ./macOS/install.sh
 ```
 
@@ -129,21 +130,33 @@ rm -rf Windows  # Windows 版のため不要
 ```powershell
 git clone https://github.com/Sh1n1230/PunctuationToggle.git
 cd PunctuationToggle
-Remove-Item -Recurse -Force macOS  # macOS 版のため不要
 powershell -ExecutionPolicy Bypass -File .\Windows\install.ps1
 ```
 
 ソースからビルドして実行する場合、実行環境に [.NET 10 デスクトップ ランタイム](https://dotnet.microsoft.com/download/dotnet/10.0)（SDK に同梱）が導入されている必要があります。
 
-### 不要なコードの削除
+### 使わないフォルダー
 
-本リポジトリには、macOS 版（Swift、`macOS/`）、Windows 版（C#、`Windows/`）、および句読点変換コマンド（Rust・C#・Python、`converters/`）が含まれていますが、各コンポーネントは互いに独立しており依存関係を持ちません。ソースコードからビルドして利用する際は、不要なフォルダーを削除して管理できます。
+本リポジトリには、macOS 版（Swift、`macOS/`）、Windows 版（C#、`Windows/`）、および句読点変換コマンド（Rust・C#・Python、`converters/`）が含まれていますが、各コンポーネントは互いに独立しており依存関係を持ちません。使わない OS のフォルダーや `converters/` は、ビルドの対象にならないため、そのまま残しておいて差し支えありません（ディスクの使用量もわずかです）。
 
-- Windows 環境では `macOS/` は不要です（macOS 環境では `Windows/` が不要です）。前述のビルド手順に示すとおり、Windows 環境では PowerShell の `Remove-Item -Recurse -Force macOS`（PowerShell における `rm` は `Remove-Item` のエイリアスであり、`-rf` 引数を解釈しないため）を用いて削除できます。
-- 句読点変換コマンドを利用しない場合は `converters/` ディレクトリ全体を削除できます。利用する場合でも、利用対象とする言語の実装1つ（たとえば Rust を使用する場合は `punctuation_converter.rs` のみ）を残し、他の実装ファイルを削除して差し支えありません（詳細は [必要な実装の選定と不要ファイルの整理](converters/README.md#必要な実装の選定と不要ファイルの整理) を参照してください）。
+フォルダーを取得したくない場合は、削除ではなく、Git の sparse-checkout で必要なフォルダーだけを取得する方法を勧めます（作業フォルダーを間違えて、無関係な同名のフォルダーを消すおそれがありません）。
+
+```sh
+git clone --filter=blob:none --sparse https://github.com/Sh1n1230/PunctuationToggle.git
+cd PunctuationToggle
+git sparse-checkout set macOS     # Windows では Windows
+```
+
+句読点変換コマンドは、利用する言語の実装1つだけを残して使えます（詳細は [必要な実装の選定と不要ファイルの整理](converters/README.md#必要な実装の選定と不要ファイルの整理) を参照してください）。
 
 > [!NOTE]
-> 本リポジトリに対して Pull Request を作成する場合は、ローカル環境における不要コードの削除をコミットに含めないでください。
+> 本リポジトリに対して Pull Request を作成する場合は、手元で削除したファイルをコミットに含めないでください。
+
+### 新しいバージョンの確認
+
+本ツールは、更新の有無を確かめるための通信を一切行いません（キー入力を監視するアプリケーションが自動で外部と通信しないことを、信頼の前提としているためです）。メニューの「最新版を確認…」を選択すると、最新のリリースのページ（[Releases](https://github.com/Sh1n1230/PunctuationToggle/releases/latest)）がブラウザーで開きます。「PunctuationToggle について」（Windows は「バージョン情報」）に表示されるバージョンと比べ、新しいバージョンがあれば、[ダウンロードしたファイルの確認](#ダウンロードしたファイルの確認)を済ませてから入れ替えてください。
+
+本ツールは OS の日本語入力の非公開の設定を利用しているため、OS の更新で動かなくなった場合は、新しいバージョンで対応していることがあります。
 
 ## アンインストール
 
@@ -171,11 +184,15 @@ IME の内部設定を直接更新するため、テキスト入力中の未確�
 | 2 | 、． |
 | 3 | ，． |
 
+システム設定で「，。」（1）や「、．」（2）を選んでいた場合、切り替えキーを押すと「，．」（3）に切り替わり、以降は「、。」と「，．」を行き来します。
+
+本アプリケーション独自の切り替えキー設定は、環境設定ドメイン `io.github.sh1n1230.PunctuationToggle` のキー `TriggerKeyCode` に、仮想キーコードとして保存されます。
+
 ### Windows
 
 Microsoft IME の句読点設定は、レジストリキー `HKCU\Software\Microsoft\IME\15.0\IMEJP\MSIME` 内の DWORD 値 `option1` において、ビット 16〜17 に格納されています。
 
-1. 低レベルキーボードフック（`WH_KEYBOARD_LL`）によりキーストロークを監視し、設定された切り替えキーの押下を検出します。修飾キーの入力イベントは遮断せずに通過させます。
+1. 低レベルキーボードフック（`WH_KEYBOARD_LL`）によりキーストロークを監視し、設定された切り替えキーの押下を検出します。修飾キーの入力イベントは遮断せずに通過させます。ほかのアプリケーションがプログラムから送ったキー入力（`SendInput` など）のうち、整合性レベルが低いプロセス（ブラウザーのサンドボックスなど）から送られたもの（`LLKHF_LOWER_IL_INJECTED`）は、利用者の操作ではないため切り替えの判定に使わず、そのまま通過させます。PowerToys の Keyboard Manager や AutoHotkey などでキーを割り当て直した入力は、通常の権限で送られるため、切り替えキーとして使えます。
 2. `option1` のビット 16〜17 のみを抽出し、`1`（「、。」）と `0`（「，．」）の間で反転書き込みを行います。その他の設定ビットは元の値を保持します。
 3. Microsoft IME はウィンドウのフォーカス取得時にレジストリ設定を再読み込みする構造を持つため、画面外に配置した透明ウィンドウへ一瞬だけフォーカスを遷移させて直前のウィンドウへ復帰させ、動作中のアプリケーションに入力設定を即座に再認識させます。
 
@@ -186,7 +203,20 @@ Microsoft IME の句読点設定は、レジストリキー `HKCU\Software\Micro
 | 2 | 、． |
 | 3 | ，。 |
 
+IME の設定画面で「、．」（2）や「，。」（3）を選んでいた場合、切り替えキーを押すと「，．」（0）に切り替わり、以降は「、。」と「，．」を行き来します。
+
 本アプリケーション独自の切り替えキー設定などは、レジストリの `HKCU\Software\PunctuationToggle` に保存されます。
+
+## 動作を確かめた OS の版
+
+本ツールは日本語入力の非公開の設定を使っているため、OS や IME の更新で動かなくなることがあります。メンテナーが実際に動作（切り替え・設定の保存・再起動後の保持）を確かめた版は次のとおりです。ここに無い新しい版でも動くことが多いですが、動かない場合は Issue で報告してください。
+
+| OS | OS の版 | 日本語入力 | 確かめた日 | 確かめたアプリの版 |
+|---|---|---|---|---|
+| macOS | 26.7.2 | macOS 標準の日本語入力 | 2026-10-28 | 1.3.0 |
+| Windows | （確認中） | Microsoft IME | | |
+
+この表は、リリースのたびと、OS の大型アップデートのときに、CONTRIBUTING の「OS や IME を更新したときの確認」の手順で更新します。
 
 ## 注意事項
 
@@ -213,6 +243,10 @@ python3 converters/punctuation_converter.py --reverse < 提出用.txt > 原稿.t
 
 ## ライセンス
 
-本ソフトウェアは [MIT License](LICENSE) のもとで公開されています。
+本ソフトウェアは [Mozilla Public License 2.0](LICENSE)（MPL-2.0）のもとで公開されています。
+
+> This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+MPL-2.0 では、本ソフトウェアのファイルを改変して配布する場合、改変したファイルを同じ MPL-2.0 のもとでソースコードとともに公開する必要があります（ほかのファイルや、組み合わせた別のコードには及びません）。v1.3.0 までの版は MIT License で公開しており、それらの版は引き続き MIT License で利用できます。
 
 ただし、ベンチマーク用の検証データ `converters/benchmark/wikipedia_programming.txt` はウィキペディア日本語版の記事から引用したものであり、[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/deed.ja) に準拠します（詳細は [出典表記](converters/benchmark/ATTRIBUTION.md) を参照してください）。

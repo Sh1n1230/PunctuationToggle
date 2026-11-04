@@ -18,8 +18,25 @@ body:
     id: version
     attributes:
       label: PunctuationToggle のバージョン
-      placeholder: v1.1.0
+      description: メニューの「PunctuationToggle について」（Windows は「バージョン情報」）に表示される版です。
+      placeholder: "例: 1.3.0"
     validations: {required: true}
+  - type: dropdown
+    id: input-method
+    attributes:
+      label: 日本語入力
+      description: 対象は macOS 標準の日本語入力と Microsoft IME だけです。Google 日本語入力や ATOK などでは動作しません。
+      options:
+        - macOS 標準の日本語入力
+        - Microsoft IME
+        - その他（「発生した問題」に名前を書いてください）
+    validations: {required: true}
+  - type: input
+    id: trigger-key
+    attributes:
+      label: 切り替えキー
+      description: 修飾キー（Command・Ctrl など）とそれ以外のキー（F13・無変換など）で、判定の仕組みが違います。
+      placeholder: "例: 右Command、右Ctrl、無変換"
   - type: textarea
     id: what
     attributes:
@@ -29,5 +46,5 @@ body:
     id: steps
     attributes:
       label: 再現手順
-      description: 切り替えキーの設定や、問題が起きるアプリがあれば記載してください。
+      description: 問題が起きるアプリがあれば記載してください。
     validations: {required: true}

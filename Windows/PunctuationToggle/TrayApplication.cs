@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using System.Diagnostics;
 using Microsoft.Win32;
 
 namespace PunctuationToggle;
@@ -9,19 +11,30 @@ internal sealed class TrayApplication : ApplicationContext
 {
     private const string RepositoryUrl = "https://github.com/Sh1n1230/PunctuationToggle";
 
-    // IME の設定画面側で変更された場合も表示を追従させるための、設定を読み直す間隔
-    private const int PollIntervalMilliseconds = 2000;
+    // 最新のリリースのページ。アプリ自身は通信せず、利用者がメニューを選んだときだけブラウザーで開く
+    private const string LatestReleaseUrl = RepositoryUrl + "/releases/latest";
+
+    // IME の設定画面側で変更された場合も表示を追従させるため、設定を読み直す間隔。
+    // 設定の変更を監視できている間（MicrosoftImeSettings.WatchChanges）は、監視の取りこぼしと表示倍率の変更に
+    // 備えて読み直すだけなので、何もしない間にプロセスが起きる回数を減らすよう長くする
+    private const int PollIntervalWithoutWatcherMilliseconds = 2000;
+    private const int PollIntervalWithWatcherMilliseconds = 10000;
+
+    // 通知の表示時間。Windows 10 以降は OS の設定が優先され、この値は使われないが、引数として必要
+    private const int BalloonTipTimeoutMilliseconds = 10000;
 
     private readonly NotifyIcon notifyIcon = new();
     private readonly ToolStripMenuItem toggleMenuItem = new();
     private readonly ToolStripMenuItem usageMenuItem = new() { Enabled = false };
-    private readonly ToolStripMenuItem launchAtLoginMenuItem = new("ログイン時に起動");
+    private readonly ToolStripMenuItem launchAtLoginMenuItem = new("ログイン時に起動(&L)");
     private readonly TriggerKeyDetector detector = new(AppSettings.TriggerKey);
     private readonly FocusBouncer focusBouncer = new();
-    private readonly System.Windows.Forms.Timer pollTimer = new() { Interval = PollIntervalMilliseconds };
+    private readonly System.Windows.Forms.Timer pollTimer = new() { Interval = PollIntervalWithoutWatcherMilliseconds };
     private readonly SynchronizationContext uiContext;
     private readonly KeyboardHook keyboardHook;
 
+    private RegistryChangeWatcher? imeSettingsWatcher;
+    private bool isImeSettingsUnreadable;
     private TriggerKeyRecorderForm? triggerKeyRecorder;
     private Icon? currentIcon;
     private PunctuationStyle? displayedStyle;
@@ -46,10 +59,20 @@ internal sealed class TrayApplication : ApplicationContext
         notifyIcon.Visible = true;
         UpdateDisplay();
 
-        pollTimer.Tick += (_, _) => UpdateDisplay();
+        StartWatchingImeSettings();
+        pollTimer.Tick += (_, _) =>
+        {
+            // IME の設定のキーが後から作られた場合（初めて切り替えたときなど）に、監視に切り替える
+            if (imeSettingsWatcher is null)
+            {
+                StartWatchingImeSettings();
+            }
+            UpdateDisplay();
+        };
         pollTimer.Start();
 
         SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
+        SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
     }
 
     protected override void Dispose(bool disposing)
@@ -57,7 +80,9 @@ internal sealed class TrayApplication : ApplicationContext
         if (disposing)
         {
             SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
+            SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
             pollTimer.Dispose();
+            imeSettingsWatcher?.Dispose();
             keyboardHook.Dispose();
             focusBouncer.Dispose();
             triggerKeyRecorder?.Dispose();
@@ -98,8 +123,7 @@ internal sealed class TrayApplication : ApplicationContext
             MicrosoftImeSettings.PunctuationStyle = MicrosoftImeSettings.PunctuationStyle.Toggled();
         }
         // レジストリのアクセス権が変えられている場合なども、アプリを終了させずに知らせる
-        catch (Exception exception) when (exception is InvalidDataException or UnauthorizedAccessException
-            or System.Security.SecurityException or IOException)
+        catch (Exception exception) when (exception is InvalidDataException || RegistryErrors.IsAccessFailure(exception))
         {
             MessageBox.Show(
                 $"句読点の設定を変更できませんでした。{Environment.NewLine}{exception.Message}",
@@ -123,15 +147,18 @@ internal sealed class TrayApplication : ApplicationContext
         toggleMenuItem.Click += (_, _) => TogglePunctuationStyle(bounceFocus: false);
         launchAtLoginMenuItem.Click += (_, _) => ToggleLaunchAtLogin();
 
+        // キーボードだけでも選べるよう、日本語の Windows アプリの慣習どおり項目名の後ろに (&X) の形でアクセスキーを付ける。
+        // 操作の説明（usageMenuItem）は選べない項目なので付けない
         var menu = new ContextMenuStrip();
         menu.Items.Add(toggleMenuItem);
         menu.Items.Add(usageMenuItem);
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("切り替えキーを変更…", null, (_, _) => ShowTriggerKeyRecorder());
+        menu.Items.Add("切り替えキーを変更(&K)…", null, (_, _) => ShowTriggerKeyRecorder());
         menu.Items.Add(launchAtLoginMenuItem);
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("バージョン情報", null, (_, _) => ShowAbout());
-        menu.Items.Add("終了", null, (_, _) => ExitThread());
+        menu.Items.Add("最新版を確認(&U)…", null, (_, _) => OpenLatestRelease());
+        menu.Items.Add("バージョン情報(&A)", null, (_, _) => ShowAbout());
+        menu.Items.Add("終了(&X)", null, (_, _) => ExitThread());
         menu.Opening += (_, _) =>
         {
             launchAtLoginMenuItem.Checked = AppSettings.LaunchAtLogin;
@@ -142,16 +169,23 @@ internal sealed class TrayApplication : ApplicationContext
 
     private void UpdateDisplay()
     {
-        var style = MicrosoftImeSettings.PunctuationStyle;
+        var readStyle = MicrosoftImeSettings.TryReadPunctuationStyle();
+        NotifyIfImeSettingsUnreadable(readStyle is null);
+        // 読み込めない間は、前回表示した句読点のまま表示を続ける
+        var style = readStyle ?? displayedStyle ?? MicrosoftImeSettings.PunctuationStyle;
         var triggerKey = detector.TriggerKey;
 
         toggleMenuItem.Text = style == PunctuationStyle.CommaPeriod
-            ? $"「、。」に切り替え（{triggerKey.DisplayName}）"
-            : $"「，．」に切り替え（{triggerKey.DisplayName}）";
+            ? $"「、。」に切り替え(&T)（{triggerKey.DisplayName}）"
+            : $"「，．」に切り替え(&T)（{triggerKey.DisplayName}）";
         usageMenuItem.Text = triggerKey.UsageDescription;
-        notifyIcon.Text = $"PunctuationToggle: {style.Symbols()}";
+        // タスクトレイのアイコンの名前としてナレーターが読み上げるため、記号だけでなく句読点の呼び名も入れる
+        notifyIcon.Text = isImeSettingsUnreadable
+            ? "PunctuationToggle 句読点の設定を読み込めません"
+            : $"PunctuationToggle 句読点: {style.SpokenName()}";
 
-        // 表示倍率の変更は、トレイ用のウィンドウが無く WM_DPICHANGED を受け取れないため、設定を読み直すたびに確かめる
+        // 表示倍率の変更は、トレイ用のウィンドウが無く WM_DPICHANGED を受け取れないため、
+        // 画面の設定の変更（DisplaySettingsChanged）と、設定を読み直すたびに確かめる
         var iconSize = TrayIconRenderer.CurrentIconSize;
         if (style == displayedStyle && iconSize == displayedIconSize)
         {
@@ -164,6 +198,38 @@ internal sealed class TrayApplication : ApplicationContext
         currentIcon = TrayIconRenderer.Render(style.Symbols(), AppSettings.IsTaskbarLight, iconSize);
         notifyIcon.Icon = currentIcon;
         previousIcon?.Dispose();
+    }
+
+    /// <summary>
+    /// 句読点の設定を読み込めなくなったときに、1回だけ通知で知らせる。
+    /// 表示を更新するたびに読むため、ダイアログを繰り返し出さないよう、読み込めるようになるまでは知らせ直さない。
+    /// </summary>
+    private void NotifyIfImeSettingsUnreadable(bool isUnreadable)
+    {
+        if (isUnreadable && !isImeSettingsUnreadable)
+        {
+            notifyIcon.ShowBalloonTip(
+                BalloonTipTimeoutMilliseconds,
+                "PunctuationToggle",
+                "Microsoft IME の句読点の設定を読み込めません。レジストリのアクセス権が変更されていないか確認してください。",
+                ToolTipIcon.Warning);
+        }
+        isImeSettingsUnreadable = isUnreadable;
+    }
+
+    private void StartWatchingImeSettings()
+    {
+        // 通知はスレッドプールで呼ばれるので、表示の更新は UI スレッドに移ってから行う
+        imeSettingsWatcher = MicrosoftImeSettings.WatchChanges(() => uiContext.Post(_ => UpdateDisplay(), null));
+        pollTimer.Interval = imeSettingsWatcher is null
+            ? PollIntervalWithoutWatcherMilliseconds
+            : PollIntervalWithWatcherMilliseconds;
+    }
+
+    private void OnDisplaySettingsChanged(object? sender, EventArgs eventArgs)
+    {
+        // 表示倍率を変えたら、その倍率の大きさでアイコンを描き直す（UpdateDisplay で大きさの変化を確かめる）
+        UpdateDisplay();
     }
 
     private void OnUserPreferenceChanged(object? sender, UserPreferenceChangedEventArgs eventArgs)
@@ -196,7 +262,7 @@ internal sealed class TrayApplication : ApplicationContext
                     AppSettings.TriggerKey = newKey;
                     detector.TriggerKey = newKey;
                 }
-                catch (Exception exception) when (exception is UnauthorizedAccessException or System.Security.SecurityException or IOException)
+                catch (Exception exception) when (RegistryErrors.IsAccessFailure(exception))
                 {
                     MessageBox.Show(
                         $"切り替えキーを保存できませんでした。{Environment.NewLine}{exception.Message}",
@@ -218,10 +284,27 @@ internal sealed class TrayApplication : ApplicationContext
         {
             AppSettings.LaunchAtLogin = !AppSettings.LaunchAtLogin;
         }
-        catch (Exception exception) when (exception is UnauthorizedAccessException or System.Security.SecurityException or IOException)
+        catch (Exception exception) when (RegistryErrors.IsAccessFailure(exception))
         {
             MessageBox.Show(
                 $"「ログイン時に起動」を変更できませんでした。{Environment.NewLine}{exception.Message}",
+                "PunctuationToggle",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+        }
+    }
+
+    private static void OpenLatestRelease()
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo(LatestReleaseUrl) { UseShellExecute = true });
+        }
+        // 既定のブラウザーが設定されていない場合など
+        catch (Win32Exception exception)
+        {
+            MessageBox.Show(
+                $"ブラウザーを開けませんでした。次のページで最新版を確認してください。{Environment.NewLine}{LatestReleaseUrl}{Environment.NewLine}{exception.Message}",
                 "PunctuationToggle",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
