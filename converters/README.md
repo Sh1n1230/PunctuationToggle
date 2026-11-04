@@ -69,7 +69,9 @@ Windows では Git Bash で同じコマンドを実行します。Git Bash に�
 
 `make rust-test` は、Rust 実装だけが持つ処理（入力を一定のバイト数ずつ読み、途中で切れた UTF-8 の文字を次の読み込みに回す処理）を、文字の何バイト目で切れるかや、1回の読み込みで返るバイト数を狙って確かめます。
 
-`make clean` で生成物を削除できます。
+`make clean` で、ビルドの生成物と、ベンチマークの合成データ（約30MB）・結果を削除できます。ベンチマークの分だけを消すときは `make clean-benchmark` とします。`make` はソースが変わったときだけビルドし直し、`make test` はビルド済みの実装がソースより古ければ作り直してからテストします。
+
+`make csharp-dotnet` は、.NET のランタイム識別子を実行中の OS と CPU（x64・arm64）から決めます。それ以外の CPU では `make DOTNET_RID=linux-arm csharp-dotnet` のように指定してください。
 
 ## ベンチマーク
 
@@ -80,7 +82,7 @@ benchmark/run_benchmark.sh benchmark/wikipedia_programming.txt --warmup 5 --runs
 
 GitHub Actions でも、週に1回（と手動で）ベンチマークのワークフロー（`.github/workflows/benchmark.yml`）を実行し、結果を前回の結果と並べて実行結果のサマリーに表示しています。共有のランナーは性能がばらつくため、結果は性能の大きな変化に気づくための目安で、失敗の判定には使っていません。
 
-ビルド済みの実装をすべて hyperfine で計測し、結果を `benchmark/results/` に Markdown の表で保存します。入力ファイルは `--input` で渡すため hyperfine 1.16.0 以降が必要です（パスに空白を含んでいても計測できます）。合成データ（「、。」を500万回繰り返した1行）は、初回に `benchmark/generate_repeated_text.sh` で作ります。
+ビルド済みの実装をすべて hyperfine で計測し、結果を `benchmark/results/` に Markdown の表（`<入力の名前>.md`）と JSON（`<入力の名前>.json`、比較用）で保存します。同じ名前の結果が既にあるときは、日時を付けた名前で保存します。シェルを介さずに起動する `-N`（`--shell=none`）を常に付けるので、hyperfine の 1.x と 2.x、Windows でも同じ方法で計測します。入力ファイルは呼び出した場所からの相対パスでも渡せます。Python は `PYTHON` 環境変数、`python3`、`python` の順に探します。入力ファイルは `--input` で渡すため hyperfine 1.16.0 以降が必要です（パスに空白を含んでいても計測できます）。合成データ（「、。」を500万回繰り返した1行）は、初回に `benchmark/generate_repeated_text.sh` で作ります。
 
 ## 実装する言語の選定
 
