@@ -249,6 +249,8 @@ python3 converters/punctuation_converter.py --reverse < 提出用.txt > 原稿.t
 
 > This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-MPL-2.0 では、本ソフトウェアのファイルを改変して配布する場合、改変したファイルを同じ MPL-2.0 のもとでソースコードとともに公開する必要があります（ほかのファイルや、組み合わせた別のコードには及びません）。v1.3.0 までの版は MIT License で公開しており、それらの版は引き続き MIT License で利用できます。
+MPL-2.0 では、本ソフトウェアのファイルを改変して配布する場合、改変したファイルを同じ MPL-2.0 のもとでソースコードとともに公開する必要があります（ほかのファイルや、組み合わせた別のコードには及びません）。v1.3.0 までの版は MIT License で公開しており、それらの版は引き続き MIT License で利用できます。ライセンスを変える前に MIT License で受け入れた外部の方の変更は、[NOTICE.md](NOTICE.md) に作者の著作権表示と許諾表示を残しています。
+
+MPL-2.0 の告知（Exhibit A）は、各ファイルではなくリポジトリのルートの [LICENSE](LICENSE) で示しています（MPL-2.0 が認める方法です）。ただし、1つのファイルだけで持ち出して使える変換コマンドの3つのソース（`converters/` の `punctuation_converter.py`・`punctuation_converter.rs`・`PunctuationConverter.cs`）には、ファイルの先頭に告知を入れています。
 
 ただし、ベンチマーク用の検証データ `converters/benchmark/wikipedia_programming.txt` はウィキペディア日本語版の記事から引用したものであり、[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/deed.ja) に準拠します（詳細は [出典表記](converters/benchmark/ATTRIBUTION.md) を参照してください）。

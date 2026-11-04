@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MPL-2.0
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+// If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 //! 標準入力の文章の句読点を「、。」⇔「，．」に変換して、標準出力に書き出す。
 
 // 標準ライブラリだけの安全な Rust で書く。unsafe が必要になったら、外す理由を Pull Request で説明する
