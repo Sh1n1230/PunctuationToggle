@@ -188,6 +188,25 @@ test_implementation() {
     fi
   fi
 
+  # 標準入出力が閉じている（シェルの >&- など）ときは、閉じた出力先には書けたものとして、閉じた入力は空として
+  # 扱い、トレースバックなどを出さない（Rust の標準ライブラリの動作に合わせる）。Windows では確かめない
+  if [[ $(uname -s) != MINGW* && $(uname -s) != MSYS* && $(uname -s) != CYGWIN* ]]; then
+    local closed_case closed_status
+    for closed_case in "convert:0" "closed_input:0" "help:0" "bad_argument:2"; do
+      closed_status=0
+      # shellcheck disable=SC2086
+      case ${closed_case%%:*} in
+        convert) $command < "$CASES_DIR/basic/input.txt" >&- 2> "$errors" || closed_status=$? ;;
+        closed_input) $command <&- > "$output" 2> "$errors" || closed_status=$? ;;
+        help) $command --help < /dev/null >&- 2> "$errors" || closed_status=$? ;;
+        bad_argument) : > "$errors"; $command --bad < /dev/null > "$output" 2>&- || closed_status=$? ;;
+      esac
+      if [[ $closed_status -ne ${closed_case##*:} || -s $errors ]]; then
+        report_failure "閉じた標準入出力（${closed_case%%:*}）: 終了コード ${closed_case##*:} を期待しましたが、終了コードは $closed_status でした: $(head -c 200 "$errors")"
+      fi
+    done
+  fi
+
   # オプションは1つだけ受け付け、大文字小文字の違いや "--"・"-" も不正な引数とする。
   # UTF-8 でない引数（macOS や Linux で渡せる）も、異常終了させずに不正な引数として扱う
   for arguments in "--unknown" "-r -r" "extra" "-h -r" "--reverse --help" "-R" "-V" "--version -r" "--" "-" $'\xff'; do

@@ -55,6 +55,17 @@ def main(arguments: list[str]) -> int:
     # ほかの実装と同じく、Ctrl+C ではトレースバックを表示せずに終了する。
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
+    # シェルの `>&-` などで標準入出力が閉じていると、Python は sys.stdout などを None にする。
+    # Rust の標準ライブラリと同じく、閉じた出力先には書けたものとして扱い、閉じた入力は空として扱う。
+    # 閉じた番号から順に os.devnull を開き直すので、開いたファイルはその番号（0・1・2）になる。
+    # 終了まで使うため with では閉じない
+    if sys.stdin is None:
+        sys.stdin = open(os.devnull, encoding="utf-8")  # noqa: SIM115
+    if sys.stdout is None:
+        sys.stdout = open(os.devnull, "w", encoding="utf-8")  # noqa: SIM115
+    if sys.stderr is None:
+        sys.stderr = open(os.devnull, "w", encoding="utf-8")  # noqa: SIM115
+
     # Windows では標準出力・標準エラー出力の既定の文字コードが UTF-8 ではなく（cp932 など）、
     # 改行も CRLF に変わるため、使い方やエラーの表示もほかの実装と同じ UTF-8・LF に揃える
     # （テストなどで io.TextIOWrapper 以外に差し替えられている場合は、そのまま使う）
