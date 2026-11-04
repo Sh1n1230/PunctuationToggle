@@ -26,7 +26,7 @@ jobs:
   benchmark:
     name: 変換コマンドのベンチマーク
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 30 # 2026-11 時点の実行時間は未計測（このワークフローの変更の後、最初の定期実行で確かめる）
     permissions:
       contents: read
       actions: read # 前回の実行の成果物を取得する

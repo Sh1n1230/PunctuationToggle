@@ -180,6 +180,8 @@ make test-random
 
 CI とリリースのランナーは、`windows-latest` のようなラベルではなく、イメージの版（`windows-2025`・`ubuntu-24.04`・`macos-26`）で指定しています。GitHub が `-latest` の指す先を変えても、リポジトリを変えないままビルド環境が変わらないようにするためです。新しいイメージに上げるときは、`.github/workflows/` のすべてのワークフロー（今は `ci.yml`・`release.yml`・`security.yml`・`benchmark.yml`。`git grep -n "runs-on:" .github/workflows` で確かめられます）の版をそろえて書き換え、Pull Request で CI とリリースのビルド（`release.yml` の Pull Request での実行）が通ることを確かめてからマージしてください。
 
+各ジョブの `timeout-minutes` は、ハングしたときに既定の 360 分までランナーを使い続けないよう、今の実行時間の数倍にしています。値の横のコメントに、決めた時点の実行時間を書いています。実行時間が上限の半分を超えるようになったら、上限とコメントを見直してください。
+
 テストやビルドのジョブは読み取り権限だけで動かし、リリースへの書き込み権限はビルド済みのファイルを添付する最後のジョブにだけ与えています。ワークフローを変更するときもこの分担を保ってください。
 
 配布用ファイルのビルドに影響するファイル（`.github/workflows/release.yml`、`global.json`、`nuget.config`、`LICENSE`、`Windows/Directory.Build.props`、`Windows/PunctuationToggle/`・`Windows/PunctuationToggle.Core/`・`macOS/PunctuationToggle/`・`macOS/PunctuationToggle.xcodeproj/` 以下、リリースのジョブで動くテスト（`Windows/PunctuationToggle.Tests/`・`Windows/PunctuationToggle.sln`・`macOS/Tests/`・`macOS/Package.swift`・`testdata/`）、版を確かめる変換コマンドの3つのソース）を変更した Pull Request では、リリースは作らずに配布用ファイルのビルドまでが実行され、できた zip を Actions の成果物からダウンロードして確かめられます。条件は `release.yml` の `pull_request.paths` にあります。
