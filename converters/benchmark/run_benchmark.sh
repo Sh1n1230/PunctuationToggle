@@ -47,6 +47,13 @@ for candidate in "${candidates[@]}"; do
 done
 
 mkdir -p benchmark/results
-result_file="benchmark/results/$(basename "$input_file" .txt).md"
+# 入力の拡張子は .txt に限らないので最後のドット以降を取り除く。
+# 同名の結果が既にあるときは黙って上書きせず、日時を付けた名前に退避する。
+result_name=$(basename "$input_file")
+result_name=${result_name%.*}
+result_file="benchmark/results/${result_name}.md"
+if [[ -e $result_file ]]; then
+  result_file="benchmark/results/${result_name}-$(date +%Y%m%d-%H%M%S).md"
+fi
 hyperfine "${hyperfine_options[@]}" --input "$input_file" --sort mean-time --export-markdown "$result_file" "${arguments[@]}"
 echo "結果を保存しました: $result_file"
