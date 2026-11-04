@@ -287,6 +287,10 @@ jobs:
       - name: シェルスクリプト（ShellCheck）
         run: git ls-files -z '*.sh' | xargs -0 shellcheck
 
+      # アプリと変換コマンドに、ネットワークを使う API が入っていないこと（docs/THREAT_MODEL.md の「送信しない」）
+      - name: 通信する API が無いことの確認
+        run: .github/scripts/check_no_network.sh
+
       # PSScriptAnalyzer は、GitHub のリリースのパッケージ（PowerShell Gallery と同じもの）を版と sha256 で固定して取得する
       # （Install-Module は取得したパッケージを sha256 で確かめられないため使わない）。
       # 版を変えるときは、GitHub のリリースのページに表示される sha256 も書き換える

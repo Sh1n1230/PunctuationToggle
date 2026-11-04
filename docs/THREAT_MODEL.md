@@ -37,11 +37,13 @@ App Sandbox の代わりに、Hardened Runtime を有効にし、ネットワー
 
 ### ソースコード
 
-アプリ本体（`macOS/PunctuationToggle/`・`Windows/PunctuationToggle/`）には、ネットワークを使うコード（`URLSession`・`HttpClient`・ソケットなど）がありません。次のコマンドで何も見つからないことを確かめられます。
+アプリ本体（`macOS/PunctuationToggle/`・`Windows/PunctuationToggle/`・`Windows/PunctuationToggle.Core/`）と変換コマンド（`converters/`）には、ネットワークを使うコード（`URLSession`・`HttpClient`・ソケットなど）がありません。次のスクリプトで何も見つからないことを確かめられます。CI の「コーディング規約」ジョブも同じスクリプトを実行し、見つかったら失敗します。
 
 ```sh
-git grep -nE "URLSession|NWConnection|Socket|HttpClient|WebClient|WebRequest|System\.Net" -- macOS/PunctuationToggle Windows/PunctuationToggle Windows/PunctuationToggle.Core
+.github/scripts/check_no_network.sh
 ```
+
+パターン（スクリプトの中に書いてあります）は、macOS の `URLSession`・`NSURLConnection`・`URLRequest`・Network.framework（`NWConnection`・`nw_connection_*`）・CFNetwork・URL を渡すと通信しうる `Data(contentsOf:)`、Windows の `System.Net`・`HttpClient`・`WinHttp*`・`InternetOpen*`、ソケット、変換コマンドの `urllib`・`std::net` などです。ただし、見つからないことは「通信しない」ことの証明にはなりません。P/Invoke で名前を変えて呼ぶ場合や、実行時にライブラリを読み込む場合などは見つけられないため、下の「配布されたファイル」と「動いているアプリ」の確認と組み合わせてください。
 
 例外は、メニューの「最新版を確認…」で Releases のページの URL をブラウザーに渡す処理（`NSWorkspace.open`・`Process.Start`）だけで、通信するのはブラウザーです。
 
@@ -54,8 +56,33 @@ git grep -nE "URLSession|NWConnection|Socket|HttpClient|WebClient|WebRequest|Sys
 
 アプリを使っている間に、通信していないことを確かめられます。
 
-- macOS: `lsof -i -a -p "$(pgrep -x PunctuationToggle)"` で何も表示されないこと。継続して見る場合は `nettop -p "$(pgrep -x PunctuationToggle)"`。
-- Windows（PowerShell）: `Get-NetTCPConnection -OwningProcess (Get-Process PunctuationToggle).Id` と `Get-NetUDPEndpoint -OwningProcess (Get-Process PunctuationToggle).Id` で何も表示されないこと。継続して見る場合は、リソース モニターの「ネットワーク」タブ。
+何も表示されないことを確かめる前に、アプリが動いていることを確かめてください（動いていなくても何も表示されません）。下のコマンドは、アプリが動いていないときはそう表示します。起動の直後などにプロセスが2つ見える場合も使えます。
+
+- macOS: 次のコマンドで、接続の一覧に何も表示されないこと。継続して見る場合は `nettop -p "$pids"`。
+
+  ```sh
+  pids=$(pgrep -d, -x PunctuationToggle) || { echo "PunctuationToggle は動いていません"; exit; }
+  lsof -i -a -p "$pids"
+  ```
+
+- Windows（PowerShell）: 次のコマンドで、何も表示されないこと。継続して見る場合は、リソース モニターの「ネットワーク」タブ。
+
+  ```powershell
+  $ids = (Get-Process PunctuationToggle -ErrorAction Stop).Id   # 動いていなければエラーになる
+  Get-NetTCPConnection -OwningProcess $ids -ErrorAction SilentlyContinue
+  Get-NetUDPEndpoint -OwningProcess $ids -ErrorAction SilentlyContinue
+  ```
+
+## 変換コマンド
+
+変換コマンド（`converters/`）は、Releases の配布物には含まれず、利用者がソースから実行します（報告の対象であることは SECURITY.md のとおりです）。常駐アプリとは扱うものが違うため、次のように考えています。
+
+- 入力は利用者のファイルで、信頼しない前提で扱います。改行の無い巨大な入力でもメモリを使い切らないよう、どの実装も一定の量ずつ読みます。
+- UTF-8 として正しくない入力は、置き換え文字に変えて黙って出力を変えることはせず、エラーにします（終了コード 1）。
+- 通信せず、ファイルも書きません。読み書きは標準入出力だけです（上の `check_no_network.sh` の対象にも含めています）。
+- 依存は各言語の標準ライブラリだけです。C# の Native AOT のビルドは NuGet を使いますが、`nuget.config` でパッケージソースを nuget.org に限っています。Rust 実装は `#![forbid(unsafe_code)]` で `unsafe` を禁じています。
+- ベンチマークのデータ（`benchmark/wikipedia_programming.txt`）はコードではなく、計測の入力にだけ使います。
+- 利用者が自分で書き換えたスクリプトの実行や、信頼できない場所から入手した変換コマンドの実行は、対象外です。
 
 ## 診断用のログ
 
