@@ -263,7 +263,7 @@ jobs:
         run: |
           ruff check converters .github/scripts
           ruff format --check --diff converters .github/scripts
-          mypy --strict --python-version 3.10 converters/punctuation_converter.py converters/tests/run_random_tests.py converters/tests/test_sigint.py .github/scripts/cobertura_summary.py
+          mypy --strict --python-version 3.10 converters/punctuation_converter.py converters/tests/run_random_tests.py converters/tests/test_sigint.py .github/scripts/*.py
 
       - name: シェルスクリプト（ShellCheck）
         run: git ls-files -z '*.sh' | xargs -0 shellcheck

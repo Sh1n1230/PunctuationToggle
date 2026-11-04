@@ -52,9 +52,24 @@ jobs:
       - name: ビルド
         run: make all csharp-dotnet
 
+      # 前回と比べるときに、ランナーや各ツールの版の違いに気づけるよう、計測環境を記録する
+      # （hyperfine の版が変わると、計測の方法が変わって比べられないことがある）
+      - name: 計測環境の記録
+        run: |
+          mkdir -p benchmark/results
+          {
+            echo "| 項目 | 値 |"
+            echo "|---|---|"
+            echo "| ランナーのイメージ | ${ImageOS:-不明} ${ImageVersion:-} |"
+            echo "| CPU | $(lscpu | sed -n 's/^Model name: *//p') |"
+            echo "| rustc | $(rustc --version) |"
+            echo "| .NET SDK | $(dotnet --version) |"
+            echo "| Python | $(python3 --version) |"
+            echo "| hyperfine | $(hyperfine --version) |"
+          } > benchmark/results/environment.md
+
       - name: 計測
         run: |
-          hyperfine --version
           benchmark/run_benchmark.sh benchmark/repeated_text.txt --warmup 2 --runs 10
           benchmark/run_benchmark.sh benchmark/wikipedia_programming.txt --warmup 5 --runs 30
 
@@ -65,8 +80,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          run_id=$(gh run list --workflow benchmark.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
-          echo "run-id=$run_id" >> "$GITHUB_OUTPUT"
+          # ほかのブランチで手動実行した結果と比べないよう、main の実行に限る
+          previous=$(gh run list --workflow benchmark.yml --branch main --status success --limit 1 \
+            --json databaseId,headSha --jq '.[0] // empty | "\(.databaseId) \(.headSha[0:7])"')
+          echo "run-id=${previous%% *}" >> "$GITHUB_OUTPUT"
+          echo "head-sha=${previous##* }" >> "$GITHUB_OUTPUT"
 
       - name: 前回の結果を取得
         if: steps.previous.outputs.run-id != ''
@@ -78,18 +96,35 @@ jobs:
           github-token: ${{ github.token }}
 
       - name: サマリーに書き出す
+        env:
+          PREVIOUS_RUN_ID: ${{ steps.previous.outputs.run-id }}
+          PREVIOUS_HEAD_SHA: ${{ steps.previous.outputs.head-sha }}
         run: |
           {
             echo "## 変換コマンドのベンチマーク（$(git rev-parse --short HEAD)）"
-            for result in benchmark/results/*.md; do
+            echo
+            echo "### 計測環境"
+            echo
+            cat benchmark/results/environment.md
+            if [[ -f benchmark/previous-results/environment.md ]]; then
               echo
-              echo "### $(basename "$result" .md)"
+              echo "前回（実行 $PREVIOUS_RUN_ID、コミット $PREVIOUS_HEAD_SHA）:"
               echo
-              cat "$result"
-              previous="benchmark/previous-results/$(basename "$result")"
+              cat benchmark/previous-results/environment.md
+            fi
+            for result in benchmark/results/*.json; do
+              name=$(basename "$result" .json)
+              echo
+              echo "### $name"
+              echo
+              # 平均の変化率は目安。共有のランナーは性能がばらつくため、失敗の判定には使わない
+              python3 ../.github/scripts/benchmark_compare.py "$result" "benchmark/previous-results/$name.json"
+              echo
+              cat "benchmark/results/$name.md"
+              previous="benchmark/previous-results/$name.md"
               if [[ -f $previous ]]; then
                 echo
-                echo "前回（実行 ${{ steps.previous.outputs.run-id }}）:"
+                echo "前回（実行 $PREVIOUS_RUN_ID、コミット $PREVIOUS_HEAD_SHA）:"
                 echo
                 cat "$previous"
               fi
