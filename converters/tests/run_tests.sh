@@ -59,6 +59,22 @@ report_failure() {
   failures=$((failures + 1))
 }
 
+# 固定のケースが、確かめたい性質を本当に含んでいるかを確かめる（エディタの保存などで崩れていないか）
+check_case_preconditions() {
+  local cases=$CASES_DIR
+  local failures_before=$failures
+  grep -q $'\r$' "$cases/crlf/input.txt" || report_failure "crlf/input.txt に CRLF がありません"
+  if ! grep -q $'\r' "$cases/cr_only/input.txt" || [[ $(tr -cd '\n' < "$cases/cr_only/input.txt" | wc -c) -ne 0 ]]; then
+    report_failure "cr_only/input.txt に CR が無いか、LF が含まれています"
+  fi
+  [[ $(head -c 3 "$cases/bom/input.txt" | od -An -tx1 | tr -d ' \n') == efbbbf ]] || report_failure "bom/input.txt が BOM で始まっていません"
+  [[ -n $(tail -c 1 "$cases/no_trailing_newline/input.txt" | tr -d '\n\r') ]] || report_failure "no_trailing_newline/input.txt の最後が改行です"
+  [[ ! -s $cases/empty/input.txt ]] || report_failure "empty/input.txt が空ではありません"
+  if [[ $failures -eq $failures_before ]]; then
+    echo "PASS  テストケースの前提"
+  fi
+}
+
 # 1つの実装をすべてのケースでテストする
 test_implementation() {
   local name=$1
@@ -79,6 +95,8 @@ test_implementation() {
         report_failure "$case_name ${option:-（オプションなし）}: 異常終了しました: $(head -c 200 "$errors")"
       elif ! cmp -s "$output" "$expected"; then
         report_failure "$case_name ${option:-（オプションなし）}: 出力が期待と異なります"
+      elif [[ -s $errors ]]; then
+        report_failure "$case_name ${option:-（オプションなし）}: 成功したのに標準エラー出力に書いています: $(head -c 200 "$errors")"
       fi
     done
   done
@@ -90,6 +108,8 @@ test_implementation() {
       report_failure "$option: 異常終了しました: $(head -c 200 "$errors")"
     elif ! cmp -s "$output" "$USAGE_FILE"; then
       report_failure "$option: 使い方が tests/usage.txt と異なります"
+    elif [[ -s $errors ]]; then
+      report_failure "$option: 成功したのに標準エラー出力に書いています: $(head -c 200 "$errors")"
     fi
   done
 
@@ -108,12 +128,15 @@ test_implementation() {
   for invalid_bytes in 'a\xff\xe3\x80\x81\n' 'a\xe3\x80' '\x80' '\xc0\xaf' '\xed\xa0\x80' '\xf4\x90\x80\x80'; do
     # shellcheck disable=SC2059 # 不正なバイト列を作るため、printf の書式として解釈させる
     printf "$invalid_bytes" > "$invalid_input"
-    local status=0
-    # shellcheck disable=SC2086
-    $command < "$invalid_input" > "$output" 2> "$errors" || status=$?
-    if [[ $status -ne 1 ]] || [[ $(cat "$errors") != "$INVALID_UTF8_MESSAGE" ]]; then
-      report_failure "不正な UTF-8 '$invalid_bytes': 終了コード 1 と「$INVALID_UTF8_MESSAGE」を期待しましたが、終了コードは $status、エラー出力は「$(head -c 200 "$errors")」でした"
-    fi
+    # 変換でも逆変換でも同じように扱う
+    for option in "" "--reverse"; do
+      local status=0
+      # shellcheck disable=SC2086
+      $command $option < "$invalid_input" > "$output" 2> "$errors" || status=$?
+      if [[ $status -ne 1 ]] || [[ $(cat "$errors") != "$INVALID_UTF8_MESSAGE" ]]; then
+        report_failure "不正な UTF-8 '$invalid_bytes' ${option:-（オプションなし）}: 終了コード 1 と「$INVALID_UTF8_MESSAGE」を期待しましたが、終了コードは $status、エラー出力は「$(head -c 200 "$errors")」でした"
+      fi
+    done
   done
 
   # 書き込めない出力先では、トレースバックなどではなくエラーメッセージを表示して終了コード 1 にする。
@@ -174,6 +197,7 @@ test_implementation() {
 }
 
 create_long_line_case
+check_case_preconditions
 
 implementations=("$@")
 if [[ ${#implementations[@]} -eq 0 ]]; then

@@ -1,7 +1,7 @@
 # リポジトリの Python（変換コマンドの Python 実装・テストと、.github/scripts の CI 用のスクリプト）の ruff の設定。
 # CI の「コーディング規約」ジョブで使う。
 
-# 対応する最も古い Python（converters/README.md の「必要なツール」と CI の converters-python-oldest ジョブ）に合わせ、
+# 対応する最も古い Python（converters/README.md の「必要なツール」と CI の converters-python ジョブの 3.10）に合わせ、
 # その版で使えない書き方を提案させない
 target-version = "py310"
 

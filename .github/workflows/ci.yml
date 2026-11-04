@@ -196,14 +196,29 @@ jobs:
       - name: Rust 実装の単体テスト
         run: make rust-test
 
+      # 失敗した入力は tests/cases/ と同じ形で保存されるので、成果物として残す
       - name: ランダムな入力でのテスト
-        run: REQUIRE_ALL=1 make test-random
+        run: REQUIRE_ALL=1 RANDOM_FAILURES_DIR="$RUNNER_TEMP/random-failures" make test-random
 
-  # converters/README.md の「必要なツール」に書いた最も古い版で、Python 実装が動くことを確かめる
-  converters-python-oldest:
-    name: 変換コマンド（Python 3.10）
+      - name: ランダムな入力でのテストで失敗した入力の保存
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: random-failures-${{ matrix.os }}
+          path: ${{ runner.temp }}/random-failures
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # converters/README.md の「必要なツール」に書いた最も古い版と、最新の安定版で、Python 実装が動くことを確かめる
+  converters-python:
+    name: 変換コマンド（Python ${{ matrix.python-version }}）
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        # 最新の安定版は、新しい版が出たら上げる（ランナーと同じく、版を固定して変更を見えるようにする）
+        python-version: ["3.10", "3.15"]
     defaults:
       run:
         working-directory: converters
@@ -214,10 +229,14 @@ jobs:
 
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: "3.10"
+          python-version: ${{ matrix.python-version }}
 
       - name: テスト
         run: REQUIRE_ALL=1 tests/run_tests.sh python
+
+      # Rust と C# はこのジョブではビルドしないため、実装名を指定する
+      - name: ランダムな入力でのテスト
+        run: REQUIRE_ALL=1 python tests/run_random_tests.py python
 
   # CONTRIBUTING の「コーディング規約」に合っているかを確かめる。
   # Swift は Xcode のツールチェーンに同梱の swift format を使うため、macOS アプリのジョブで確かめる

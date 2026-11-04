@@ -6,13 +6,16 @@ tests/cases/ の固定のケースでは狙いにくい組み合わせ（改行�
 - 出力が、句読点だけを置き換えた期待どおりのバイト列になる（実装どうしも一致する）
 - 変換は冪等（変換した結果をもう一度変換しても変わらない）
 - 「、。」→「，．」→「、。」と戻すと、逆変換だけをした結果と同じになる
-- UTF-8 として正しくないバイトを混ぜると、終了コード 1 になる
+- 成功したときは標準エラー出力が空
+- UTF-8 として正しくないバイトを混ぜると、変換でも逆変換でも、終了コード 1 と決まったメッセージになる
 
-失敗したときは、再現に使う乱数の種と入力を表示する。固定のケースにしたい場合は、
-その入力を tests/cases/ に追加する。
+失敗したときは、再現に使う乱数の種と何件目のケースかを表示し、入力と期待する出力を
+tests/cases/ と同じ形（input.txt・to_comma_period.txt・to_touten_kuten.txt）で保存する。
+固定のケースにしたい場合は、そのディレクトリーを tests/cases/ に移す。
 
 使い方: python3 tests/run_random_tests.py [実装名...]
-  RANDOM_SEED=<整数> で乱数の種を、RANDOM_CASES=<件数> でケースの数を指定できる。
+  RANDOM_SEED=<0 以上 2**32 未満の整数> で乱数の種を、RANDOM_CASES=<1 以上の整数> でケースの数を指定できる。
+  RANDOM_FAILURES_DIR=<ディレクトリー> で失敗した入力の保存先を指定できる（既定は一時ディレクトリー）。
   ビルドされていない実装は SKIP になる。REQUIRE_ALL=1 では SKIP も失敗にする。
 """
 
@@ -21,12 +24,28 @@ import os
 import random
 import subprocess
 import sys
+import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 
 CONVERTERS_DIR = Path(__file__).resolve().parent.parent
 
 EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
+EXIT_USAGE_ERROR = 2
+
+# UTF-8 として正しくない入力のときに、3つの実装が標準エラー出力に書くメッセージ
+INVALID_UTF8_MESSAGE = "入力を UTF-8 として読み込めませんでした。\n".encode()
+
+# 乱数の種の範囲（0 以上 2**32 未満）
+SEED_LIMIT = 2**32
+
+# 1回の実行の時間の上限（秒）。最大 70,000 文字の入力でも、遅い CI のランナーで十分に足りる長さ。
+# 実装が止まらなくなっても、テスト全体が止まらないようにする
+RUN_TIMEOUT_SECONDS = 30
+
+# 失敗の説明に含める標準エラー出力の長さ
+ERROR_EXCERPT_LENGTH = 300
 
 DEFAULT_CASE_COUNT = 100
 
@@ -53,6 +72,20 @@ FRAGMENTS = [
     "﻿",
     " ",
     "\t",
+    # 縦書き用・小字形の句読点（変換しない）
+    "︐",
+    "︑",
+    "︒",
+    "﹐",
+    "﹑",
+    "﹒",
+    # 正しいが扱いを誤りやすい文字: NUL、非文字、最大の符号位置、サロゲートの前後
+    "\x00",
+    "\ufffe",
+    "\uffff",
+    "\U0010ffff",
+    "\ud7ff",
+    "\ue000",
 ]
 
 # 長い入力の文字数の上限。実装は 64 KiB ずつ読むので、区切りをまたぐ長さも作る
@@ -101,60 +134,161 @@ def random_text(generator: random.Random) -> str:
     return "".join(generator.choices(FRAGMENTS, k=length))
 
 
-def run(command: list[str], arguments: list[str], data: bytes) -> tuple[int, bytes]:
-    result = subprocess.run(
-        command + arguments, input=data, capture_output=True, check=False
+@dataclass
+class Result:
+    status: int | None  # タイムアウトしたときは None
+    output: bytes
+    errors: bytes
+
+    def describe(self) -> str:
+        if self.status is None:
+            return f"{RUN_TIMEOUT_SECONDS} 秒でタイムアウトしました"
+        excerpt = self.errors[:ERROR_EXCERPT_LENGTH].decode("utf-8", errors="replace")
+        return f"終了コード {self.status}、標準エラー出力「{excerpt}」"
+
+
+def run(command: list[str], arguments: list[str], data: bytes) -> Result:
+    try:
+        result = subprocess.run(
+            command + arguments,
+            input=data,
+            capture_output=True,
+            check=False,
+            timeout=RUN_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        return Result(None, b"", b"")
+    return Result(result.returncode, result.stdout, result.stderr)
+
+
+def succeeded_with(result: Result, expected: bytes) -> bool:
+    return (
+        result.status == EXIT_SUCCESS
+        and result.output == expected
+        and not result.errors
     )
-    return result.returncode, result.stdout
 
 
-def check_implementation(command: list[str], generator: random.Random) -> list[str]:
+@dataclass
+class Settings:
+    seed: int
+    case_count: int
+    failures_dir: Path
+
+
+def save_case(
+    settings: Settings, name: str, case_number: int, text_bytes: bytes
+) -> Path:
+    """失敗した入力を、tests/cases/ にそのまま移せる形で保存し、そのディレクトリーを返す。"""
+    case_dir = settings.failures_dir / f"random_{name}_{settings.seed}_{case_number}"
+    case_dir.mkdir(parents=True, exist_ok=True)
+    (case_dir / "input.txt").write_bytes(text_bytes)
+    try:
+        text = text_bytes.decode("utf-8")
+    except UnicodeDecodeError:
+        # 正しくない入力は期待する出力が無い（終了コード 1 になることを確かめるケース）
+        return case_dir
+    (case_dir / "to_comma_period.txt").write_bytes(
+        text.translate(TO_COMMA_PERIOD).encode()
+    )
+    (case_dir / "to_touten_kuten.txt").write_bytes(
+        text.translate(TO_TOUTEN_KUTEN).encode()
+    )
+    return case_dir
+
+
+def check_implementation(
+    name: str, command: list[str], generator: random.Random, settings: Settings
+) -> list[str]:
     """1つの実装を確かめ、失敗の説明の一覧を返す。"""
     failures = []
-    for _ in range(case_count()):
+    for case_number in range(1, settings.case_count + 1):
         text = random_text(generator)
         data = text.encode("utf-8")
         expected_forward = text.translate(TO_COMMA_PERIOD).encode("utf-8")
         expected_reverse = text.translate(TO_TOUTEN_KUTEN).encode("utf-8")
-
-        status, forward = run(command, [], data)
-        if status != EXIT_SUCCESS or forward != expected_forward:
-            failures.append(
-                f"変換の結果が期待と異なります（終了コード {status}）: {data!r:.200}"
-            )
-            continue
-        status, reverse = run(command, ["--reverse"], data)
-        if status != EXIT_SUCCESS or reverse != expected_reverse:
-            failures.append(
-                f"逆変換の結果が期待と異なります（終了コード {status}）: {data!r:.200}"
-            )
-            continue
-
-        _, twice = run(command, [], forward)
-        if twice != forward:
-            failures.append(f"変換が冪等ではありません: {data!r:.200}")
-        _, round_trip = run(command, ["--reverse"], forward)
-        if round_trip != expected_reverse:
-            failures.append(
-                f"変換して逆変換した結果が、逆変換だけの結果と異なります: {data!r:.200}"
-            )
-
-        # 正しい入力のどこかに、正しくないバイト列を差し込む
+        # 正しい入力のどこかに、正しくないバイト列を差し込む。乱数は確かめる内容によらず
+        # 同じ順に引き、失敗しても以降のケースが同じ入力になるようにする
         position = generator.randint(0, len(data))
         invalid = (
             data[:position] + generator.choice(INVALID_SEQUENCES) + data[position:]
         )
-        # 文字の途中に差し込んでも、元の文字の継続バイトが余るなどして、どこに差し込んでも正しくなくなる
-        status, _ = run(command, [], invalid)
-        if status != EXIT_FAILURE:
+
+        def fail(
+            message: str,
+            input_bytes: bytes,
+            result: Result,
+            case_number: int = case_number,
+        ) -> None:
+            saved = save_case(settings, name, case_number, input_bytes)
             failures.append(
-                f"正しくない UTF-8 で終了コード {status} でした（1 を期待）: {invalid!r:.200}"
+                f"{case_number} 件目: {message}（{result.describe()}）。入力: {saved}"
             )
+
+        result = run(command, [], data)
+        if not succeeded_with(result, expected_forward):
+            fail("変換の結果が期待と異なります", data, result)
+            continue
+        result = run(command, ["--reverse"], data)
+        if not succeeded_with(result, expected_reverse):
+            fail("逆変換の結果が期待と異なります", data, result)
+            continue
+
+        result = run(command, [], expected_forward)
+        if not succeeded_with(result, expected_forward):
+            fail("変換が冪等ではありません", data, result)
+        result = run(command, ["--reverse"], expected_forward)
+        if not succeeded_with(result, expected_reverse):
+            fail("変換して逆変換した結果が、逆変換だけの結果と異なります", data, result)
+
+        # 文字の途中に差し込んでも、元の文字の継続バイトが余るなどして、どこに差し込んでも正しくなくなる
+        for arguments in ([], ["--reverse"]):
+            result = run(command, arguments, invalid)
+            if result.status != EXIT_FAILURE or result.errors != INVALID_UTF8_MESSAGE:
+                fail(
+                    f"正しくない UTF-8 で、終了コード 1 と「{INVALID_UTF8_MESSAGE.decode().strip()}」を"
+                    f"期待しました（引数 {arguments}）",
+                    invalid,
+                    result,
+                )
     return failures
 
 
-def case_count() -> int:
-    return int(os.environ.get("RANDOM_CASES", DEFAULT_CASE_COUNT))
+def parse_integer(name: str, minimum: int, limit: int | None) -> int | None:
+    """環境変数の整数を読む。範囲外なら説明を表示して None を返す。"""
+    value = os.environ[name]
+    try:
+        number = int(value)
+    except ValueError:
+        number = None
+    if number is None or number < minimum or (limit is not None and number >= limit):
+        upper = f"、{limit} 未満" if limit is not None else ""
+        print(
+            f"{name} には {minimum} 以上{upper}の整数を指定してください: {value}",
+            file=sys.stderr,
+        )
+        return None
+    return number
+
+
+def read_settings() -> Settings | None:
+    if "RANDOM_SEED" in os.environ:
+        seed = parse_integer("RANDOM_SEED", 0, SEED_LIMIT)
+        if seed is None:
+            return None
+    else:
+        seed = random.SystemRandom().randrange(SEED_LIMIT)
+    case_count = DEFAULT_CASE_COUNT
+    if "RANDOM_CASES" in os.environ:
+        parsed = parse_integer("RANDOM_CASES", 1, None)
+        if parsed is None:
+            return None
+        case_count = parsed
+    failures_dir = Path(
+        os.environ.get("RANDOM_FAILURES_DIR")
+        or tempfile.mkdtemp(prefix="punctuation_converter_random_")
+    )
+    return Settings(seed, case_count, failures_dir)
 
 
 def main(arguments: list[str]) -> int:
@@ -170,9 +304,12 @@ def main(arguments: list[str]) -> int:
             f"不明な実装です: {' '.join(unknown)}（{' '.join(ALL_IMPLEMENTATIONS)} のいずれかを指定してください）",
             file=sys.stderr,
         )
-        return 2
+        return EXIT_USAGE_ERROR
 
-    seed = int(os.environ.get("RANDOM_SEED", random.SystemRandom().randrange(2**32)))
+    settings = read_settings()
+    if settings is None:
+        return EXIT_USAGE_ERROR
+    seed = settings.seed
     print(f"乱数の種: {seed}（RANDOM_SEED={seed} で同じ入力を再現できます）")
 
     failure_count = 0
@@ -184,7 +321,7 @@ def main(arguments: list[str]) -> int:
             skip_count += 1
             continue
         # 実装ごとに同じ入力の列を使い、実装どうしの結果の違いも分かるようにする
-        failures = check_implementation(command, random.Random(seed))
+        failures = check_implementation(name, command, random.Random(seed), settings)
         for failure in failures[:10]:
             print(f"  FAIL: {failure}")
         print(f"{'FAIL' if failures else 'PASS'}  {name}")
