@@ -143,6 +143,18 @@ test_implementation() {
     fi
   fi
 
+  # 出力の読み手が先に終了した（`| head` など）ときは、書き込みの失敗として扱い、
+  # メッセージを表示して終了コード 1 にする（converters/README.md の「使い方」）。
+  # Windows の Git Bash では、読み手の終了が書き手に伝わる時機が違うため確かめない
+  if [[ $(uname -s) != MINGW* && $(uname -s) != MSYS* && $(uname -s) != CYGWIN* ]]; then
+    local statuses
+    # shellcheck disable=SC2086
+    statuses=$($command < "$WORK_DIR/cases/long_line/input.txt" 2> "$errors" | head -c 1 > /dev/null; echo "${PIPESTATUS[0]}")
+    if [[ $statuses -ne 1 ]] || ! grep -q "^変換に失敗しました: " "$errors"; then
+      report_failure "出力の読み手が先に終了: 終了コード 1 とエラーメッセージを期待しましたが、終了コードは $statuses でした: $(head -c 200 "$errors")"
+    fi
+  fi
+
   # オプションは1つだけ受け付け、大文字小文字の違いや "--"・"-" も不正な引数とする。
   # UTF-8 でない引数（macOS や Linux で渡せる）も、異常終了させずに不正な引数として扱う
   for arguments in "--unknown" "-r -r" "extra" "-h -r" "--reverse --help" "-R" "--" "-" $'\xff'; do
