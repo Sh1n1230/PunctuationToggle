@@ -17,7 +17,7 @@
 |---|---|---|
 | 初期設定の切り替えキー | 右Command | 右Ctrl |
 | 対象の日本語入力 | macOS 標準の日本語入力 | Microsoft IME |
-| 動作環境 | macOS 26 以降 | Windows 10 / 11 |
+| 動作環境 | macOS 26 以降 | Windows 11（Windows 10 でも動く見込みですが、確かめていません） |
 | 表示場所 | メニューバー | タスクトレイ |
 | 実装 | Swift（[`macOS/`](macOS/)） | C# / .NET（[`Windows/`](Windows/)） |
 
@@ -236,7 +236,7 @@ IME の設定画面で「、．」（2）や「，。」（3）を選んでい�
 | OS | OS の版 | 日本語入力 | 確かめた日 | 確かめたアプリの版 |
 |---|---|---|---|---|
 | macOS | 26.7.2 | macOS 標準の日本語入力 | 2026-10-28 | 1.3.0 |
-| Windows | （確認中） | Microsoft IME | | |
+| Windows | （まだ確かめていません。Windows 11 で確かめる予定です） | Microsoft IME | | |
 
 この表は、リリースのたびと、OS の大型アップデートのときに、CONTRIBUTING の「OS や IME を更新したときの確認」の手順で更新します。
 

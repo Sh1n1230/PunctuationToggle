@@ -34,6 +34,8 @@ PunctuationToggle/
 │   ├── actions/                    ワークフローで共通の手順（.NET SDK・Rust の導入）の複合アクション
 │   ├── lint/                       CI の「コーディング規約」ジョブのツールの版の固定と設定
 │   └── scripts/                    ワークフローから使うスクリプト
+├── CLAUDE.md / AGENTS.md           AI のコーディングエージェント向けの指示（CLAUDE.md が正。AGENTS.md は参照だけ）
+├── NOTICE.md                       MIT License で受け入れた変更の著作権表示
 ├── ruff.toml                       Python の ruff の設定
 ├── global.json                     .NET SDK の版
 ├── rust-toolchain.toml             Rust の版
