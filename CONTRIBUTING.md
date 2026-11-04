@@ -149,7 +149,7 @@ make test-random
 
 ### 書式の確認
 
-書式と静的解析は CI（「コーディング規約」ジョブと、macOS アプリのジョブ）で確かめています。Pull Request を送る前に、手元でも次のコマンドで確かめてください。ruff・mypy・ShellCheck・actionlint は、CI と同じ版を `.github/lint/requirements.txt` から導入できます（`pip install --require-hashes --no-deps -r .github/lint/requirements.txt`）。
+書式と静的解析は CI（「コーディング規約」ジョブと、macOS アプリのジョブ）で確かめています。Pull Request を送る前に、手元でも次のコマンドで確かめてください。ruff・mypy・ShellCheck・check-jsonschema は、CI と同じ版を `.github/lint/requirements.txt` から導入できます（`pip install --require-hashes --no-deps --only-binary :all: -r .github/lint/requirements.txt`）。actionlint は、`ci.yml` の「actionlint の導入」に書いた版を [GitHub のリリース](https://github.com/rhysd/actionlint/releases)から入れてください。
 
 ```sh
 # Swift（Xcode に同梱の swift format。設定は macOS/.swift-format）
@@ -176,6 +176,9 @@ git ls-files -z '*.sh' | xargs -0 shellcheck
 
 # GitHub Actions のワークフロー（shellcheck が PATH にあれば run: の中も検査する）
 actionlint
+check-jsonschema --builtin-schema vendor.dependabot .github/dependabot.yml
+check-jsonschema --builtin-schema vendor.github-issue-forms .github/ISSUE_TEMPLATE/bug_report.yml .github/ISSUE_TEMPLATE/feature_request.yml
+check-jsonschema --builtin-schema vendor.github-issue-config .github/ISSUE_TEMPLATE/config.yml
 ```
 
 `--verify-no-changes` や `--check` を外す（Swift は `lint --strict` を `format -i` にする）と、指摘された書式をその場で直せます。
