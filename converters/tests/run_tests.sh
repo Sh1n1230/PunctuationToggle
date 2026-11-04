@@ -63,6 +63,8 @@ report_failure() {
 
 # 固定のケースが、確かめたい性質を本当に含んでいるかを確かめる（エディタの保存などで崩れていないか）
 check_case_preconditions() {
+  # バイトとして扱う（macOS の tr は、UTF-8 の文字の途中のバイトを渡すと Illegal byte sequence で失敗する）
+  local LC_ALL=C
   local cases=$CASES_DIR
   local failures_before=$failures
   # grep は Windows の Git Bash で行末の CR を取り除いて比べるため、バイトを数えて確かめる
