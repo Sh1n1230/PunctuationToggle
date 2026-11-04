@@ -13,3 +13,4 @@ extend-select = ["I", "N", "UP", "B"]
 [lint.per-file-ignores]
 # テスト名は日本語の文にする（CLAUDE.md）。日本語には大文字・小文字が無いため、N802 の対象外にする
 "converters/tests/test_*.py" = ["N802"]
+".github/scripts/tests/test_*.py" = ["N802"]

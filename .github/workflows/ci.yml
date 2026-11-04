@@ -36,6 +36,10 @@ jobs:
           bin_path=$(swift build --show-bin-path)
           # テストのバンドルの名前は Swift の版で違う（PunctuationToggleCorePackageTests など）ため、探して使う
           test_bundle=$(find "$bin_path" -maxdepth 1 -name '*.xctest' | head -n 1)
+          if [ -z "$test_bundle" ] || [ ! -f "$bin_path/codecov/default.profdata" ]; then
+            echo "::error::カバレッジのデータ（$bin_path の *.xctest と codecov/default.profdata）が見つかりません。swift test --enable-code-coverage の実行を確かめてください。"
+            exit 1
+          fi
           {
             echo "### macOS 版の Core のカバレッジ"
             echo '```'
@@ -101,7 +105,15 @@ jobs:
         env:
           PYTHONUTF8: "1"
         run: |
-          report=$(find "$RUNNER_TEMP/coverage" -name coverage.cobertura.xml | head -n 1)
+          reports=$(find "$RUNNER_TEMP/coverage" -name coverage.cobertura.xml)
+          if [ -z "$reports" ]; then
+            echo "::error::カバレッジのレポート（coverage.cobertura.xml）が $RUNNER_TEMP/coverage に見つかりません。dotnet test の --collect の指定を確かめてください。"
+            exit 1
+          fi
+          if [ "$(echo "$reports" | wc -l)" -gt 1 ]; then
+            echo "::warning::カバレッジのレポートが複数あります。1つ目だけを集計します: $reports"
+          fi
+          report=$(echo "$reports" | head -n 1)
           {
             echo "### Windows 版の Core のカバレッジ"
             python .github/scripts/cobertura_summary.py "$report"
@@ -278,11 +290,14 @@ jobs:
           clippy-driver --edition 2024 -D warnings -o "$RUNNER_TEMP/punctuation_converter" converters/punctuation_converter.rs
           clippy-driver --edition 2024 -D warnings --test -o "$RUNNER_TEMP/punctuation_converter_test" converters/punctuation_converter.rs
 
+      - name: CI 用のスクリプトのテスト
+        run: python -m unittest discover -s .github/scripts/tests
+
       - name: Python（ruff・mypy）
         run: |
           ruff check converters .github/scripts
           ruff format --check --diff converters .github/scripts
-          mypy --strict --python-version 3.10 converters/punctuation_converter.py converters/tests/run_random_tests.py converters/tests/test_sigint.py converters/tests/test_punctuation_converter.py .github/scripts/*.py
+          mypy --strict --python-version 3.10 converters/punctuation_converter.py converters/tests/run_random_tests.py converters/tests/test_sigint.py converters/tests/test_punctuation_converter.py .github/scripts/*.py .github/scripts/tests/*.py
 
       - name: シェルスクリプト（ShellCheck）
         run: git ls-files -z '*.sh' | xargs -0 shellcheck

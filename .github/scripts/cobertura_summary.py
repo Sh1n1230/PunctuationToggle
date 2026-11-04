@@ -15,16 +15,8 @@ def main(arguments: list[str]) -> int:
         return 2
 
     root = ElementTree.parse(arguments[0]).getroot()
-    # 同じファイルのクラス（入れ子のクラスやラムダの生成クラス）をまとめて、ファイルごとの行の数を数える
-    covered_lines: dict[str, set[int]] = {}
-    all_lines: dict[str, set[int]] = {}
-    for class_element in root.iter("class"):
-        filename = Path(class_element.get("filename", "")).name
-        for line in class_element.iter("line"):
-            number = int(line.get("number", "0"))
-            all_lines.setdefault(filename, set()).add(number)
-            if int(line.get("hits", "0")) > 0:
-                covered_lines.setdefault(filename, set()).add(number)
+    covered_lines, all_lines = count_lines(root)
+    names = display_names(sorted(all_lines))
 
     print("| ファイル | 行 | 実行された行 | 行のカバレッジ |")
     print("|---|---:|---:|---:|")
@@ -35,10 +27,41 @@ def main(arguments: list[str]) -> int:
         total += line_count
         covered += covered_count
         print(
-            f"| {filename} | {line_count} | {covered_count} | {percentage(covered_count, line_count)} |"
+            f"| {names[filename]} | {line_count} | {covered_count} | {percentage(covered_count, line_count)} |"
         )
     print(f"| **合計** | {total} | {covered} | {percentage(covered, total)} |")
     return 0
+
+
+def count_lines(
+    root: ElementTree.Element,
+) -> tuple[dict[str, set[int]], dict[str, set[int]]]:
+    """ファイル（coverlet が書くソースのフォルダーからのパス）ごとに、実行された行とすべての行を返す。
+
+    同じファイルのクラス（入れ子のクラスやラムダの生成クラス）はまとめる。別のフォルダーの同じ名前の
+    ファイルは、パスが違うので別のファイルとして数える。
+    """
+    covered_lines: dict[str, set[int]] = {}
+    all_lines: dict[str, set[int]] = {}
+    for class_element in root.iter("class"):
+        filename = Path(class_element.get("filename", "")).as_posix()
+        for line in class_element.iter("line"):
+            number = int(line.get("number", "0"))
+            all_lines.setdefault(filename, set()).add(number)
+            if int(line.get("hits", "0")) > 0:
+                covered_lines.setdefault(filename, set()).add(number)
+    return covered_lines, all_lines
+
+
+def display_names(paths: list[str]) -> dict[str, str]:
+    """表に出す名前。ふつうはファイル名だけにし、同じ名前のファイルが複数あるときだけパスを出す。"""
+    counts: dict[str, int] = {}
+    for path in paths:
+        name = Path(path).name
+        counts[name] = counts.get(name, 0) + 1
+    return {
+        path: path if counts[Path(path).name] > 1 else Path(path).name for path in paths
+    }
 
 
 def percentage(covered: int, total: int) -> str:
