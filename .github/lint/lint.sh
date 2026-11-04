@@ -7,7 +7,7 @@
 #   （CI ではそれぞれのジョブで実行する。手元での実行方法は CONTRIBUTING の「書式の確認」）。
 set -uo pipefail
 
-cd "$(dirname "$0")/../.."
+cd "$(dirname "$0")/../.." || exit 1
 
 failures=()
 skips=()

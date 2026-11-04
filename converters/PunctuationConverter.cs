@@ -88,6 +88,13 @@ internal static class PunctuationConverter
             WriteError("入力を UTF-8 として読み込めませんでした。\n");
             return ExitFailure;
         }
+        catch (UnauthorizedAccessException)
+        {
+            // 標準出力が閉じていると、.NET が標準入力を開いたときに空いた番号（1）を使うため、
+            // 標準出力を開けても書き込みが EBADF で失敗する。Rust の標準ライブラリと同じく、
+            // 閉じた出力先には書けたものとして扱う
+            return ExitSuccess;
+        }
         catch (IOException exception)
         {
             WriteError("変換に失敗しました: " + exception.Message + "\n");
