@@ -196,4 +196,4 @@ CI とリリースのランナーは、`windows-latest` のようなラベルで
 
 テストやビルドのジョブは読み取り権限だけで動かし、リリースへの書き込み権限はビルド済みのファイルを添付する最後のジョブにだけ与えています。ワークフローを変更するときもこの分担を保ってください。
 
-配布用ファイルのビルドに影響するファイル（`.github/workflows/release.yml`、`global.json`、`LICENSE`、`Windows/Directory.Build.props`、`Windows/PunctuationToggle/`・`Windows/PunctuationToggle.Core/`・`macOS/PunctuationToggle/`・`macOS/PunctuationToggle.xcodeproj/` 以下）を変更した Pull Request では、リリースは作らずに配布用ファイルのビルドまでが実行され、できた zip を Actions の成果物からダウンロードして確かめられます。条件は `release.yml` の `pull_request.paths` にあります。
+配布用ファイルのビルドに影響するファイル（`.github/workflows/release.yml`、`global.json`、`nuget.config`、`LICENSE`、`Windows/Directory.Build.props`、`Windows/PunctuationToggle/`・`Windows/PunctuationToggle.Core/`・`macOS/PunctuationToggle/`・`macOS/PunctuationToggle.xcodeproj/` 以下、リリースのジョブで動くテスト（`Windows/PunctuationToggle.Tests/`・`Windows/PunctuationToggle.sln`・`macOS/Tests/`・`macOS/Package.swift`・`testdata/`）、版を確かめる変換コマンドの3つのソース）を変更した Pull Request では、リリースは作らずに配布用ファイルのビルドまでが実行され、できた zip を Actions の成果物からダウンロードして確かめられます。条件は `release.yml` の `pull_request.paths` にあります。

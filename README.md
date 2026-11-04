@@ -59,7 +59,7 @@
 ```sh
 gh attestation verify PunctuationToggle-<バージョン>-macOS.zip --repo Sh1n1230/PunctuationToggle
 gh attestation verify PunctuationToggle-<バージョン>-win-x64.zip --repo Sh1n1230/PunctuationToggle    # arm64 版は -win-arm64.zip
-gh attestation verify PunctuationToggle-<バージョン>-win-x64.cdx.json --repo Sh1n1230/PunctuationToggle  # Windows 版の SBOM
+gh attestation verify PunctuationToggle-<バージョン>-win-x64.cdx.json --repo Sh1n1230/PunctuationToggle  # SBOM（macOS 版は -macOS.cdx.json）
 gh attestation verify SHA256SUMS.txt --repo Sh1n1230/PunctuationToggle
 
 # ダウンロードしたフォルダーのファイルをまとめて確かめる場合
@@ -95,14 +95,14 @@ if ($entries.Count -ne 1) {
 }
 ```
 
-Windows 版のリリースには、exe に含まれる .NET ランタイムとライブラリの一覧（SBOM。CycloneDX 形式の `PunctuationToggle-<バージョン>-win-x64.cdx.json` など）も添付しています。.NET の脆弱性が公表されたときに、使っている版が影響を受けるかを確かめられます。SBOM にも来歴証明を付けています。macOS 版は、OS に含まれるフレームワーク以外のライブラリを使っていません。
+Windows 版のリリースには、exe に含まれる .NET ランタイムとライブラリの一覧（SBOM。CycloneDX 形式の `PunctuationToggle-<バージョン>-win-x64.cdx.json` など）も添付しています。.NET の脆弱性が公表されたときに、使っている版が影響を受けるかを確かめられます。SBOM にも来歴証明を付けています。macOS 版にも同じ形式の SBOM（`PunctuationToggle-<バージョン>-macOS.cdx.json`）を添付しています（macOS 版は、OS に含まれるフレームワーク以外のライブラリを使っていません）。
 
 > [!CAUTION]
 > 以下で案内している警告の回避操作は、上記の確認を済ませたファイルに対してのみ行ってください。本リポジトリの [Releases](https://github.com/Sh1n1230/PunctuationToggle/releases) 以外から入手したファイルは実行しないでください。
 
 ### macOS
 
-[Releases](https://github.com/Sh1n1230/PunctuationToggle/releases) から `PunctuationToggle-<バージョン>-macOS.zip` をダウンロードして展開し、生成された `PunctuationToggle.app` を「アプリケーション」フォルダーへ移動して起動します。
+[Releases](https://github.com/Sh1n1230/PunctuationToggle/releases) から `PunctuationToggle-<バージョン>-macOS.zip` をダウンロードして展開し、できた `PunctuationToggle.app` を「アプリケーション」フォルダーへ移動して起動します（同じ zip に `LICENSE` も入っています）。
 
 > [!NOTE]
 > 配布しているバイナリは Apple の公証を受けていないため、初回起動時に「開発元を検証できません」という警告が表示されます。[ダウンロードしたファイルの確認](#ダウンロードしたファイルの確認)を済ませたうえで、システム設定の「プライバシーとセキュリティ」画面を開き、下部に表示される「このまま開く」を選択してください。
