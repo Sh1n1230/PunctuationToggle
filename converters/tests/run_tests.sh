@@ -12,6 +12,8 @@ cd "$(dirname "$0")/.."
 
 ALL_IMPLEMENTATIONS=(csharp-dotnet python rust)
 CASES_DIR=tests/cases
+# UTF-8 として正しくない入力のときに、3つの実装が標準エラー出力に書くメッセージ
+INVALID_UTF8_MESSAGE="入力を UTF-8 として読み込めませんでした。"
 WORK_DIR=$(mktemp -d)
 trap 'rm -rf "$WORK_DIR"' EXIT
 
@@ -95,8 +97,8 @@ test_implementation() {
     local status=0
     # shellcheck disable=SC2086
     $command < "$invalid_input" > "$output" 2> "$errors" || status=$?
-    if [[ $status -ne 1 || ! -s $errors ]]; then
-      report_failure "不正な UTF-8 '$invalid_bytes': 終了コード 1 とエラー出力を期待しましたが、終了コードは $status でした"
+    if [[ $status -ne 1 ]] || [[ $(cat "$errors") != "$INVALID_UTF8_MESSAGE" ]]; then
+      report_failure "不正な UTF-8 '$invalid_bytes': 終了コード 1 と「$INVALID_UTF8_MESSAGE」を期待しましたが、終了コードは $status、エラー出力は「$(head -c 200 "$errors")」でした"
     fi
   done
 

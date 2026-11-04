@@ -20,6 +20,9 @@ const USAGE: &str = "\
 
 const EXIT_USAGE_ERROR: u8 = 2;
 
+/// UTF-8 として正しくない入力のときのメッセージ（3つの実装で同じ文言）
+const INVALID_UTF8_MESSAGE: &str = "入力を UTF-8 として読み込めませんでした。";
+
 /// 一度に読み込むバイト数。改行の無い巨大な入力でもメモリを使い切らないよう、行単位ではなく一定の量ずつ読む
 const CHUNK_SIZE: usize = 1 << 16;
 
@@ -67,6 +70,11 @@ fn main() -> ExitCode {
 
     match convert_stream(io::stdin().lock(), io::stdout().lock(), replacements) {
         Ok(()) => ExitCode::SUCCESS,
+        // ほかの実装と同じく、UTF-8 として正しくない入力は書き込みの失敗と分けて知らせる
+        Err(error) if error.kind() == ErrorKind::InvalidData => {
+            write_error(&format!("{INVALID_UTF8_MESSAGE}\n"));
+            ExitCode::FAILURE
+        }
         Err(error) => {
             write_error(&format!("変換に失敗しました: {error}\n"));
             ExitCode::FAILURE
@@ -145,10 +153,7 @@ fn complete_prefix_len(bytes: &[u8]) -> usize {
 }
 
 fn invalid_utf8_error() -> io::Error {
-    io::Error::new(
-        ErrorKind::InvalidData,
-        "入力を UTF-8 として読み込めませんでした",
-    )
+    io::Error::new(ErrorKind::InvalidData, INVALID_UTF8_MESSAGE)
 }
 
 fn convert(text: &str, replacements: &Replacements) -> String {
