@@ -1,5 +1,10 @@
 # PunctuationToggle
 
+[![CI](https://github.com/Sh1n1230/PunctuationToggle/actions/workflows/ci.yml/badge.svg)](https://github.com/Sh1n1230/PunctuationToggle/actions/workflows/ci.yml)
+[![Security Check](https://github.com/Sh1n1230/PunctuationToggle/actions/workflows/security.yml/badge.svg)](https://github.com/Sh1n1230/PunctuationToggle/actions/workflows/security.yml)
+
+[最新のリリース](https://github.com/Sh1n1230/PunctuationToggle/releases/latest) ・ ライセンス: [MPL-2.0](LICENSE)
+
 キーの単独押下で、日本語入力の句読点設定を「、。」と「，．」の間で即座に切り替える常駐アプリケーションです。macOS と Windows の双方に対応しています。
 
 公的文書や論文で用いる「，．」と、日常の連絡や執筆で用いる「、。」を使い分ける際、OS の設定画面を開かずにその場で切り替えられます。
@@ -53,6 +58,12 @@
 
 ```sh
 gh attestation verify PunctuationToggle-<バージョン>-macOS.zip --repo Sh1n1230/PunctuationToggle
+gh attestation verify PunctuationToggle-<バージョン>-win-x64.zip --repo Sh1n1230/PunctuationToggle    # arm64 版は -win-arm64.zip
+gh attestation verify PunctuationToggle-<バージョン>-win-x64.cdx.json --repo Sh1n1230/PunctuationToggle  # Windows 版の SBOM
+gh attestation verify SHA256SUMS.txt --repo Sh1n1230/PunctuationToggle
+
+# ダウンロードしたフォルダーのファイルをまとめて確かめる場合
+for file in PunctuationToggle-* SHA256SUMS.txt; do gh attestation verify "$file" --repo Sh1n1230/PunctuationToggle; done
 ```
 
 GitHub CLI を利用しない場合は、チェックサムを計算し、同じリリースの `SHA256SUMS.txt` に記載された値と一致することを確認します。ただし、チェックサムが一致することは、ファイルが `SHA256SUMS.txt` と同じものであることしか示しません。v1.3.0 より後のリリースでは `SHA256SUMS.txt` 自体にも来歴証明を付けているため、GitHub CLI を使える別の端末があれば `gh attestation verify SHA256SUMS.txt --repo Sh1n1230/PunctuationToggle` で、照合先の `SHA256SUMS.txt` が本リポジトリのワークフローで作られたものであることも確かめられます。
@@ -64,7 +75,7 @@ shasum -a 256 -c SHA256SUMS.txt --ignore-missing
 
 ```powershell
 # Windows（PowerShell）
-$zip = 'PunctuationToggle-<バージョン>-win-x64.zip'
+$zip = 'PunctuationToggle-<バージョン>-win-x64.zip'  # arm64 版は 'PunctuationToggle-<バージョン>-win-arm64.zip'
 $entries = @(Get-Content .\SHA256SUMS.txt | Where-Object {
     $parts = $_ -split '\s+', 2
     $parts.Count -eq 2 -and $parts[1] -eq $zip
@@ -162,8 +173,19 @@ git sparse-checkout set macOS     # Windows では Windows
 
 設定メニューの「ログイン時に起動」を無効にしてから、以下の手順でファイルを削除します。なお、いずれの OS でも、日本語入力システムの句読点設定は最後に切り替えた状態が維持されます。
 
-- **macOS:** アプリケーションを終了し、`PunctuationToggle.app` をゴミ箱へ移動して削除します。ソースから導入した場合は、`./macOS/uninstall.sh` を実行することで、バイナリに加えてアクセシビリティの許可設定および環境設定も一括して削除できます。
-- **Windows:** アプリケーションを終了し、展開したフォルダーを削除します。ソースから導入した場合は、`powershell -ExecutionPolicy Bypass -File .\Windows\uninstall.ps1` を実行することで、配置先フォルダーおよびレジストリの設定情報を一括して削除できます。
+- **macOS:** アプリを終了し、`PunctuationToggle.app` をゴミ箱に入れます。ソースから入れた場合は、`./macOS/uninstall.sh` を実行すると、アプリに加えてアクセシビリティの許可と設定もまとめて消せます。リリースの zip から入れた場合は、ターミナルで次を実行すると、`uninstall.sh` と同じく許可と設定を消せます（アクセシビリティの許可は、システム設定の「プライバシーとセキュリティ」→「アクセシビリティ」で項目を選び「−」でも消せます）。
+
+  ```sh
+  tccutil reset Accessibility io.github.sh1n1230.PunctuationToggle
+  defaults delete io.github.sh1n1230.PunctuationToggle
+  ```
+
+- **Windows:** アプリを終了し、展開したフォルダーを削除します。ソースから入れた場合は、`powershell -ExecutionPolicy Bypass -File .\Windows\uninstall.ps1` を実行すると、配置先のフォルダーとレジストリの設定をまとめて消せます。リリースの zip から入れた場合は、PowerShell で次を実行すると、`uninstall.ps1` と同じく「ログイン時に起動」の登録と設定を消せます（「ログイン時に起動」の項目は、タスク マネージャーの「スタートアップ アプリ」からも無効にできます）。
+
+  ```powershell
+  Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'PunctuationToggle' -ErrorAction SilentlyContinue
+  Remove-Item -Path 'HKCU:\Software\PunctuationToggle' -Recurse -ErrorAction SilentlyContinue
+  ```
 
 ## 動作の仕組み
 
