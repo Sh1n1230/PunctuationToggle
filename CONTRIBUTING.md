@@ -153,9 +153,9 @@ clippy-driver --edition 2021 -D warnings -o /tmp/punctuation_converter converter
 clippy-driver --edition 2021 -D warnings --test -o /tmp/punctuation_converter_test converters/punctuation_converter.rs
 
 # Python
-ruff check converters
-ruff format --check converters
-mypy --strict --python-version 3.10 converters/punctuation_converter.py converters/tests/run_random_tests.py
+ruff check converters .github/scripts
+ruff format --check converters .github/scripts
+mypy --strict --python-version 3.10 converters/punctuation_converter.py converters/tests/run_random_tests.py converters/tests/test_sigint.py .github/scripts/cobertura_summary.py
 
 # シェルスクリプト
 git ls-files -z '*.sh' | xargs -0 shellcheck
