@@ -1,9 +1,14 @@
 # Pull Request のレビューを依頼する人。後に書いた行が優先される。
+# ここに書いただけではレビューは必須にならない。必須にするのは、main のルールセットで
+# 「Require review from Code Owners」を有効にした場合だけ。
 * @Sh1n1230
 
 # 権限やリリースに関わるため、特に確認が必要なもの
 /.github/workflows/ @Sh1n1230
 /.github/lint/ @Sh1n1230
+/.github/scripts/ @Sh1n1230
+/.github/CODEOWNERS @Sh1n1230
+/.github/dependabot.yml @Sh1n1230
 /macOS/install.sh @Sh1n1230
 /macOS/uninstall.sh @Sh1n1230
 /macOS/app_bundle.sh @Sh1n1230

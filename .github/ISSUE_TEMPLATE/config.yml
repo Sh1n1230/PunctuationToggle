@@ -3,3 +3,6 @@ contact_links:
   - name: 使い方の質問
     url: https://github.com/Sh1n1230/PunctuationToggle#readme
     about: まず README の「使い方」を確認してください。
+  - name: 脆弱性の報告
+    url: https://github.com/Sh1n1230/PunctuationToggle/security/advisories/new
+    about: 脆弱性は公開の Issue ではなく、こちらから非公開で報告してください（SECURITY.md を参照）。

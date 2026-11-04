@@ -3,10 +3,19 @@ description: 想定どおりに動作しない場合はこちら
 labels: [bug]
 body:
   - type: dropdown
+    id: target
+    attributes:
+      label: 対象
+      description: 変換コマンドの場合、「日本語入力」と「切り替えキー」は空のままで構いません。
+      options:
+        - 常駐アプリ（macOS 版・Windows 版）
+        - 変換コマンド（converters/）
+    validations: {required: true}
+  - type: dropdown
     id: os
     attributes:
       label: OS
-      options: [macOS, Windows]
+      options: [macOS, Windows, Linux]
     validations: {required: true}
   - type: input
     id: os-version
@@ -18,23 +27,23 @@ body:
     id: version
     attributes:
       label: PunctuationToggle のバージョン
-      description: メニューの「PunctuationToggle について」（Windows は「バージョン情報」）に表示される版です。
+      description: 常駐アプリは、メニューの「PunctuationToggle について」（Windows は「バージョン情報」）に表示される版です。変換コマンドは `--version` で表示される版です。
       placeholder: "例: 1.3.0"
     validations: {required: true}
   - type: dropdown
     id: input-method
     attributes:
-      label: 日本語入力
+      label: 日本語入力（常駐アプリのとき）
       description: 対象は macOS 標準の日本語入力と Microsoft IME だけです。Google 日本語入力や ATOK などでは動作しません。
       options:
         - macOS 標準の日本語入力
         - Microsoft IME
         - その他（「発生した問題」に名前を書いてください）
-    validations: {required: true}
+    validations: {required: false}
   - type: input
     id: trigger-key
     attributes:
-      label: 切り替えキー
+      label: 切り替えキー（常駐アプリのとき）
       description: 修飾キー（Command・Ctrl など）とそれ以外のキー（F13・無変換など）で、判定の仕組みが違います。
       placeholder: "例: 右Command、右Ctrl、無変換"
   - type: textarea
@@ -46,5 +55,5 @@ body:
     id: steps
     attributes:
       label: 再現手順
-      description: 問題が起きるアプリがあれば記載してください。
+      description: 常駐アプリは、問題が起きるアプリがあれば記載してください。変換コマンドは、使った実装（Rust・C#・Python）と実行したコマンド、終了コード、入力の例（できれば `od -c 入力.txt | head` などのバイト列）を書いてください。
     validations: {required: true}
