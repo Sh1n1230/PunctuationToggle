@@ -32,31 +32,68 @@ jobs:
       actions: read # 前回の実行の成果物を取得する
     defaults:
       run:
+        shell: bash
         working-directory: converters
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # 前回の計測のコミットから変更があるかを比べるため、履歴を取得する
+          fetch-depth: 0
+
+      # 前回の成功した実行の結果（無ければ表示しない）
+      - name: 前回の結果の実行を探す
+        id: previous
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          # ほかのブランチで手動実行した結果と比べないよう、main の実行に限る
+          previous=$(gh run list --workflow benchmark.yml --branch main --status success --limit 1 \
+            --json databaseId,headSha --jq '.[0] // empty | "\(.databaseId) \(.headSha[0:7])"')
+          echo "run-id=${previous%% *}" >> "$GITHUB_OUTPUT"
+          echo "head-sha=${previous##* }" >> "$GITHUB_OUTPUT"
+          # 定期実行で、前回の計測から変換コマンドと計測の設定に変更が無い週は、計測を飛ばす。
+          # ランナーの変化を見るため、前回から28日以上たっていれば変更が無くても計測する。手動の実行では必ず計測する
+          skip=false
+          if [[ $GITHUB_EVENT_NAME == schedule && -n $previous ]]; then
+            previous_sha=$(gh run view "${previous%% *}" --json headSha --jq .headSha)
+            previous_date=$(gh run view "${previous%% *}" --json createdAt --jq .createdAt)
+            age_days=$(( ($(date +%s) - $(date -d "$previous_date" +%s)) / 86400 ))
+            if git cat-file -e "$previous_sha^{commit}" 2>/dev/null \
+              && git diff --quiet "$previous_sha" HEAD -- . ../global.json ../rust-toolchain.toml \
+                ../.github/workflows/benchmark.yml ../.github/scripts/benchmark_compare.py ../.github/actions \
+              && [[ $age_days -lt 28 ]]; then
+              skip=true
+            fi
+          fi
+          echo "skip=$skip" >> "$GITHUB_OUTPUT"
 
       - name: .NET SDK の導入
+        if: steps.previous.outputs.skip != 'true'
         uses: ./.github/actions/setup-dotnet
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        if: steps.previous.outputs.skip != 'true'
         with:
           python-version: "3.13"
 
       - name: Rust のツールチェーンの導入
+        if: steps.previous.outputs.skip != 'true'
         uses: ./.github/actions/setup-rust
 
       - name: ビルドと計測に必要なパッケージ
+        if: steps.previous.outputs.skip != 'true'
         run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev hyperfine
 
       - name: ビルド
+        if: steps.previous.outputs.skip != 'true'
         run: make all csharp-dotnet
 
       # 前回と比べるときに、ランナーや各ツールの版の違いに気づけるよう、計測環境を記録する
       # （hyperfine の版が変わると、計測の方法が変わって比べられないことがある）
       - name: 計測環境の記録
+        if: steps.previous.outputs.skip != 'true'
         run: |
           mkdir -p benchmark/results
           {
@@ -71,25 +108,13 @@ jobs:
           } > benchmark/results/environment.md
 
       - name: 計測
+        if: steps.previous.outputs.skip != 'true'
         run: |
           benchmark/run_benchmark.sh benchmark/repeated_text.txt --warmup 2 --runs 10
           benchmark/run_benchmark.sh benchmark/wikipedia_programming.txt --warmup 5 --runs 30
 
-      # 前回の成功した実行の結果（無ければ表示しない）
-      - name: 前回の結果の実行を探す
-        id: previous
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          # ほかのブランチで手動実行した結果と比べないよう、main の実行に限る
-          previous=$(gh run list --workflow benchmark.yml --branch main --status success --limit 1 \
-            --json databaseId,headSha --jq '.[0] // empty | "\(.databaseId) \(.headSha[0:7])"')
-          echo "run-id=${previous%% *}" >> "$GITHUB_OUTPUT"
-          echo "head-sha=${previous##* }" >> "$GITHUB_OUTPUT"
-
       - name: 前回の結果を取得
-        if: steps.previous.outputs.run-id != ''
+        if: steps.previous.outputs.skip != 'true' && steps.previous.outputs.run-id != ''
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: benchmark-results
@@ -98,6 +123,7 @@ jobs:
           github-token: ${{ github.token }}
 
       - name: サマリーに書き出す
+        if: steps.previous.outputs.skip != 'true'
         env:
           PREVIOUS_RUN_ID: ${{ steps.previous.outputs.run-id }}
           PREVIOUS_HEAD_SHA: ${{ steps.previous.outputs.head-sha }}
@@ -134,9 +160,18 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: 成果物として保存
+        if: steps.previous.outputs.skip != 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: benchmark-results
           path: converters/benchmark/results
           if-no-files-found: error
           retention-days: 90
+
+      - name: 計測を飛ばしたことをサマリーに書き出す
+        if: steps.previous.outputs.skip == 'true'
+        env:
+          PREVIOUS_RUN_ID: ${{ steps.previous.outputs.run-id }}
+          PREVIOUS_HEAD_SHA: ${{ steps.previous.outputs.head-sha }}
+        run: |
+          echo "前回の計測（実行 $PREVIOUS_RUN_ID、コミット $PREVIOUS_HEAD_SHA）から変換コマンドと計測の設定に変更が無いため、計測を飛ばしました。" >> "$GITHUB_STEP_SUMMARY"
