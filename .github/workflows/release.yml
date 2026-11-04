@@ -48,6 +48,13 @@ env:
   # Pull Request では、タグの代わりに仮のバージョン名を使う
   RELEASE_NAME: ${{ github.event_name == 'push' && github.ref_name || 'pr-build' }}
 
+
+# Linux・macOS の run: を bash -eo pipefail で実行し、パイプの途中の失敗も検出する
+# （shell を指定しないと sh -e で実行され、pipefail が付かない）。Windows の手順は、それぞれ shell を指定する
+defaults:
+  run:
+    shell: bash
+
 jobs:
   # ビルドの前に確かめて、CHANGELOG の書き忘れで時間を無駄にしないようにする
   release-notes:
@@ -184,6 +191,7 @@ jobs:
 
       # 単体テストは CPU によらないため、x64 のジョブでだけ実行する（arm64 のランナーではないので、どちらも x64 で動く）
       - name: テスト
+        shell: pwsh
         if: matrix.runtime == 'win-x64'
         run: |
           dotnet --version
