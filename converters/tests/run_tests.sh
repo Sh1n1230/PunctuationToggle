@@ -12,6 +12,8 @@ cd "$(dirname "$0")/.."
 
 ALL_IMPLEMENTATIONS=(csharp-dotnet python rust)
 CASES_DIR=tests/cases
+# 3つの実装が --help で書き出す使い方（不正な引数のときは標準エラー出力にも書く）
+USAGE_FILE=tests/usage.txt
 # UTF-8 として正しくない入力のときに、3つの実装が標準エラー出力に書くメッセージ
 INVALID_UTF8_MESSAGE="入力を UTF-8 として読み込めませんでした。"
 WORK_DIR=$(mktemp -d)
@@ -81,12 +83,24 @@ test_implementation() {
     done
   done
 
+  # 使い方の文章は3つの実装にそれぞれ書いてあるため、tests/usage.txt とバイト単位で比べて食い違いを防ぐ
   for option in "--help" "-h"; do
     # shellcheck disable=SC2086
-    if ! $command $option < /dev/null > "$output" 2> "$errors" || ! grep -q "使い方" "$output"; then
-      report_failure "$option: 使い方が表示されません"
+    if ! $command $option < /dev/null > "$output" 2> "$errors"; then
+      report_failure "$option: 異常終了しました: $(head -c 200 "$errors")"
+    elif ! cmp -s "$output" "$USAGE_FILE"; then
+      report_failure "$option: 使い方が tests/usage.txt と異なります"
     fi
   done
+
+  # 不正な引数では、標準エラー出力に「不正な引数です: <引数>」・空行・使い方を書く
+  local expected_errors="$WORK_DIR/expected_errors"
+  { printf '不正な引数です: --unknown\n\n'; cat "$USAGE_FILE"; } > "$expected_errors"
+  # shellcheck disable=SC2086
+  $command --unknown < /dev/null > "$output" 2> "$errors" || true
+  if ! cmp -s "$errors" "$expected_errors"; then
+    report_failure "不正な引数のエラー出力が「不正な引数です: --unknown」と tests/usage.txt の使い方になっていません"
+  fi
 
   # UTF-8 として正しくない入力（不正なバイト、末尾で途中までしかない文字、先頭バイトの無い継続バイト、
   # 冗長な符号化、サロゲートの符号化、U+10FFFF を超える符号位置）は、置き換えずに終了コード 1 にする
