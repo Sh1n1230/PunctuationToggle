@@ -65,8 +65,11 @@ report_failure() {
 check_case_preconditions() {
   local cases=$CASES_DIR
   local failures_before=$failures
-  grep -q $'\r$' "$cases/crlf/input.txt" || report_failure "crlf/input.txt に CRLF がありません"
-  if ! grep -q $'\r' "$cases/cr_only/input.txt" || [[ $(tr -cd '\n' < "$cases/cr_only/input.txt" | wc -c) -ne 0 ]]; then
+  # grep は Windows の Git Bash で行末の CR を取り除いて比べるため、バイトを数えて確かめる
+  local crlf_count
+  crlf_count=$(od -An -v -tx1 "$cases/crlf/input.txt" | tr -d ' \n' | { grep -o '0d0a' || true; } | wc -l)
+  [[ $crlf_count -gt 0 ]] || report_failure "crlf/input.txt に CRLF がありません"
+  if [[ $(tr -cd '\r' < "$cases/cr_only/input.txt" | wc -c) -eq 0 || $(tr -cd '\n' < "$cases/cr_only/input.txt" | wc -c) -ne 0 ]]; then
     report_failure "cr_only/input.txt に CR が無いか、LF が含まれています"
   fi
   [[ $(head -c 3 "$cases/bom/input.txt" | od -An -tx1 | tr -d ' \n') == efbbbf ]] || report_failure "bom/input.txt が BOM で始まっていません"
@@ -176,15 +179,14 @@ test_implementation() {
     fi
   fi
 
-  # 出力の読み手が先に終了した（`| head` など）ときは、書き込みの失敗として扱い、
-  # メッセージを表示して終了コード 1 にする（converters/README.md の「使い方」）。
-  # Windows の Git Bash では、読み手の終了が書き手に伝わる時機が違うため確かめない
+  # 出力の読み手が先に終了した（`| head` など）ときは、何も表示せずに終了コード 0 で終える
+  # （converters/README.md の「使い方」）。Windows の Git Bash では、読み手の終了が書き手に伝わる時機が違うため確かめない
   if [[ $(uname -s) != MINGW* && $(uname -s) != MSYS* && $(uname -s) != CYGWIN* ]]; then
     local statuses
     # shellcheck disable=SC2086
     statuses=$($command < "$WORK_DIR/cases/long_line/input.txt" 2> "$errors" | head -c 1 > /dev/null; echo "${PIPESTATUS[0]}")
-    if [[ $statuses -ne 1 ]] || ! grep -q "^変換に失敗しました: " "$errors"; then
-      report_failure "出力の読み手が先に終了: 終了コード 1 とエラーメッセージを期待しましたが、終了コードは $statuses でした: $(head -c 200 "$errors")"
+    if [[ $statuses -ne 0 || -s $errors ]]; then
+      report_failure "出力の読み手が先に終了: 終了コード 0 と空の標準エラー出力を期待しましたが、終了コードは $statuses でした: $(head -c 200 "$errors")"
     fi
   fi
 
