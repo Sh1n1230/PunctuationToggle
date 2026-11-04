@@ -9,3 +9,7 @@ target-version = "py310"
 # 既定の規則（E4・E7・E9・F）に加え、次を確かめる。
 # I: import の並び、N: PEP 8 の命名、UP: target-version に合った書き方、B: よくある不具合
 extend-select = ["I", "N", "UP", "B"]
+
+[lint.per-file-ignores]
+# テスト名は日本語の文にする（CLAUDE.md）。日本語には大文字・小文字が無いため、N802 の対象外にする
+"converters/tests/test_*.py" = ["N802"]

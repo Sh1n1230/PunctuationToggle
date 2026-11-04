@@ -156,7 +156,7 @@ clippy-driver --edition 2024 -D warnings --test -o /tmp/punctuation_converter_te
 # Python
 ruff check converters .github/scripts
 ruff format --check converters .github/scripts
-mypy --strict --python-version 3.10 converters/punctuation_converter.py converters/tests/run_random_tests.py converters/tests/test_sigint.py .github/scripts/*.py
+mypy --strict --python-version 3.10 converters/punctuation_converter.py converters/tests/run_random_tests.py converters/tests/test_sigint.py converters/tests/test_punctuation_converter.py .github/scripts/*.py
 
 # シェルスクリプト
 git ls-files -z '*.sh' | xargs -0 shellcheck
