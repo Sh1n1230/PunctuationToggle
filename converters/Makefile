@@ -31,6 +31,9 @@ endif
 # Python のコマンド名。Windows では python3 が無いことがあるので、make PYTHON=python のように指定する
 PYTHON ?= python3
 
+# Rust のエディション。CI の rustfmt・Clippy と CONTRIBUTING のコマンドも同じ値にする
+RUST_EDITION := 2024
+
 .PHONY: all rust rust-test csharp-dotnet test test-random benchmark clean
 
 # csharp-dotnet は .NET SDK が無い環境でも `make` が通るよう、all に含めない
@@ -43,11 +46,11 @@ csharp-dotnet: | $(BIN_DIR)
 	dotnet publish dotnet/PunctuationConverter.csproj -c Release -r $(DOTNET_RID) -p:PublishDir=$(CURDIR)/$(BIN_DIR)/dotnet/ --nologo
 
 rust: | $(BIN_DIR)
-	rustc --edition 2021 -O -o $(BIN_DIR)/punctuation_converter_rust$(EXE) punctuation_converter.rs
+	rustc --edition $(RUST_EDITION) -O -o $(BIN_DIR)/punctuation_converter_rust$(EXE) punctuation_converter.rs
 
 # Rust 実装の内部の関数（UTF-8 の文字の区切りの処理など）の単体テスト
 rust-test: | $(BIN_DIR)
-	rustc --edition 2021 --test -o $(BIN_DIR)/punctuation_converter_rust_test$(EXE) punctuation_converter.rs
+	rustc --edition $(RUST_EDITION) --test -o $(BIN_DIR)/punctuation_converter_rust_test$(EXE) punctuation_converter.rs
 	$(BIN_DIR)/punctuation_converter_rust_test
 
 test:

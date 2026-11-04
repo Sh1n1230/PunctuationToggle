@@ -134,6 +134,7 @@ make test-random
 - コメントとユーザーに表示する文字列は日本語で書きます。コメントには「何をしているか」よりも「なぜそうしているか」を書きます。
 - Windows 版と変換コマンドの C# 実装は、`TreatWarningsAsErrors` と .NET のコード分析（`AnalysisLevel=latest-recommended`）を有効にしています。警告が出ない状態を保ってください。
 - 変換コマンドは、すべての言語で同じ仕様（オプション、終了コード、入出力をバイト単位で保つこと）を守ります。仕様を変えるときはすべての実装と `tests/cases/` を同時に更新します。
+- 変換コマンドの Rust 実装は、外部のクレートを使わず、`#![forbid(unsafe_code)]` で `unsafe` を禁じています。`unsafe` が必要になった場合は、この属性を外す理由を Pull Request で説明してください。
 
 ### 書式の確認
 
@@ -148,9 +149,9 @@ dotnet format Windows/PunctuationToggle.sln --verify-no-changes
 dotnet format converters/dotnet/PunctuationConverter.csproj --verify-no-changes
 
 # Rust
-rustfmt --check --edition 2021 converters/punctuation_converter.rs
-clippy-driver --edition 2021 -D warnings -o /tmp/punctuation_converter converters/punctuation_converter.rs
-clippy-driver --edition 2021 -D warnings --test -o /tmp/punctuation_converter_test converters/punctuation_converter.rs
+rustfmt --check --edition 2024 converters/punctuation_converter.rs
+clippy-driver --edition 2024 -D warnings -o /tmp/punctuation_converter converters/punctuation_converter.rs
+clippy-driver --edition 2024 -D warnings --test -o /tmp/punctuation_converter_test converters/punctuation_converter.rs
 
 # Python
 ruff check converters .github/scripts

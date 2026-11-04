@@ -255,9 +255,9 @@ jobs:
 
       - name: Rust（rustfmt・Clippy）
         run: |
-          rustfmt --check --edition 2021 converters/punctuation_converter.rs
-          clippy-driver --edition 2021 -D warnings -o "$RUNNER_TEMP/punctuation_converter" converters/punctuation_converter.rs
-          clippy-driver --edition 2021 -D warnings --test -o "$RUNNER_TEMP/punctuation_converter_test" converters/punctuation_converter.rs
+          rustfmt --check --edition 2024 converters/punctuation_converter.rs
+          clippy-driver --edition 2024 -D warnings -o "$RUNNER_TEMP/punctuation_converter" converters/punctuation_converter.rs
+          clippy-driver --edition 2024 -D warnings --test -o "$RUNNER_TEMP/punctuation_converter_test" converters/punctuation_converter.rs
 
       - name: Python（ruff・mypy）
         run: |
