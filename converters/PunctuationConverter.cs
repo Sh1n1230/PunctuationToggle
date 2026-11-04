@@ -62,7 +62,7 @@ internal static class PunctuationConverter
             var text = argument == "--version" ? "punctuation_converter " + Version + "\n" : Usage;
             try
             {
-                WriteUtf8(Console.OpenStandardOutput(), text);
+                WriteUtf8(OpenOrNull(Console.OpenStandardOutput), text);
                 return ExitSuccess;
             }
             catch (IOException exception)
@@ -79,7 +79,7 @@ internal static class PunctuationConverter
 
         try
         {
-            Convert(Console.OpenStandardInput(), Console.OpenStandardOutput(), sources, targets);
+            Convert(OpenOrNull(Console.OpenStandardInput), OpenOrNull(Console.OpenStandardOutput), sources, targets);
             return ExitSuccess;
         }
         catch (DecoderFallbackException)
@@ -122,12 +122,30 @@ internal static class PunctuationConverter
         }
     }
 
+    // シェルの >&- などで標準入出力が閉じていると、.NET は開くときに例外を投げる。
+    // ほかの実装（Rust の標準ライブラリ）と同じく、閉じた出力先には書けたものとして、閉じた入力は空として扱う
+    private static Stream OpenOrNull(Func<Stream> open)
+    {
+        try
+        {
+            return open();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Stream.Null;
+        }
+        catch (IOException)
+        {
+            return Stream.Null;
+        }
+    }
+
     // 標準エラー出力に書く。書き込めなくても、終了コードはほかの実装と同じにするため無視する
     private static void WriteError(string text)
     {
         try
         {
-            WriteUtf8(Console.OpenStandardError(), text);
+            WriteUtf8(OpenOrNull(Console.OpenStandardError), text);
         }
         catch (IOException)
         {
