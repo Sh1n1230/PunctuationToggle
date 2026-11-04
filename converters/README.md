@@ -11,6 +11,26 @@ python3 punctuation_converter.py < 原稿.txt > 提出用.txt            # 「�
 python3 punctuation_converter.py --reverse < 提出用.txt > 原稿.txt  # 「，」→「、」、「．」→「。」
 ```
 
+- 入力と出力に**同じファイルを指定しないでください**（`< 原稿.txt > 原稿.txt`）。シェルが読む前に出力先を空にするため、原稿が消えます。別のファイルに書き出してから置き換えてください。
+- 入力ファイルを引数で渡す形や、その場で書き換えるオプションはありません。標準入力と標準出力だけにして、3つの実装の仕様を小さく保っています。
+- 入力をリダイレクトせずに起動すると、端末からの入力を待ちます（案内は表示しません。`cat` などと同じです）。終えるには Ctrl+D（Windows は Ctrl+Z の後に Enter）を押します。
+
+### Windows での使い方
+
+- コマンド プロンプト（cmd.exe）では、上と同じく `<` と `>` が使えます。Python の起動コマンドは環境によって `py` か `python` です。
+
+  ```bat
+  py punctuation_converter.py < 原稿.txt > 提出用.txt
+  ```
+
+- PowerShell では `<` で入力を渡せません。cmd.exe を通してください。
+
+  ```powershell
+  cmd /c "py punctuation_converter.py < 原稿.txt > 提出用.txt"
+  ```
+
+- PowerShell の `Get-Content 原稿.txt | ...` や `... > 提出用.txt` は、文字コードや改行コードを変えることがあるため使わないでください。
+
 | オプション | 動作 |
 |---|---|
 | （なし） | 「、」を「，」に、「。」を「．」に変換する |

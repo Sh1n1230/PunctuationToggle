@@ -229,6 +229,8 @@ IME の設定画面で「、．」（2）や「，。」（3）を選んでい�
 
 作成済みのテキストファイルに含まれる句読点を一括して変換するコマンドラインツールを、C#・Python・Rust の3言語で提供しています。正しい UTF-8 の入力に対しては全実装で仕様と出力結果のバイト列が一致しているため、利用環境に合わせていずれか1つを選択すれば動作します。詳しい使い方、および macOS と Windows の双方で実施したベンチマークに基づく言語選定の理由は [converters/README.md](converters/README.md) を参照してください。
 
+macOS・Linux では次のように使います。Windows（コマンド プロンプト・PowerShell）での書き方は [converters/README.md の「Windows での使い方」](converters/README.md#windows-での使い方) を参照してください。
+
 ```sh
 # 「、。」を「，．」へ変換
 python3 converters/punctuation_converter.py < 原稿.txt > 提出用.txt
