@@ -176,6 +176,7 @@ git ls-files -z '*.sh' | xargs -0 shellcheck
 
 # GitHub Actions のワークフロー（shellcheck が PATH にあれば run: の中も検査する）
 actionlint
+python3 .github/scripts/check_markdown_links.py   # リポジトリ内へのリンク
 check-jsonschema --builtin-schema vendor.dependabot .github/dependabot.yml
 check-jsonschema --builtin-schema vendor.github-issue-forms .github/ISSUE_TEMPLATE/bug_report.yml .github/ISSUE_TEMPLATE/feature_request.yml
 check-jsonschema --builtin-schema vendor.github-issue-config .github/ISSUE_TEMPLATE/config.yml

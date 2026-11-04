@@ -318,6 +318,10 @@ jobs:
       - name: シェルスクリプト（ShellCheck）
         run: git ls-files -z '*.sh' | xargs -0 shellcheck
 
+      # README などのリポジトリ内へのリンク（ファイルと見出しのアンカー）が切れていないこと
+      - name: Markdown のリンク
+        run: python .github/scripts/check_markdown_links.py
+
       # アプリと変換コマンドに、ネットワークを使う API が入っていないこと（docs/THREAT_MODEL.md の「送信しない」）
       - name: 通信する API が無いことの確認
         run: .github/scripts/check_no_network.sh
