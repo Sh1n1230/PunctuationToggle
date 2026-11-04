@@ -147,7 +147,7 @@ cd PunctuationToggle
 git sparse-checkout set macOS     # Windows では Windows
 ```
 
-句読点変換コマンドは、利用する言語の実装1つだけを残して使えます（詳細は [必要な実装の選定と不要ファイルの整理](converters/README.md#必要な実装の選定と不要ファイルの整理) を参照してください）。
+句読点変換コマンドは、使う言語の実装のファイル1つだけでも動きます（詳しくは [1つの実装だけを使う](converters/README.md#1つの実装だけを使う) を参照してください）。
 
 > [!NOTE]
 > 本リポジトリに対して Pull Request を作成する場合は、手元で削除したファイルをコミットに含めないでください。

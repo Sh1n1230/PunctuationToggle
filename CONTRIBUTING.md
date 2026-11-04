@@ -21,12 +21,19 @@ PunctuationToggle/
 │   ├── PunctuationToggle.sln
 │   └── install.ps1 / uninstall.ps1
 ├── converters/                     句読点の変換コマンド（3言語）とベンチマーク
-├── testdata/                       両 OS の Core のテストに共通のテストベクタ
+│   ├── tests/run_tests.sh          全実装に tests/cases/ の入力を与えて出力を比べるテスト（make test）
+│   ├── tests/run_random_tests.py   ランダムな入力でのテスト（make test-random）
+│   ├── tests/test_sigint.py        入力待ちの Ctrl+C のテスト（run_tests.sh が全実装で実行する）
+│   ├── tests/test_punctuation_converter.py  Python 実装の main の単体テスト
+│   └── tests/cases/                入力と期待する出力（改行コードを含めてそのまま扱う）
+├── testdata/                       両 OS の Core のテストが読む共通のテストベクタ
+│                                   （trigger_key_vectors.json。両 OS に共通の判定を変えたら、まずここを直す）
 ├── docs/                           脅威モデルなどの文書
 ├── .github/
 │   ├── workflows/                  CI・リリース・ベンチマークの自動化
 │   ├── lint/                       CI の「コーディング規約」ジョブのツールの版の固定と設定
 │   └── scripts/                    ワークフローから使うスクリプト
+├── ruff.toml                       Python の ruff の設定
 ├── global.json                     .NET SDK の版
 ├── rust-toolchain.toml             Rust の版
 └── nuget.config                    NuGet のパッケージソース（nuget.org だけ）
@@ -132,6 +139,7 @@ make test-random
 - 名前は省略せずに、役割が分かるものにします（`rl`・`br`・`cp` のような略語や、1文字の変数名は使いません。ループの添字も `index` などにします）。
 - 数値の意味が分からない定数（キーコードやレジストリのビットなど）は、名前を付けた定数にして、出典や意味をコメントに書きます。
 - コメントとユーザーに表示する文字列は日本語で書きます。コメントには「何をしているか」よりも「なぜそうしているか」を書きます。
+- 文書（README・CONTRIBUTING など）は、「です・ます」の易しい文体で書きます。「〜である」「〜して差し支えない」のような硬い言い回しや、難しい漢語は避けます。
 - Windows 版と変換コマンドの C# 実装は、`TreatWarningsAsErrors` と .NET のコード分析（`AnalysisLevel=latest-recommended`）を有効にしています。警告が出ない状態を保ってください。
 - 変換コマンドは、すべての言語で同じ仕様（オプション、終了コード、入出力をバイト単位で保つこと）を守ります。仕様を変えるときはすべての実装と `tests/cases/` を同時に更新します。
 - 変換コマンドの Rust 実装は、外部のクレートを使わず、`#![forbid(unsafe_code)]` で `unsafe` を禁じています。`unsafe` が必要になった場合は、この属性を外す理由を Pull Request で説明してください。
