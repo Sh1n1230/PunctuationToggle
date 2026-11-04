@@ -164,8 +164,9 @@ done
 for name in "${implementations[@]}"; do
   if command=$(command_for "$name"); then
     test_implementation "$name" "$command"
-    if [[ "$name" == python ]] && ! "$(python_command)" tests/test_sigint.py; then
-      report_failure "Ctrl+C: トレースバックを表示せずに終了しませんでした"
+    # Ctrl+C のテストは Python で動かすため、Python が無い環境では省く
+    if python_name=$(python_command) && ! "$python_name" tests/test_sigint.py "$command"; then
+      report_failure "$name Ctrl+C: メッセージなどを表示せずに終了しませんでした"
     fi
   else
     echo "SKIP  ${name}（ビルドされていないか、実行環境がありません）"
