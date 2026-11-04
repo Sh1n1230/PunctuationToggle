@@ -10,6 +10,10 @@ updates:
     # 公開直後の版は、乗っ取りや不具合で取り下げられることがあるため、7日待ってから提案させる
     cooldown:
       default-days: 7
+    # Pull Request のタイトルを CONTRIBUTING の形（build(deps): …）にそろえる
+    commit-message:
+      prefix: build
+      include: scope
 
   # CI の「コーディング規約」ジョブで使うツール（ruff・mypy・ShellCheck・actionlint）
   - package-ecosystem: pip
@@ -19,6 +23,10 @@ updates:
     # 公開直後の版は、乗っ取りや不具合で取り下げられることがあるため、7日待ってから提案させる
     cooldown:
       default-days: 7
+    # Pull Request のタイトルを CONTRIBUTING の形（build(deps): …）にそろえる
+    commit-message:
+      prefix: build
+      include: scope
     groups:
       lint-tools:
         patterns: ["*"]
@@ -31,6 +39,10 @@ updates:
     # 公開直後の版は、乗っ取りや不具合で取り下げられることがあるため、7日待ってから提案させる
     cooldown:
       default-days: 7
+    # Pull Request のタイトルを CONTRIBUTING の形（build(deps): …）にそろえる
+    commit-message:
+      prefix: build
+      include: scope
     groups:
       test-packages:
         patterns: ["*"]
@@ -43,6 +55,10 @@ updates:
     # 公開直後の版は、乗っ取りや不具合で取り下げられることがあるため、7日待ってから提案させる
     cooldown:
       default-days: 7
+    # Pull Request のタイトルを CONTRIBUTING の形（build(deps): …）にそろえる
+    commit-message:
+      prefix: build
+      include: scope
 
   # rust-toolchain.toml の Rust の版（変換コマンドの Rust 実装と、rustfmt・Clippy の検査に使う）
   - package-ecosystem: rust-toolchain
@@ -52,3 +68,7 @@ updates:
     # 公開直後の版は、乗っ取りや不具合で取り下げられることがあるため、7日待ってから提案させる
     cooldown:
       default-days: 7
+    # Pull Request のタイトルを CONTRIBUTING の形（build(deps): …）にそろえる
+    commit-message:
+      prefix: build
+      include: scope
