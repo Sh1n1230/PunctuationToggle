@@ -184,6 +184,7 @@ actionlint
 1. `CHANGELOG.md` を、[Keep a Changelog](https://keepachangelog.com/ja/1.1.0/) の形で次のように更新します（v1.3.0 の #44 が例です）。
    - `## [Unreleased]` の下にたまった項目を、新しい見出し `## [X.Y.Z] - YYYY-MM-DD`（例: `## [1.3.0] - 2026-10-15`）の下に移し、`## [Unreleased]` は空のまま残します。リリースのワークフローは `## [X.Y.Z]` の見出しを探してリリースノートを作るため、見出しの形を間違えると失敗します。
    - 新しい見出しのすぐ下に、そのリリースの要約を1段落書きます。
+   - 変更の種類の見出しは、Keep a Changelog と同じ「追加」「変更」「非推奨」「削除」「修正」「セキュリティ」の順に並べます（無い種類は書きません）。
    - ファイルの末尾の比較リンクで、`[Unreleased]` の比較元を新しいタグにし（`compare/vX.Y.Z...HEAD`）、新しいバージョンのリンク（`[X.Y.Z]: .../compare/v<前のバージョン>...vX.Y.Z`）を追加します。
 2. README の「動作を確かめた OS の版」を、リリースする版で確かめた結果に更新します（手順は「OS や IME を更新したときの確認」）。
 3. バージョン番号を更新します（macOS: `PunctuationToggle.xcodeproj` の `MARKETING_VERSION` と `CURRENT_PROJECT_VERSION`、Windows: `Windows/Directory.Build.props` の `Version`、変換コマンド: 3つの実装の `VERSION`（`--version` で表示する版））。
