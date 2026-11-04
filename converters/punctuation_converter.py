@@ -42,6 +42,10 @@ CHUNK_SIZE = 1 << 16
 
 
 def convert(text: str, replacements: dict[str, str]) -> str:
+    # str.translate より str.replace を2回呼ぶ方が速い。64 Ki 文字の読み込み1回分で、
+    # 合成データ（「、。」の繰り返し）は replace 57 µs・translate 2,871 µs、実文章
+    # （benchmark/wikipedia_programming.txt の先頭）は 7.5 µs・1,249 µs（Python 3.13、Linux、timeit）。
+    # translate は1文字ずつ表を引くが、replace は置き換える文字を高速に探して、まとめて複写する
     for source, target in replacements.items():
         text = text.replace(source, target)
     return text
@@ -61,7 +65,11 @@ def main(arguments: list[str]) -> int:
     if arguments in ([], ["-r"], ["--reverse"]):
         replacements = TO_TOUTEN_KUTEN if arguments else TO_COMMA_PERIOD
     elif arguments in (["-h"], ["--help"], ["--version"]):
-        text = USAGE if arguments != ["--version"] else f"punctuation_converter {VERSION}\n"
+        text = (
+            USAGE
+            if arguments != ["--version"]
+            else f"punctuation_converter {VERSION}\n"
+        )
         try:
             sys.stdout.write(text)
             sys.stdout.flush()
