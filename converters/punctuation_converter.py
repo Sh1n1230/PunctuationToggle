@@ -109,6 +109,10 @@ def main(arguments: list[str]) -> int:
     except UnicodeDecodeError:
         write_error("入力を UTF-8 として読み込めませんでした。\n")
         return EXIT_FAILURE
+    except BrokenPipeError:
+        # 出力の読み手が先に終了した（`| head` など）ときは、ほかの実装と同じく黙って成功で終える
+        discard_output(sys.stdout)
+        return EXIT_SUCCESS
     except OSError as error:
         discard_output(sys.stdout)
         write_error(f"変換に失敗しました: {error}\n")

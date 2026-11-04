@@ -102,6 +102,8 @@ fn main() -> ExitCode {
     match convert_stream(io::stdin().lock(), io::stdout().lock(), replacements) {
         Ok(()) => ExitCode::SUCCESS,
         // ほかの実装と同じく、UTF-8 として正しくない入力は書き込みの失敗と分けて知らせる
+        // 出力の読み手が先に終了した（`| head` など）ときは、ほかの実装と同じく黙って成功で終える
+        Err(error) if error.kind() == ErrorKind::BrokenPipe => ExitCode::SUCCESS,
         Err(error) if error.kind() == ErrorKind::InvalidData => {
             write_error(&format!("{INVALID_UTF8_MESSAGE}\n"));
             ExitCode::FAILURE
