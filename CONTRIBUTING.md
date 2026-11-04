@@ -152,37 +152,19 @@ make test-random
 書式と静的解析は CI（「コーディング規約」ジョブと、macOS アプリのジョブ）で確かめています。Pull Request を送る前に、手元でも次のコマンドで確かめてください。ruff・mypy・ShellCheck・check-jsonschema は、CI と同じ版を `.github/lint/requirements.txt` から導入できます（`pip install --require-hashes --no-deps --only-binary :all: -r .github/lint/requirements.txt`）。actionlint は、`ci.yml` の「actionlint の導入」に書いた版を [GitHub のリリース](https://github.com/rhysd/actionlint/releases)から入れてください。
 
 ```sh
+# Rust・Python・シェルスクリプト・Markdown のリンク・通信する API・ワークフロー・設定ファイルのスキーマ・C# を、
+# CI と同じ内容でまとめて確かめる（入っていないツールはスキップと表示する。中身は .github/lint/lint.sh）
+.github/lint/lint.sh
+
 # Swift（Xcode に同梱の swift format。設定は macOS/.swift-format）
 (cd macOS && swift format lint --strict -r Package.swift PunctuationToggle Scripts Tests)
-
-# C#
-dotnet format Windows/PunctuationToggle.sln --verify-no-changes
-dotnet format converters/dotnet/PunctuationConverter.csproj --verify-no-changes
-
-# Rust
-make -C converters lint-rust    # rustfmt と Clippy（引数とエディションは converters/Makefile）
-
-# Python
-ruff check converters .github/scripts
-ruff format --check converters .github/scripts
-mypy --strict --python-version 3.10 converters/punctuation_converter.py converters/tests/run_random_tests.py converters/tests/test_sigint.py converters/tests/test_punctuation_converter.py .github/scripts/*.py .github/scripts/tests/*.py
-
-# シェルスクリプト
-git ls-files -z '*.sh' | xargs -0 shellcheck
 
 # PowerShell（CI と同じ版の PSScriptAnalyzer を入れて、PowerShell で実行する）
 #   Install-Module PSScriptAnalyzer -RequiredVersion 1.25.0 -Scope CurrentUser
 #   Invoke-ScriptAnalyzer -Path Windows -Recurse -Settings .github/lint/PSScriptAnalyzerSettings.psd1
-
-# GitHub Actions のワークフロー（shellcheck が PATH にあれば run: の中も検査する）
-actionlint
-python3 .github/scripts/check_markdown_links.py   # リポジトリ内へのリンク
-check-jsonschema --builtin-schema vendor.dependabot .github/dependabot.yml
-check-jsonschema --builtin-schema vendor.github-issue-forms .github/ISSUE_TEMPLATE/bug_report.yml .github/ISSUE_TEMPLATE/feature_request.yml
-check-jsonschema --builtin-schema vendor.github-issue-config .github/ISSUE_TEMPLATE/config.yml
 ```
 
-`--verify-no-changes` や `--check` を外す（Swift は `lint --strict` を `format -i` にする）と、指摘された書式をその場で直せます。
+個々のコマンドは `lint.sh` の中にあります。`--verify-no-changes` や `--check` を外す（Swift は `lint --strict` を `format -i` にする）と、指摘された書式をその場で直せます。
 
 ## リリースの手順
 
