@@ -4,7 +4,6 @@
 """
 
 import io
-import os
 import sys
 import unittest
 from pathlib import Path
@@ -58,10 +57,12 @@ class MainTest(unittest.TestCase):
 
     def test_UTF8_でない引数でも例外にならず2を返す(self) -> None:
         # macOS や Linux では、UTF-8 でない引数はサロゲートとして sys.argv に入る
-        argument = os.fsdecode(b"\xff")
+        # （os.fsdecode は Windows ではサロゲートにせず例外になるため、POSIX と同じ変換を直接行う）
+        argument = b"\xff".decode("utf-8", "surrogateescape")
         status, _, errors = self.run_main([argument])
         self.assertEqual(status, punctuation_converter.EXIT_USAGE_ERROR)
-        self.assertTrue(errors.startswith("不正な引数です: �\n"))
+        # Windows の os.fsencode はサロゲートを3バイトにするため、U+FFFD の数は OS によって違う
+        self.assertRegex(errors, "^不正な引数です: �+\n")
 
     def test_使い方を書き出せないときは1を返す(self) -> None:
         errors = io.StringIO()

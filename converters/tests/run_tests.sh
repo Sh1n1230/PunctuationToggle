@@ -251,6 +251,10 @@ for name in "${implementations[@]}"; do
     if python_name=$(python_command) && ! "$python_name" tests/test_sigint.py "$command"; then
       report_failure "$name Ctrl+C: メッセージなどを表示せずに終了しませんでした"
     fi
+    # Python 実装は、main をプロセスを起動せずに確かめる単体テストも実行する
+    if [[ $name == python ]] && ! "$(python_command)" tests/test_punctuation_converter.py; then
+      report_failure "python の単体テスト（tests/test_punctuation_converter.py）が失敗しました"
+    fi
   else
     echo "SKIP  ${name}（ビルドされていないか、実行環境がありません）"
     skips=$((skips + 1))
