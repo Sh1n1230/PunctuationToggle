@@ -16,7 +16,8 @@ if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
 Push-Location $repositoryRoot
 try {
     $requiredSdk = (Get-Content (Join-Path $repositoryRoot 'global.json') -Raw | ConvertFrom-Json).sdk.version
-    $selectedSdk = dotnet --version 2>$null
+    # Windows PowerShell 5.1 では、Stop のままだと外部コマンドの標準エラー出力が例外になり、下の案内を表示できない
+    $selectedSdk = & { $ErrorActionPreference = 'Continue'; dotnet --version 2>$null }
     if ($LASTEXITCODE -ne 0) {
         throw ".NET SDK $requiredSdk 以降（10.0 の SDK。global.json の指定）が必要です。https://dotnet.microsoft.com/download からインストールしてください。"
     }
