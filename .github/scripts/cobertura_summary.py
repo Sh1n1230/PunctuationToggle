@@ -12,7 +12,9 @@ from xml.etree import ElementTree
 
 def main(arguments: list[str]) -> int:
     if not arguments:
-        print("使い方: cobertura_summary.py <coverage.cobertura.xml>...", file=sys.stderr)
+        print(
+            "使い方: cobertura_summary.py <coverage.cobertura.xml>...", file=sys.stderr
+        )
         return 2
 
     for index, report in enumerate(arguments):
