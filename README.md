@@ -229,7 +229,7 @@ Microsoft IME の句読点設定は、レジストリキー `HKCU\Software\Micro
 
 IME の設定画面で「、．」（2）や「，。」（3）を選んでいた場合、切り替えキーを押すと「，．」（0）に切り替わり、以降は「、。」と「，．」を行き来します。
 
-本アプリケーション独自の切り替えキー設定などは、レジストリの `HKCU\Software\PunctuationToggle` に保存されます。
+本アプリケーション独自の切り替えキー設定などは、レジストリの `HKCU\Software\PunctuationToggle` に保存されます。「ログイン時に起動」は `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` に登録します。Windows の設定の「スタートアップ アプリ」やタスク マネージャーで無効にした状態は、公開されていない値（`HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run`）に保存されるため、本アプリケーションはこれを読むだけで書き換えません。無効にされている場合、メニューに「（Windows の設定で無効）」と表示し、選ぶと Windows の設定で有効にするよう案内します。
 
 ## 動作を確かめた OS の版
 
