@@ -79,6 +79,9 @@ internal sealed class TriggerKeyRecorderForm : Form
         layout.Controls.AddRange([titleLabel, currentKeyLabel, statusLabel, buttonRow]);
         Controls.Add(layout);
 
+        // Tab・Enter・スペースはボタンの操作に使えるが、開いた直後にボタンにフォーカスがあると、
+        // Enter やスペースを押しただけで「初期設定に戻す」が押されてしまうため、Tab で選ぶまではどのボタンも選ばない
+        Shown += (_, _) => ActiveControl = null;
         FormClosed += (_, _) => Finish(null);
         Deactivate += (_, _) => Finish(null);
     }
