@@ -20,6 +20,9 @@ internal sealed class TrayApplication : ApplicationContext
     private const int PollIntervalWithoutWatcherMilliseconds = 2000;
     private const int PollIntervalWithWatcherMilliseconds = 10000;
 
+    // 起動したときから句読点の設定を読み込めず、今の句読点が分からないときにアイコンに描く文字
+    private const string UnknownStyleSymbol = "？";
+
     // 通知の表示時間。Windows 10 以降は OS の設定が優先され、この値は使われないが、引数として必要
     private const int BalloonTipTimeoutMilliseconds = 10000;
 
@@ -46,7 +49,11 @@ internal sealed class TrayApplication : ApplicationContext
     // UI スレッドで設定し、フックの専用のスレッドで読む
     private volatile TriggerKeyRecorderForm? triggerKeyRecorder;
     private Icon? currentIcon;
-    private PunctuationStyle? displayedStyle;
+    // 最後に読み込めた句読点（読み込めない間は、この句読点のまま表示を続ける）
+    private PunctuationStyle? lastReadStyle;
+
+    // アイコンに描いている文字（描き直すかを決めるため）。null にすると次の UpdateDisplay で描き直す
+    private string? displayedSymbols;
     private int displayedIconSize;
 
     public TrayApplication()
@@ -228,31 +235,37 @@ internal sealed class TrayApplication : ApplicationContext
     {
         var readStyle = MicrosoftImeSettings.TryReadPunctuationStyle();
         NotifyIfImeSettingsUnreadable(readStyle is null);
-        // 読み込めない間は、前回表示した句読点のまま表示を続ける
-        var style = readStyle ?? displayedStyle ?? MicrosoftImeSettings.PunctuationStyle;
+        // 読み込めない間は、前回読み込めた句読点のまま表示を続ける。起動したときから読み込めない場合は、
+        // 既定値（「、。」）を今の設定のように見せず、分からないことを示す
+        lastReadStyle = readStyle ?? lastReadStyle;
+        var style = lastReadStyle;
         var triggerKey = CurrentTriggerKey;
 
-        toggleMenuItem.Text = style == PunctuationStyle.CommaPeriod
-            ? $"「、。」に切り替え(&T)（{triggerKey.DisplayName}）"
-            : $"「，．」に切り替え(&T)（{triggerKey.DisplayName}）";
+        toggleMenuItem.Text = style switch
+        {
+            PunctuationStyle.CommaPeriod => $"「、。」に切り替え(&T)（{triggerKey.DisplayName}）",
+            null => $"句読点を切り替え(&T)（{triggerKey.DisplayName}）",
+            _ => $"「，．」に切り替え(&T)（{triggerKey.DisplayName}）",
+        };
         usageMenuItem.Text = triggerKey.UsageDescription;
         // タスクトレイのアイコンの名前としてナレーターが読み上げるため、記号だけでなく句読点の呼び名も入れる
-        notifyIcon.Text = isImeSettingsUnreadable
+        notifyIcon.Text = isImeSettingsUnreadable || style is null
             ? "PunctuationToggle 句読点の設定を読み込めません"
-            : $"PunctuationToggle 句読点: {style.SpokenName()}";
+            : $"PunctuationToggle 句読点: {style.Value.SpokenName()}";
 
         // 表示倍率の変更は、トレイ用のウィンドウが無く WM_DPICHANGED を受け取れないため、
         // 画面の設定の変更（DisplaySettingsChanged）と、設定を読み直すたびに確かめる
+        var symbols = style?.Symbols() ?? UnknownStyleSymbol;
         var iconSize = TrayIconRenderer.CurrentIconSize;
-        if (style == displayedStyle && iconSize == displayedIconSize)
+        if (symbols == displayedSymbols && iconSize == displayedIconSize)
         {
             return;
         }
-        displayedStyle = style;
+        displayedSymbols = symbols;
         displayedIconSize = iconSize;
 
         var previousIcon = currentIcon;
-        currentIcon = TrayIconRenderer.Render(style.Symbols(), AppSettings.IsTaskbarLight, iconSize);
+        currentIcon = TrayIconRenderer.Render(symbols, AppSettings.IsTaskbarLight, iconSize);
         notifyIcon.Icon = currentIcon;
         previousIcon?.Dispose();
     }
@@ -399,7 +412,7 @@ internal sealed class TrayApplication : ApplicationContext
         // タスクバーのライト・ダークが切り替わったら、文字の色を合わせて描き直す
         if (eventArgs.Category == UserPreferenceCategory.General)
         {
-            displayedStyle = null;
+            displayedSymbols = null;
             UpdateDisplay();
         }
     }
