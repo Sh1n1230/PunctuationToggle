@@ -14,6 +14,9 @@
          アプリ全体（タスクトレイのメニュー・設定画面・ダイアログ）の既定のフォントを日本語の UI フォントにする。
          ApplicationConfiguration.Initialize（Program.cs）が Application.SetDefaultFont を呼ぶ -->
     <ApplicationDefaultFont>Yu Gothic UI, 9pt</ApplicationDefaultFont>
+    <!-- UI は日本語だけなので、ランタイム（Windows Forms など）の地域化のリソースは日本語だけを配布物に含める
+         （英語は既定のリソースとして本体に入っている）。自己完結型で発行する配布用の exe が小さくなる -->
+    <SatelliteResourceLanguages>ja</SatelliteResourceLanguages>
     <RootNamespace>PunctuationToggle</RootNamespace>
     <AssemblyName>PunctuationToggle</AssemblyName>
     <!-- macOS や Linux でもビルド（コンパイルの確認）だけはできるようにする -->
