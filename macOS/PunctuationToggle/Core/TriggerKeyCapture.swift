@@ -4,6 +4,7 @@
 /// - それ以外のキーは、押したときに読み取る。読み取ったキーの入力はほかのアプリに渡さない。
 ///   ただし、修飾キーと一緒に押したキー（Command＋F5 など）は、OS やアプリのショートカットなので読み取らずに渡す。
 /// - Esc でキャンセルする。
+/// - Tab・Return・スペースは読み取らず、設定画面のボタンの操作に使えるよう渡す（Windows 版と同じ）。
 /// - 設定画面が前面にない間の入力は `handleWhileInactive(_:)` に渡し、読み取らずにほかのアプリへ渡す。
 nonisolated struct TriggerKeyCapture: Sendable {
     nonisolated enum Outcome: Equatable, Sendable {
@@ -47,6 +48,11 @@ nonisolated struct TriggerKeyCapture: Sendable {
             pendingModifierKeyCode = nil
             return Result(outcome: .waiting, shouldSuppress: false)
 
+        // 設定画面のボタンをキーボードで操作するキー。どれも切り替えキーにできないので、読み取らずに画面へ渡す
+        case let .keyDown(keyCode, _, _) where Self.dialogNavigationKeyCodes.contains(keyCode):
+            pendingModifierKeyCode = nil
+            return Result(outcome: .waiting, shouldSuppress: false)
+
         case let .keyDown(keyCode, _, _):
             pendingModifierKeyCode = nil
             suppressedKeyCode = keyCode
@@ -84,6 +90,11 @@ nonisolated struct TriggerKeyCapture: Sendable {
         suppressedKeyCode = nil
         return Result(outcome: .waiting, shouldSuppress: true)
     }
+
+    /// 設定画面の操作に使うキー（Tab でボタンを選び、スペースか Return で押す）
+    static let dialogNavigationKeyCodes: Set<UInt16> = [
+        KeyCode.tab, KeyCode.returnKey, KeyCode.keypadEnter, KeyCode.space,
+    ]
 
     private static func outcome(for keyCode: UInt16) -> Outcome {
         if let key = TriggerKey(keyCode: keyCode) {

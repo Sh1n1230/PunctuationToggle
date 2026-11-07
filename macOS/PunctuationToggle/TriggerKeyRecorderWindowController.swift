@@ -125,20 +125,46 @@ final class TriggerKeyRecorderWindowController: NSWindowController, NSWindowDele
 
     private static let instructionText = """
         修飾キー（Command・Shift・Option・Control・fn）は単独で押して離してください。\
-        ほかに F1〜F20、英数、かな が使えます。Esc でキャンセルします。
+        ほかに F1〜F20、英数、かな が使えます。Esc でキャンセルします。\
+        F1〜F12 などは、キーボードの設定によっては、明るさや音量などの特殊キーとして働き、設定できない場合があります\
+        （fn を押しながら押すと設定できることがあります）。
         """
 
     private func showInactiveMessage() {
-        let message = "このウィンドウをクリックしてから、キーを押してください。"
-        statusLabel.stringValue = message + "\n" + Self.instructionText
-        statusLabel.textColor = .systemOrange
-        announce(message)
+        showWarning("このウィンドウをクリックしてから、キーを押してください。")
     }
 
     private func showRejectedMessage(keyCode: UInt16) {
-        let message = "そのキー（キーコード \(keyCode)）は使えません。"
-        statusLabel.stringValue = message + "\n" + Self.instructionText
-        statusLabel.textColor = .systemRed
+        showWarning("そのキー（\(Self.keyName(for: keyCode))）は使えません。")
+    }
+
+    /// 使えないキーの名前。文字にならないキーは Core の表、文字キーは今のキーボード配列での文字で示し、
+    /// どちらでも求められないときだけキーコードを示す
+    private static func keyName(for keyCode: UInt16) -> String {
+        KeyNames.name(for: keyCode) ?? KeyboardLayoutKeyNames.name(for: keyCode) ?? "キーコード \(keyCode)"
+    }
+
+    /// 案内の1行目に注意を表示する。
+    /// 小さい文字のオレンジ・赤は背景とのコントラストが足りない（WCAG 2.x の 4.5:1 を下回る）ため、
+    /// 文字は文字用の色にし、注意であることは記号で示す（色だけに頼らない）
+    private func showWarning(_ message: String) {
+        let font = statusLabel.font ?? .systemFont(ofSize: NSFont.smallSystemFontSize)
+        let text = NSMutableAttributedString()
+        if let symbol = NSImage(systemSymbolName: "exclamationmark.triangle.fill", accessibilityDescription: "注意") {
+            let attachment = NSTextAttachment()
+            attachment.image = symbol.withSymbolConfiguration(.init(pointSize: font.pointSize, weight: .regular))
+            text.append(NSAttributedString(attachment: attachment))
+            text.append(NSAttributedString(string: " "))
+        }
+        text.append(NSAttributedString(string: message, attributes: [.foregroundColor: NSColor.labelColor]))
+        text.append(
+            NSAttributedString(
+                string: "\n" + Self.instructionText,
+                attributes: [.foregroundColor: NSColor.secondaryLabelColor]
+            )
+        )
+        text.addAttribute(.font, value: font, range: NSRange(location: 0, length: text.length))
+        statusLabel.attributedStringValue = text
         announce(message)
     }
 

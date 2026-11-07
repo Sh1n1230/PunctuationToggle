@@ -140,6 +140,26 @@ nonisolated enum KeyCode {
     static let eisu: UInt16 = 102
     static let kana: UInt16 = 104
 
+    // 切り替えキーにはできないが、設定画面の操作（TriggerKeyCapture）やキーの名前（KeyNames）に使うキー
+    static let returnKey: UInt16 = 36
+    static let tab: UInt16 = 48
+    static let space: UInt16 = 49
+    static let delete: UInt16 = 51
+    static let keypadEnter: UInt16 = 76
+    static let help: UInt16 = 114
+    static let home: UInt16 = 115
+    static let pageUp: UInt16 = 116
+    static let forwardDelete: UInt16 = 117
+    static let end: UInt16 = 119
+    static let pageDown: UInt16 = 121
+    static let leftArrow: UInt16 = 123
+    static let rightArrow: UInt16 = 124
+    static let downArrow: UInt16 = 125
+    static let upArrow: UInt16 = 126
+
+    /// テンキーの 0〜9 の順（8 と 9 の間は 1 つ空いている）
+    static let keypadDigits: [UInt16] = [82, 83, 84, 85, 86, 87, 88, 89, 91, 92]
+
     /// F1〜F20 の順
     static let functionKeys: [UInt16] = [
         122, 120, 99, 118, 96, 97, 98, 100, 101, 109,

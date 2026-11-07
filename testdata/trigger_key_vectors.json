@@ -14,7 +14,10 @@
     "letterA": { "macOS": 0, "windows": 65 },
     "letterC": { "macOS": 8, "windows": 67 },
     "letterS": { "macOS": 1, "windows": 83 },
-    "escape": { "macOS": 53, "windows": 27 }
+    "escape": { "macOS": 53, "windows": 27 },
+    "tab": { "macOS": 48, "windows": 9 },
+    "enter": { "macOS": 36, "windows": 13 },
+    "space": { "macOS": 49, "windows": 32 }
   },
   "detector": [
     {
@@ -357,6 +360,18 @@
       "inputs": [
         { "input": "keyDown", "key": "letterA" },
         { "input": "keyUp", "key": "letterA", "active": false, "expect": { "outcome": "waiting", "suppress": true } }
+      ]
+    },
+    {
+      "name": "Tab・Enter・スペースは読み取らず、設定画面のボタンの操作に使えるよう渡す。その後に押したキーは読み取る",
+      "inputs": [
+        { "input": "keyDown", "key": "tab", "expect": { "outcome": "waiting", "suppress": false } },
+        { "input": "keyUp", "key": "tab", "expect": { "outcome": "waiting", "suppress": false } },
+        { "input": "keyDown", "key": "enter", "expect": { "outcome": "waiting", "suppress": false } },
+        { "input": "keyUp", "key": "enter", "expect": { "outcome": "waiting", "suppress": false } },
+        { "input": "keyDown", "key": "space", "expect": { "outcome": "waiting", "suppress": false } },
+        { "input": "keyUp", "key": "space", "expect": { "outcome": "waiting", "suppress": false } },
+        { "input": "keyDown", "key": "f13", "expect": { "outcome": "captured", "key": "f13", "suppress": true } }
       ]
     }
   ]

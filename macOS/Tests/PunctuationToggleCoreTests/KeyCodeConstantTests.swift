@@ -24,6 +24,30 @@ struct KeyCodeConstantTests {
         #expect(Int(KeyCode.function) == kVK_Function)
         #expect(Int(KeyCode.eisu) == kVK_JIS_Eisu)
         #expect(Int(KeyCode.kana) == kVK_JIS_Kana)
+        #expect(Int(KeyCode.returnKey) == kVK_Return)
+        #expect(Int(KeyCode.tab) == kVK_Tab)
+        #expect(Int(KeyCode.space) == kVK_Space)
+        #expect(Int(KeyCode.delete) == kVK_Delete)
+        #expect(Int(KeyCode.keypadEnter) == kVK_ANSI_KeypadEnter)
+        #expect(Int(KeyCode.help) == kVK_Help)
+        #expect(Int(KeyCode.home) == kVK_Home)
+        #expect(Int(KeyCode.pageUp) == kVK_PageUp)
+        #expect(Int(KeyCode.forwardDelete) == kVK_ForwardDelete)
+        #expect(Int(KeyCode.end) == kVK_End)
+        #expect(Int(KeyCode.pageDown) == kVK_PageDown)
+        #expect(Int(KeyCode.leftArrow) == kVK_LeftArrow)
+        #expect(Int(KeyCode.rightArrow) == kVK_RightArrow)
+        #expect(Int(KeyCode.downArrow) == kVK_DownArrow)
+        #expect(Int(KeyCode.upArrow) == kVK_UpArrow)
+    }
+
+    @Test("テンキーの 0〜9 のキーコードが kVK_ANSI_Keypad0〜9 と一致する")
+    func keypadDigitKeyCodes() {
+        let sdkKeypadDigits = [
+            kVK_ANSI_Keypad0, kVK_ANSI_Keypad1, kVK_ANSI_Keypad2, kVK_ANSI_Keypad3, kVK_ANSI_Keypad4,
+            kVK_ANSI_Keypad5, kVK_ANSI_Keypad6, kVK_ANSI_Keypad7, kVK_ANSI_Keypad8, kVK_ANSI_Keypad9,
+        ]
+        #expect(KeyCode.keypadDigits.map(Int.init) == sdkKeypadDigits)
     }
 
     @Test("F1〜F20 のキーコードが kVK_F1〜kVK_F20 と一致する")
