@@ -75,6 +75,16 @@ final class TriggerKeyRecorderWindowController: NSWindowController, NSWindowDele
         return result.shouldSuppress
     }
 
+    /// 入力を取りこぼした後に、読み取りの途中の状態（押している修飾キーなど）を破棄する
+    func resetCapture() {
+        capture.reset()
+    }
+
+    /// 読み取りを中止して閉じる（キー入力の監視が止まったときなど）
+    func cancelCapture() {
+        finish(with: nil)
+    }
+
     func windowWillClose(_ notification: Notification) {
         // タイトルバーのボタンで閉じられた場合（ウィンドウはすでに閉じつつある）
         finish(with: nil, closesWindow: false)

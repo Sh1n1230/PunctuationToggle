@@ -23,6 +23,18 @@ struct ModifierTriggerTests {
         #expect(detector.handle(release(KeyCode.function)).shouldToggle)
     }
 
+    @Test("reset() の後は、押し下げを見ていない離しでは切り替えない（入力を取りこぼした後）")
+    mutating func resetDiscardsHeldModifier() {
+        _ = detector.handle(press(KeyCode.rightCommand))
+        // ここで右Command＋C を取りこぼした（イベントタップが一時的に無効にされた）とする
+        detector.reset()
+        #expect(!detector.handle(release(KeyCode.rightCommand)).shouldToggle)
+
+        // 次の押し下げからやり直す
+        _ = detector.handle(press(KeyCode.rightCommand))
+        #expect(detector.handle(release(KeyCode.rightCommand)).shouldToggle)
+    }
+
     @Test("切り替えキーを変えると、押し下げ中の状態は破棄される")
     mutating func changingTriggerKeyResetsState() throws {
         _ = detector.handle(press(KeyCode.rightCommand))
