@@ -20,6 +20,10 @@ def main(arguments: list[str]) -> int:
     for index, report in enumerate(arguments):
         if index > 0:
             print()
+        # 読むのは CI の dotnet test（coverlet）が作ったレポートだけで、外から受け取った XML ではない。
+        # また、Python の xml.etree（expat）は外部実体を読み込まず（3.7.1 以降）、実体の展開による
+        # 肥大化（billion laughs）も expat 2.4.1 以降の上限で止まるため、defusedxml は使わない
+        # nosemgrep: python.lang.security.use-defused-xml-parse.use-defused-xml-parse
         root = ElementTree.parse(report).getroot()
         if len(arguments) > 1:
             print(f"#### {', '.join(package_names(root))}")
