@@ -18,26 +18,8 @@ internal static class AppSettings
     /// </summary>
     public static TriggerKey TriggerKey
     {
-        get
-        {
-            try
-            {
-                using var key = Registry.CurrentUser.OpenSubKey(SettingsKeyPath);
-                return key?.GetValue(TriggerKeyValueName) is int virtualKey
-                    ? TriggerKey.FromVirtualKey(virtualKey) ?? TriggerKey.Default
-                    : TriggerKey.Default;
-            }
-            // 起動時に読むため、読み込めなくても異常終了させず、保存されていない場合と同じく初期設定のキーで動かす
-            catch (Exception exception) when (RegistryErrors.IsAccessFailure(exception))
-            {
-                return TriggerKey.Default;
-            }
-        }
-        set
-        {
-            using var key = Registry.CurrentUser.CreateSubKey(SettingsKeyPath);
-            key.SetValue(TriggerKeyValueName, value.VirtualKey, RegistryValueKind.DWord);
-        }
+        get => ReadTriggerKey(SettingsKeyPath);
+        set => WriteTriggerKey(SettingsKeyPath, value);
     }
 
     /// <summary>
@@ -46,31 +28,59 @@ internal static class AppSettings
     /// </summary>
     public static bool LaunchAtLogin
     {
-        get
+        get => IsLaunchAtLoginRegistered(RunKeyPath, Application.ExecutablePath);
+        set => SetLaunchAtLogin(RunKeyPath, Application.ExecutablePath, value);
+    }
+
+    // 以下の keyPath を受け取るものは、テスト（PunctuationToggle.WindowsTests）で実際の設定や Run キーを変えずに確かめるため
+
+    internal static TriggerKey ReadTriggerKey(string settingsKeyPath)
+    {
+        try
         {
-            try
-            {
-                using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath);
-                return key?.GetValue(RunValueName) is string command
-                    && LaunchAtLoginCommand.Launches(command, Application.ExecutablePath);
-            }
-            // メニューを開くたびに読むため、読み込めなくても異常終了させない
-            catch (Exception exception) when (RegistryErrors.IsAccessFailure(exception))
-            {
-                return false;
-            }
+            using var key = Registry.CurrentUser.OpenSubKey(settingsKeyPath);
+            return key?.GetValue(TriggerKeyValueName) is int virtualKey
+                ? TriggerKey.FromVirtualKey(virtualKey) ?? TriggerKey.Default
+                : TriggerKey.Default;
         }
-        set
+        // 起動時に読むため、読み込めなくても異常終了させず、保存されていない場合と同じく初期設定のキーで動かす
+        catch (Exception exception) when (RegistryErrors.IsAccessFailure(exception))
         {
-            using var key = Registry.CurrentUser.CreateSubKey(RunKeyPath);
-            if (value)
-            {
-                key.SetValue(RunValueName, LaunchAtLoginCommand.For(Application.ExecutablePath));
-            }
-            else
-            {
-                key.DeleteValue(RunValueName, throwOnMissingValue: false);
-            }
+            return TriggerKey.Default;
+        }
+    }
+
+    internal static void WriteTriggerKey(string settingsKeyPath, TriggerKey value)
+    {
+        using var key = Registry.CurrentUser.CreateSubKey(settingsKeyPath);
+        key.SetValue(TriggerKeyValueName, value.VirtualKey, RegistryValueKind.DWord);
+    }
+
+    internal static bool IsLaunchAtLoginRegistered(string runKeyPath, string executablePath)
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(runKeyPath);
+            return key?.GetValue(RunValueName) is string command
+                && LaunchAtLoginCommand.Launches(command, executablePath);
+        }
+        // メニューを開くたびに読むため、読み込めなくても異常終了させない
+        catch (Exception exception) when (RegistryErrors.IsAccessFailure(exception))
+        {
+            return false;
+        }
+    }
+
+    internal static void SetLaunchAtLogin(string runKeyPath, string executablePath, bool value)
+    {
+        using var key = Registry.CurrentUser.CreateSubKey(runKeyPath);
+        if (value)
+        {
+            key.SetValue(RunValueName, LaunchAtLoginCommand.For(executablePath));
+        }
+        else
+        {
+            key.DeleteValue(RunValueName, throwOnMissingValue: false);
         }
     }
 

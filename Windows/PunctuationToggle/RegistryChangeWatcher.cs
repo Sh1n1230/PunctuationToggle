@@ -10,6 +10,8 @@ namespace PunctuationToggle;
 /// </summary>
 /// <remarks>
 /// 通知はスレッドプールのスレッドで呼ばれる。UI を更新する場合は、呼ばれた側で UI スレッドに移ること。
+/// <see cref="Dispose"/> は実行中の通知が終わるのを待つので、<see cref="Dispose"/> から戻った後に通知が呼ばれることはない。
+/// 通知のスレッドの中から <see cref="Dispose"/> を呼ぶと終わらなくなるため、呼ぶ場合はほかのスレッドに移ってから呼ぶこと。
 /// https://learn.microsoft.com/windows/win32/api/winreg/nf-winreg-regnotifychangekeyvalue
 /// </remarks>
 internal sealed partial class RegistryChangeWatcher : IDisposable
@@ -17,7 +19,7 @@ internal sealed partial class RegistryChangeWatcher : IDisposable
     // 値の追加・削除・変更を通知させる
     private const uint REG_NOTIFY_CHANGE_LAST_SET = 0x00000004;
 
-    // 登録したスレッドが終わっても通知を続ける（Windows 8 以降）。
+    // 登録したスレッドが終わっても通知を続ける（Windows 8 以降。それより前の Windows では登録に失敗する）。
     // 通知を受けたスレッドプールのスレッドで登録し直すため、このフラグが無いとそのスレッドの終了で通知が止まる
     private const uint REG_NOTIFY_THREAD_AGNOSTIC = 0x10000000;
 
@@ -33,13 +35,15 @@ internal sealed partial class RegistryChangeWatcher : IDisposable
 
     private readonly RegistryKey key;
     private readonly Action onChanged;
+    private readonly Action onStopped;
     private readonly AutoResetEvent changedEvent = new(initialState: false);
     private readonly RegisteredWaitHandle waitHandle;
 
-    private RegistryChangeWatcher(RegistryKey key, Action onChanged)
+    private RegistryChangeWatcher(RegistryKey key, Action onChanged, Action onStopped)
     {
         this.key = key;
         this.onChanged = onChanged;
+        this.onStopped = onStopped;
         waitHandle = ThreadPool.RegisterWaitForSingleObject(
             changedEvent, (_, _) => HandleChanged(), state: null, Timeout.Infinite, executeOnlyOnce: false);
     }
@@ -47,7 +51,13 @@ internal sealed partial class RegistryChangeWatcher : IDisposable
     /// <summary>
     /// 監視を始める。キーが無い場合や、読み込めない・監視を登録できない場合は null（呼び出し元は読み直す方法に戻す）。
     /// </summary>
-    public static RegistryChangeWatcher? TryStart(string keyPath, Action onChanged)
+    /// <param name="keyPath">HKCU からのキーのパス。</param>
+    /// <param name="onChanged">値が変わったときに、スレッドプールのスレッドで呼ばれる。</param>
+    /// <param name="onStopped">
+    /// 通知を登録し直せず、監視が止まったときに1回だけ、スレッドプールのスレッドで呼ばれる（キーが削除された場合など）。
+    /// 呼ばれた後は通知されないので、呼び出し元は <see cref="Dispose"/> し、読み直す方法に戻す。
+    /// </param>
+    public static RegistryChangeWatcher? TryStart(string keyPath, Action onChanged, Action onStopped)
     {
         RegistryKey? key;
         try
@@ -63,7 +73,7 @@ internal sealed partial class RegistryChangeWatcher : IDisposable
             return null;
         }
 
-        var watcher = new RegistryChangeWatcher(key, onChanged);
+        var watcher = new RegistryChangeWatcher(key, onChanged, onStopped);
         if (!watcher.Register())
         {
             watcher.Dispose();
@@ -74,7 +84,15 @@ internal sealed partial class RegistryChangeWatcher : IDisposable
 
     public void Dispose()
     {
-        waitHandle.Unregister(waitObject: null);
+        // 実行中の通知が終わるのを待ってから、キーとイベントを閉じる（終了の処理と通知が重なっても、
+        // 破棄した後のものに触らないように）
+        using (var unregistered = new ManualResetEvent(initialState: false))
+        {
+            if (waitHandle.Unregister(unregistered))
+            {
+                unregistered.WaitOne();
+            }
+        }
         // キーを閉じると、登録した通知も取り消される
         key.Dispose();
         changedEvent.Dispose();
@@ -89,9 +107,10 @@ internal sealed partial class RegistryChangeWatcher : IDisposable
     private void HandleChanged()
     {
         // 先に登録し直してから知らせる。知らせた先で値を読むので、その間の変更も取りこぼさない
+        bool isRegistered;
         try
         {
-            Register();
+            isRegistered = Register();
         }
         // Dispose でキーを閉じた後に呼ばれた場合
         catch (ObjectDisposedException)
@@ -99,5 +118,10 @@ internal sealed partial class RegistryChangeWatcher : IDisposable
             return;
         }
         onChanged();
+        // キーが削除された場合など。開いたままのハンドルは削除されたキーを指すので、キーが作り直されても通知されない
+        if (!isRegistered)
+        {
+            onStopped();
+        }
     }
 }

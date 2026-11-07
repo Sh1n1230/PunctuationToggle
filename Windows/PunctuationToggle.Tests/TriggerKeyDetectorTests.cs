@@ -7,12 +7,39 @@ public class ModifierTriggerTests
 {
     private readonly TriggerKeyDetector detector = new(TriggerKey.RightControl);
 
-    [Fact]
-    public void Windowsキーも単独押しで切り替える()
+    [Theory]
+    [InlineData(VirtualKeys.LeftWindows)]
+    [InlineData(VirtualKeys.RightWindows)]
+    [InlineData(VirtualKeys.LeftAlt)]
+    [InlineData(VirtualKeys.RightAlt)]
+    public void WindowsキーとAltキーは単独押しで切り替え_メニューが開かないよう離した入力を送り直させる(int virtualKey)
     {
+        detector.TriggerKey = TriggerKey.FromVirtualKey(virtualKey)!;
+        Assert.Equal(InputDecision.PassThrough, detector.Handle(KeyboardInput.KeyDown(virtualKey)));
+        Assert.Equal(
+            new InputDecision(ShouldToggle: true, ShouldSuppress: true, ShouldMaskMenu: true),
+            detector.Handle(KeyboardInput.KeyUp(virtualKey)));
+    }
+
+    [Fact]
+    public void Windowsキーとほかのキーの組み合わせでは_離した入力をそのまま渡す()
+    {
+        // Windows＋E などのショートカットでは切り替えず、メニューも OS の動作のまま
         detector.TriggerKey = TriggerKey.FromVirtualKey(VirtualKeys.LeftWindows)!;
         detector.Handle(KeyboardInput.KeyDown(VirtualKeys.LeftWindows));
-        Assert.Equal(new InputDecision(ShouldToggle: true), detector.Handle(KeyboardInput.KeyUp(VirtualKeys.LeftWindows)));
+        detector.Handle(KeyboardInput.KeyDown('E', otherModifiersHeld: true));
+        detector.Handle(KeyboardInput.KeyUp('E'));
+        Assert.Equal(InputDecision.PassThrough, detector.Handle(KeyboardInput.KeyUp(VirtualKeys.LeftWindows)));
+    }
+
+    [Theory]
+    [InlineData(VirtualKeys.LeftControl)]
+    [InlineData(VirtualKeys.RightShift)]
+    public void CtrlキーとShiftキーは離した入力をそのまま渡す(int virtualKey)
+    {
+        detector.TriggerKey = TriggerKey.FromVirtualKey(virtualKey)!;
+        detector.Handle(KeyboardInput.KeyDown(virtualKey));
+        Assert.Equal(new InputDecision(ShouldToggle: true), detector.Handle(KeyboardInput.KeyUp(virtualKey)));
     }
 
     [Fact]

@@ -1,0 +1,14 @@
+<Project>
+  <!-- Windows フォルダ以下のテストのプロジェクトが使う NuGet パッケージの版（2つのテストのプロジェクトで同じ版にそろえる）。
+       Dependabot（.github/dependabot.yml の nuget）はこのファイルの版を更新する -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.1" />
+    <PackageVersion Include="coverlet.collector" Version="10.1.0" />
+  </ItemGroup>
+</Project>

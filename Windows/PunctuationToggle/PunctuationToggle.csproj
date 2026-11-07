@@ -3,8 +3,23 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
+    <!-- 動作に必要な最低の Windows の版は Windows 10 1607。使っている API のうち最も新しいものが
+         GetSystemMetricsForDpi（TrayIconRenderer.cs）で、.NET 10 が対応する最も古い Windows 10 とも同じ。
+         SupportedOSPlatformVersion で明示しないのは、net10.0-windows（TargetPlatformVersion 7.0）より大きな値を
+         書くには TargetFramework を net10.0-windows10.0.17763.0 以上にする必要があり、使わない WinRT の投影
+         （Microsoft.Windows.SDK.NET.dll などの大きな DLL）が配布用の exe に入るため（#177） -->
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <!-- exe のアイコン（エクスプローラー・スタートアップ アプリの一覧・タスク マネージャー・設定画面のタイトルバー）。
+         macOS 版と同じ図柄で、Windows/Scripts/generate_app_icon.ps1 で作る。タスクトレイのアイコンは実行時に句読点を描く -->
+    <ApplicationIcon>PunctuationToggle.ico</ApplicationIcon>
+    <!-- 既定の Segoe UI には日本語の文字が無く、メニューの和文だけが別のフォントになって字面がそろわないため、
+         アプリ全体（タスクトレイのメニュー・設定画面・ダイアログ）の既定のフォントを日本語の UI フォントにする。
+         ApplicationConfiguration.Initialize（Program.cs）が Application.SetDefaultFont を呼ぶ -->
+    <ApplicationDefaultFont>Yu Gothic UI, 9pt</ApplicationDefaultFont>
+    <!-- UI は日本語だけなので、ランタイム（Windows Forms など）の地域化のリソースは日本語だけを配布物に含める
+         （英語は既定のリソースとして本体に入っている）。自己完結型で発行する配布用の exe が小さくなる -->
+    <SatelliteResourceLanguages>ja</SatelliteResourceLanguages>
     <RootNamespace>PunctuationToggle</RootNamespace>
     <AssemblyName>PunctuationToggle</AssemblyName>
     <!-- macOS や Linux でもビルド（コンパイルの確認）だけはできるようにする -->
@@ -15,6 +30,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PunctuationToggle.Core\PunctuationToggle.Core.csproj" />
+  </ItemGroup>
+
+  <!-- レジストリまわりの internal のメソッドを、Windows だけで動くテストから呼ぶ -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="PunctuationToggle.WindowsTests" />
   </ItemGroup>
 
 </Project>

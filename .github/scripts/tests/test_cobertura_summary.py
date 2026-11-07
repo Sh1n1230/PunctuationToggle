@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import cobertura_summary
 
-REPORT = """<coverage><packages><package><classes>
+REPORT = """<coverage><packages><package name="PunctuationToggle.Core"><classes>
 <class filename="Core/NativeMethods.cs"><lines><line number="1" hits="1"/><line number="2" hits="0"/></lines></class>
 <class filename="App/NativeMethods.cs"><lines><line number="1" hits="0"/></lines></class>
 <class filename="Core/TriggerKey.cs"><lines><line number="5" hits="2"/></lines></class>
@@ -37,6 +37,14 @@ class CoberturaSummaryTest(unittest.TestCase):
         )
         self.assertEqual(names["App/NativeMethods.cs"], "App/NativeMethods.cs")
         self.assertEqual(names["Core/TriggerKey.cs"], "TriggerKey.cs")
+
+
+class PackageNamesTest(unittest.TestCase):
+    def test_対象のアセンブリの名前を重ねずに並べる(self) -> None:
+        root = ElementTree.fromstring(
+            '<coverage><packages><package name="B"/><package name="A"/><package name="B"/></packages></coverage>'
+        )
+        self.assertEqual(cobertura_summary.package_names(root), ["A", "B"])
 
 
 if __name__ == "__main__":

@@ -4,8 +4,8 @@ namespace PunctuationToggle;
 /// 切り替えキーに使えないキーを押したときに、利用者に示すキーの名前。
 /// </summary>
 /// <remarks>
-/// 文字キーなど、よく押されるキーだけを表にしている。表に無いキーは、アプリ本体で
-/// System.Windows.Forms.Keys の名前を使う（TriggerKeyRecorderForm を参照）。
+/// 文字キーや日本語キーボードだけにあるキーなど、よく押されるキーだけを表にしている。表に無いキー（記号のキーなど）は、
+/// アプリ本体で今のキーボード配列での名前（GetKeyNameText）を使う（TriggerKeyRecorderForm を参照）。
 /// 仮想キーコードの値は WinUser.h の VK_* と同じ。
 /// </remarks>
 public static class VirtualKeyNames
@@ -14,6 +14,7 @@ public static class VirtualKeyNames
     private const int Tab = 0x09; // VK_TAB
     private const int Enter = 0x0D; // VK_RETURN
     private const int CapsLock = 0x14; // VK_CAPITAL
+    private const int Kana = 0x15; // VK_KANA（日本語キーボードの「カタカナ ひらがな」）
     private const int Space = 0x20; // VK_SPACE
     private const int PageUp = 0x21; // VK_PRIOR
     private const int PageDown = 0x22; // VK_NEXT
@@ -32,6 +33,8 @@ public static class VirtualKeyNames
     private const int NumPad0 = 0x60; // VK_NUMPAD0
     private const int NumPad9 = 0x69; // VK_NUMPAD9
     private const int NumLock = 0x90; // VK_NUMLOCK
+    private const int Eisu = 0xF0; // VK_OEM_ATTN（日本語入力がオンのときの「英数」）
+    private const int KatakanaHiragana = 0xF2; // VK_OEM_COPY（日本語入力がオンのときの「カタカナ ひらがな」）
     private const int HankakuZenkaku = 0xF3; // VK_OEM_AUTO（日本語キーボードの「半角/全角」）
     private const int HankakuZenkakuAlternate = 0xF4; // VK_OEM_ENLW（「半角/全角」は押すたびにこの2つが入れ替わる）
 
@@ -41,6 +44,7 @@ public static class VirtualKeyNames
         [Tab] = "Tab",
         [Enter] = "Enter",
         [CapsLock] = "Caps Lock",
+        [Kana] = "カタカナ ひらがな",
         [Space] = "スペース",
         [PageUp] = "Page Up",
         [PageDown] = "Page Down",
@@ -53,6 +57,8 @@ public static class VirtualKeyNames
         [Insert] = "Insert",
         [Delete] = "Delete",
         [NumLock] = "Num Lock",
+        [Eisu] = "英数",
+        [KatakanaHiragana] = "カタカナ ひらがな",
         [HankakuZenkaku] = "半角/全角",
         [HankakuZenkakuAlternate] = "半角/全角",
     };
