@@ -9,7 +9,7 @@ namespace PunctuationToggle;
 /// </summary>
 internal sealed class TrayApplication : ApplicationContext
 {
-    private const string RepositoryUrl = "https://github.com/Sh1n1230/PunctuationToggle";
+    internal const string RepositoryUrl = "https://github.com/Sh1n1230/PunctuationToggle";
 
     // 最新のリリースのページ。アプリ自身は通信せず、利用者がメニューを選んだときだけブラウザーで開く
     private const string LatestReleaseUrl = RepositoryUrl + "/releases/latest";
@@ -96,6 +96,14 @@ internal sealed class TrayApplication : ApplicationContext
         }
         base.Dispose(disposing);
     }
+
+    /// <summary>もう一度起動されたときに、すでに起動していることと、操作する場所を知らせる。</summary>
+    public void ShowAlreadyRunningNotice() =>
+        notifyIcon.ShowBalloonTip(
+            BalloonTipTimeoutMilliseconds,
+            "PunctuationToggle",
+            "PunctuationToggle はすでに起動しています。タスクトレイ（通知領域）のこのアイコンから操作できます。",
+            ToolTipIcon.Info);
 
     // ---- 入力の処理 ----
 
