@@ -9,7 +9,9 @@
 
 use std::borrow::Cow;
 use std::env;
+use std::error::Error;
 use std::ffi::OsString;
+use std::fmt;
 use std::io::{self, BufWriter, ErrorKind, Read, Write};
 use std::process::ExitCode;
 
@@ -37,8 +39,27 @@ const VERSION: &str = "1.3.0";
 
 const EXIT_USAGE_ERROR: u8 = 2;
 
-/// UTF-8 として正しくない入力のときのメッセージ（3つの実装で同じ文言）
-const INVALID_UTF8_MESSAGE: &str = "入力を UTF-8 として読み込めませんでした。";
+/// 入力が UTF-8 として正しくない。位置は3つの実装で同じ数え方にする
+#[derive(Debug, PartialEq, Eq)]
+struct InvalidUtf8 {
+    /// 正しくないバイト列の最初のバイトが、入力の先頭から何バイト目か（1 から数える）
+    byte_position: u64,
+    /// そのバイトが何行目か（1 から数える）。行は LF（CRLF の LF を含む）で区切り、CR だけの改行は数えない
+    line: u64,
+}
+
+impl fmt::Display for InvalidUtf8 {
+    /// 標準エラー出力に書くメッセージ（3つの実装で同じ文言）
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "入力を UTF-8 として読み込めませんでした（{} 行目、先頭から {} バイト目）。",
+            self.line, self.byte_position
+        )
+    }
+}
+
+impl Error for InvalidUtf8 {}
 
 /// 一度に読み込むバイト数。改行の無い巨大な入力でもメモリを使い切らないよう、行単位ではなく一定の量ずつ読む
 const CHUNK_SIZE: usize = 1 << 16;
@@ -109,7 +130,7 @@ fn main() -> ExitCode {
         // 出力の読み手が先に終了した（`| head` など）ときは、ほかの実装と同じく黙って成功で終える
         Err(error) if error.kind() == ErrorKind::BrokenPipe => ExitCode::SUCCESS,
         Err(error) if error.kind() == ErrorKind::InvalidData => {
-            write_error(&format!("{INVALID_UTF8_MESSAGE}\n"));
+            write_error(&format!("{error}\n"));
             ExitCode::FAILURE
         }
         Err(error) => {
@@ -136,6 +157,9 @@ fn convert_stream(
     let mut buffer = vec![0; CHUNK_SIZE];
     // 前回の読み込みの末尾にあった、途中で切れた文字のバイト数（バッファの先頭に移してある）
     let mut carried = 0;
+    // UTF-8 として正しいと確かめたバイト数と、その中の LF の数（正しくない入力の位置を示すため）
+    let mut checked_bytes: u64 = 0;
+    let mut line_feeds: u64 = 0;
 
     loop {
         let read = match input.read(&mut buffer[carried..]) {
@@ -150,7 +174,16 @@ fn convert_stream(
 
         // 末尾で途中までしか読めていない文字は、続きを読んでから変換する
         let valid = complete_prefix_len(&buffer[..filled]);
-        std::str::from_utf8(&buffer[..valid]).map_err(|_| invalid_utf8_error())?;
+        if let Err(error) = std::str::from_utf8(&buffer[..valid]) {
+            let valid_up_to = error.valid_up_to();
+            return Err(invalid_utf8_error(
+                checked_bytes + valid_up_to as u64,
+                line_feeds + count_line_feeds(&buffer[..valid_up_to]),
+            ));
+        }
+        // 句読点の置き換えは LF を変えないので、置き換える前に数えてよい
+        checked_bytes += valid as u64;
+        line_feeds += count_line_feeds(&buffer[..valid]);
         convert_in_place(&mut buffer[..valid], replacements);
         writer.write_all(&buffer[..valid])?;
 
@@ -160,7 +193,7 @@ fn convert_stream(
 
     // 末尾の文字が途中で切れている
     if carried > 0 {
-        return Err(invalid_utf8_error());
+        return Err(invalid_utf8_error(checked_bytes, line_feeds));
     }
     writer.flush()
 }
@@ -190,8 +223,30 @@ fn complete_prefix_len(bytes: &[u8]) -> usize {
     bytes.len()
 }
 
-fn invalid_utf8_error() -> io::Error {
-    io::Error::new(ErrorKind::InvalidData, INVALID_UTF8_MESSAGE)
+/// 正しくない UTF-8 のエラー。
+/// `valid_bytes` は、その手前までの正しいバイト数、`line_feeds` はその中の LF の数
+fn invalid_utf8_error(valid_bytes: u64, line_feeds: u64) -> io::Error {
+    io::Error::new(
+        ErrorKind::InvalidData,
+        InvalidUtf8 {
+            byte_position: valid_bytes + 1,
+            line: line_feeds + 1,
+        },
+    )
+}
+
+/// LF の数を数える。すべての入力を数えるので、255 バイトずつ u8 の和を求めて、
+/// SIMD で数えられる形にする（filter().count() より速い）
+fn count_line_feeds(bytes: &[u8]) -> u64 {
+    bytes
+        .chunks(usize::from(u8::MAX))
+        .map(|chunk| {
+            let count = chunk
+                .iter()
+                .fold(0u8, |count, &byte| count + u8::from(byte == b'\n'));
+            u64::from(count)
+        })
+        .sum()
 }
 
 /// UTF-8 として正しいことを確かめたバイト列の中の句読点を、その場で置き換える。
@@ -392,6 +447,75 @@ mod tests {
         }
     }
 
+    /// エラーが正しくない UTF-8 のときに、その位置を返す
+    fn invalid_utf8_position(error: &io::Error) -> Option<&InvalidUtf8> {
+        error.get_ref()?.downcast_ref::<InvalidUtf8>()
+    }
+
+    #[test]
+    fn 正しくない_utf8_の位置をバイトと行で示す() {
+        let error = convert_bytes(&b"a\nb\r\nc\xff"[..]).unwrap_err();
+        assert_eq!(
+            invalid_utf8_position(&error),
+            Some(&InvalidUtf8 {
+                byte_position: 7,
+                line: 3
+            })
+        );
+        assert_eq!(
+            error.to_string(),
+            "入力を UTF-8 として読み込めませんでした（3 行目、先頭から 7 バイト目）。"
+        );
+        // CR だけの改行は行として数えない
+        let error = convert_bytes(&b"a\rb\xff"[..]).unwrap_err();
+        assert_eq!(
+            invalid_utf8_position(&error),
+            Some(&InvalidUtf8 {
+                byte_position: 4,
+                line: 1
+            })
+        );
+    }
+
+    #[test]
+    fn 読み込みの区切りをまたいでも正しくない_utf8_の位置は同じ() {
+        // 2回目の読み込みの先頭が正しくない
+        let mut input = vec![b'a'; CHUNK_SIZE - 1];
+        input.extend_from_slice(b"\n\xe3\x81\xff");
+        let error = convert_bytes(&input[..]).unwrap_err();
+        assert_eq!(
+            invalid_utf8_position(&error),
+            Some(&InvalidUtf8 {
+                byte_position: CHUNK_SIZE as u64 + 1,
+                line: 2
+            })
+        );
+        // 1回目の読み込みの末尾で切れた文字が、2回目の読み込みで正しくないと分かる
+        let mut input = vec![b'a'; CHUNK_SIZE - 1];
+        input.extend_from_slice(b"\xe3\x80\xff");
+        let error = convert_bytes(&input[..]).unwrap_err();
+        assert_eq!(
+            invalid_utf8_position(&error),
+            Some(&InvalidUtf8 {
+                byte_position: CHUNK_SIZE as u64,
+                line: 1
+            })
+        );
+        // 1バイトずつしか読めなくても同じ位置になる
+        let error = convert_bytes(ShortReads {
+            remaining: &input[..],
+            chunk_length: 1,
+        })
+        .unwrap_err();
+        assert_eq!(
+            invalid_utf8_position(&error),
+            Some(&InvalidUtf8 {
+                byte_position: CHUNK_SIZE as u64,
+                line: 1
+            })
+        );
+    }
+
     #[test]
     fn 入力の途中の不正なバイトでエラーになり_それより前の読み込みの分だけを書き出す() {
         let error = convert_bytes(&b"a\xffb"[..]).unwrap_err();
@@ -419,5 +543,13 @@ mod tests {
     fn 末尾で文字が切れたまま終わると不正なデータ() {
         let error = convert_bytes(&b"a\xe3\x80"[..]).unwrap_err();
         assert_eq!(error.kind(), ErrorKind::InvalidData);
+        // 切れた文字の先頭バイトの位置
+        assert_eq!(
+            invalid_utf8_position(&error),
+            Some(&InvalidUtf8 {
+                byte_position: 2,
+                line: 1
+            })
+        );
     }
 }

@@ -4,8 +4,10 @@
 
 // 標準入力の文章の句読点を「、。」⇔「，．」に変換して、標準出力に書き出す。
 using System;
+using System.Buffers;
 using System.IO;
 using System.Text;
+using System.Text.Unicode;
 
 internal static class PunctuationConverter
 {
@@ -34,7 +36,7 @@ internal static class PunctuationConverter
     private const int ExitFailure = 1;
     private const int ExitUsageError = 2;
 
-    // 一度に読み込む文字数
+    // 一度に読み込むバイト数
     private const int BufferSize = 1 << 16;
 
     // 変換前の文字と変換後の文字を、同じ位置に並べたもの
@@ -62,7 +64,9 @@ internal static class PunctuationConverter
             var text = argument == "--version" ? "punctuation_converter " + Version + "\n" : Usage;
             try
             {
-                WriteUtf8(OpenOrNull(Console.OpenStandardOutput), text);
+                using var writer = OpenOutput();
+                writer.Write(text);
+                writer.Flush();
                 return ExitSuccess;
             }
             catch (IOException exception)
@@ -79,14 +83,15 @@ internal static class PunctuationConverter
 
         try
         {
-            Convert(OpenOrNull(Console.OpenStandardInput), OpenOrNull(Console.OpenStandardOutput), sources, targets);
+            if (Convert(OpenInput(), OpenOutput(), sources, targets) is { } invalid)
+            {
+                // ほかの実装と同じく、UTF-8 として正しくない入力は置き換えずにエラーにし、位置を示す
+                WriteError(
+                    "入力を UTF-8 として読み込めませんでした（" + invalid.Line + " 行目、先頭から " +
+                    invalid.BytePosition + " バイト目）。\n");
+                return ExitFailure;
+            }
             return ExitSuccess;
-        }
-        catch (DecoderFallbackException)
-        {
-            // ほかの実装と同じく、UTF-8 として正しくない入力は置き換えずにエラーにする
-            WriteError("入力を UTF-8 として読み込めませんでした。\n");
-            return ExitFailure;
         }
         catch (UnauthorizedAccessException)
         {
@@ -102,31 +107,148 @@ internal static class PunctuationConverter
         }
     }
 
-    // 入力を一定の文字数ずつ読み、変換して書き出す。置換する文字はどれも1文字なので、区切る位置は問わない。
-    private static void Convert(Stream input, Stream output, string sources, string targets)
+    // 入力が UTF-8 として正しくない位置。3つの実装で同じ数え方にする。
+    // BytePosition: 正しくないバイト列の最初のバイトが、入力の先頭から何バイト目か（1 から数える）
+    // Line: そのバイトが何行目か（1 から数える）。行は LF（CRLF の LF を含む）で区切り、CR だけの改行は数えない
+    private readonly record struct InvalidUtf8(long BytePosition, long Line);
+
+    // 入力を一定のバイト数ずつ読み、変換して書き出す。置換する文字はどれも1文字なので、区切る位置は問わない。
+    // 正しくない UTF-8 の位置を示せるよう、バイト列として読み、自分で復号する。
+    // 入力が UTF-8 として正しくなければ、その位置を返す（それまでに読んだ分は書き出している）。
+    private static InvalidUtf8? Convert(Stream input, TextWriter output, string sources, string targets)
     {
-        // BOM を付け足したり取り除いたりしないよう、BOM なしの UTF-8 として読み書きする。
-        // 読み込みでは、正しくないバイト列を U+FFFD に置き換えて出力を黙って変えないよう、例外にする
-        var inputEncoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
-        var outputEncoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
-        using (var reader = new StreamReader(input, inputEncoding, detectEncodingFromByteOrderMarks: false, bufferSize: BufferSize))
-        using (var writer = new StreamWriter(output, outputEncoding, BufferSize))
+        using var writer = output;
+        var bytes = new byte[BufferSize];
+        // UTF-8 の1バイトは UTF-16 の1文字以下になるので、同じ大きさで足りる
+        var characters = new char[BufferSize];
+        // 前回の読み込みの末尾にあった、途中で切れた文字のバイト数（バッファの先頭に移してある）
+        var carried = 0;
+        // 正しいと確かめたバイト数と、その中の LF の数
+        long checkedBytes = 0;
+        long lineFeeds = 0;
+
+        while (true)
         {
-            var buffer = new char[BufferSize];
-            int length;
-            while ((length = reader.Read(buffer, 0, buffer.Length)) > 0)
+            var read = input.Read(bytes, carried, bytes.Length - carried);
+            var filled = carried + read;
+            var isEnd = read == 0;
+            // 正しくないバイト列を U+FFFD に置き換えて出力を黙って変えないよう、置き換えずに止める。
+            // 入力の終わりでなければ、末尾で切れた文字は NeedMoreData として残し、続きを読んでから復号する
+            var status = Utf8.ToUtf16(
+                bytes.AsSpan(0, filled), characters, out var bytesRead, out var charactersWritten,
+                replaceInvalidSequences: false, isFinalBlock: isEnd);
+            var lineFeedsRead = bytes.AsSpan(0, bytesRead).Count((byte)'\n');
+            if (status == OperationStatus.InvalidData)
             {
-                for (var index = 0; index < length; index++)
-                {
-                    var sourceIndex = sources.IndexOf(buffer[index]);
-                    if (sourceIndex >= 0)
-                    {
-                        buffer[index] = targets[sourceIndex];
-                    }
-                }
-                writer.Write(buffer, 0, length);
+                return new InvalidUtf8(checkedBytes + bytesRead + 1, lineFeeds + lineFeedsRead + 1);
             }
+            checkedBytes += bytesRead;
+            lineFeeds += lineFeedsRead;
+
+            for (var index = 0; index < charactersWritten; index++)
+            {
+                var sourceIndex = sources.IndexOf(characters[index]);
+                if (sourceIndex >= 0)
+                {
+                    characters[index] = targets[sourceIndex];
+                }
+            }
+            writer.Write(characters, 0, charactersWritten);
+
+            if (isEnd)
+            {
+                return null;
+            }
+            carried = filled - bytesRead;
+            bytes.AsSpan(bytesRead, carried).CopyTo(bytes);
         }
+    }
+
+    // 日本語版 Windows のコンソールの既定のコードページは 932（Shift_JIS）のため、UTF-8 のバイト列をコンソールに
+    // そのまま書くと文字化けし、コンソールで入力した文字も UTF-8 として読めない。ほかの実装（Python・Rust）と同じく、
+    // Windows でコンソールに直接つながっているときだけ、UTF-16 で読み書きする（.NET は WriteConsoleW・ReadConsoleW を使う）。
+    // Encoding.Unicode（UTF-16）を設定しても、.NET はコンソールのコードページを変えないので、終了した後のコンソールにも影響しない。
+    // リダイレクトしたときは、今までどおり UTF-8 のバイト列をそのまま読み書きする
+    private static bool IsWindowsConsole(bool isRedirected) => OperatingSystem.IsWindows() && !isRedirected;
+
+    // 標準入力を、UTF-8 のバイト列として読むストリーム
+    private static Stream OpenInput()
+    {
+        if (IsWindowsConsole(Console.IsInputRedirected))
+        {
+            Console.InputEncoding = Encoding.Unicode;
+            return Encoding.CreateTranscodingStream(
+                new ConsoleInputStream(Console.OpenStandardInput()), Encoding.Unicode,
+                new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        }
+        return OpenOrNull(Console.OpenStandardInput);
+    }
+
+    // Windows のコンソールからの UTF-16 の入力で、入力の終わり（Ctrl+Z）を扱う。ReadConsoleW は Ctrl+Z を文字（U+001A）
+    // として返すため、ほかの実装（Python・Rust）と同じく、1回の読み込み（1行）が Ctrl+Z で始まっていたら入力の終わりとみなす
+    private sealed class ConsoleInputStream(Stream console) : Stream
+    {
+        private const byte CtrlZ = 0x1A;
+        private bool isEnded;
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            if (isEnded)
+            {
+                return 0;
+            }
+            var read = console.Read(buffer, offset, count);
+            // UTF-16LE の U+001A は 1A 00
+            if (read >= 2 && buffer[offset] == CtrlZ && buffer[offset + 1] == 0)
+            {
+                isEnded = true;
+                return 0;
+            }
+            return read;
+        }
+
+        public override void Flush()
+        {
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                console.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+    }
+
+    // 標準出力に書く TextWriter。BOM を付け足したり取り除いたりしないよう、BOM なしの UTF-8 として書き出す
+    // （読み込みでも BOM は U+FEFF のまま扱う）
+    private static TextWriter OpenOutput()
+    {
+        if (IsWindowsConsole(Console.IsOutputRedirected))
+        {
+            Console.OutputEncoding = Encoding.Unicode;
+            return Console.Out;
+        }
+        return new StreamWriter(
+            OpenOrNull(Console.OpenStandardOutput), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), BufferSize);
     }
 
     // シェルの >&- などで標準入出力が閉じていると、.NET は開くときに例外を投げる。
@@ -152,17 +274,20 @@ internal static class PunctuationConverter
     {
         try
         {
-            WriteUtf8(OpenOrNull(Console.OpenStandardError), text);
+            if (IsWindowsConsole(Console.IsErrorRedirected))
+            {
+                Console.OutputEncoding = Encoding.Unicode;
+                Console.Error.Write(text);
+                Console.Error.Flush();
+                return;
+            }
+            var stream = OpenOrNull(Console.OpenStandardError);
+            var bytes = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false).GetBytes(text);
+            stream.Write(bytes, 0, bytes.Length);
+            stream.Flush();
         }
         catch (IOException)
         {
         }
-    }
-
-    private static void WriteUtf8(Stream stream, string text)
-    {
-        var bytes = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false).GetBytes(text);
-        stream.Write(bytes, 0, bytes.Length);
-        stream.Flush();
     }
 }
