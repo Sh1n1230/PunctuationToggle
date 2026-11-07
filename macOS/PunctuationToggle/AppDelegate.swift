@@ -1,4 +1,5 @@
 import AppKit
+import OSLog
 import ServiceManagement
 
 /// メニューバーに現在の句読点を表示し、切り替えキーで切り替える。
@@ -7,6 +8,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var detector = TriggerKeyDetector(triggerKey: TriggerKeyStore.triggerKey)
     private var triggerKeyRecorder: TriggerKeyRecorderWindowController?
     private var permissionRetryTimer: Timer?
+    /// `permissionRetryTimer` の間隔（秒）。待っていないときは nil
+    private var permissionRetryInterval: Double?
     /// アクセシビリティの許可を待ち始めた時刻。待っていないときは nil
     private var permissionWaitStartDate: Date?
     private var isShowingSaveFailureAlert = false
@@ -24,7 +27,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         // 二重に起動すると切り替えキーで2回切り替わって元に戻ってしまうため、後から起動した方は何もせずに終わる
         // （~/Applications のアプリとビルドしたアプリなど、別の場所のアプリでも同じバンドル ID なら対象にする）
-        if isAnotherInstanceRunning() {
+        if earlierRunningInstance() != nil {
             NSApp.terminate(nil)
             return
         }
@@ -33,6 +36,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         keyboardMonitor.inputHandler = { [weak self] input in
             self?.handle(input) ?? false
+        }
+        keyboardMonitor.inputDidReset = { [weak self] in
+            self?.handleInputReset()
         }
 
         // システム設定側で変更された場合も表示を追従させる
@@ -52,16 +58,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         keyboardMonitor.stop()
     }
 
-    /// 先に起動した同じアプリが動いているか。
-    /// 同時に起動した場合に両方が終わらないよう、起動した時刻（同じならプロセス ID）が早い方を残す
-    private func isAnotherInstanceRunning() -> Bool {
-        guard let bundleIdentifier = Bundle.main.bundleIdentifier else { return false }
-        let current = NSRunningApplication.current
-        let currentOrder = (current.launchDate ?? .distantFuture, current.processIdentifier)
-        return NSRunningApplication.runningApplications(withBundleIdentifier: bundleIdentifier).contains { other in
-            other.processIdentifier != current.processIdentifier && !other.isTerminated
-                && (other.launchDate ?? .distantFuture, other.processIdentifier) < currentOrder
+    /// 先に起動して動いている同じアプリ。無ければ nil。
+    /// 同時に起動した場合に両方が終わらないよう、起動した時刻（同じならプロセス ID）が早い方を残す（判定は Core）
+    private func earlierRunningInstance() -> NSRunningApplication? {
+        guard let bundleIdentifier = Bundle.main.bundleIdentifier else { return nil }
+        let others = NSRunningApplication.runningApplications(withBundleIdentifier: bundleIdentifier)
+        let current = RunningInstance(NSRunningApplication.current)
+        guard let earlier = current.earliestEarlierInstance(among: others.map(RunningInstance.init)) else {
+            return nil
         }
+        return others.first { other in other.processIdentifier == earlier.processIdentifier }
     }
 
     // MARK: - 入力の処理
@@ -81,10 +87,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return decision.shouldSuppress
     }
 
+    /// 入力を取りこぼした可能性があるとき（イベントタップが一時的に無効にされたとき）に、判定の途中の状態を破棄する。
+    /// 押している間のほかの入力（右Command＋C の C など）を取りこぼしたまま、離したときに単独押しと判断しないため
+    private func handleInputReset() {
+        detector.reset()
+        triggerKeyRecorder?.resetCapture()
+        // 許可を外されたことでタップが無効にされた場合は、ここで気付ける
+        stopKeyboardMonitorIfPermissionRevoked()
+    }
+
     private func togglePunctuationStyle() {
         let newStyle = JapaneseInputPunctuation.current.toggled
         if !JapaneseInputPunctuation.set(newStyle) {
-            NSLog("句読点の設定を保存できませんでした: \(newStyle.symbols)")
+            AppLog.logger.error("句読点の設定を保存できませんでした: \(newStyle.symbols, privacy: .public)")
             showSaveFailureAlert()
         }
         updateStatusItem()
@@ -115,23 +130,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // 許可を求めるダイアログを出し、許可されるまで定期的に再試行する
         let options = [Self.trustedCheckOptionPromptKey: true] as CFDictionary
         AXIsProcessTrustedWithOptions(options)
-
-        permissionWaitStartDate = Date()
-        schedulePermissionRetry(interval: Self.permissionRetryInterval)
+        startWaitingForPermission()
     }
 
-    /// 許可されたかを確かめる間隔。許可した直後にすぐ反映されるよう短くする
-    private static let permissionRetryInterval: TimeInterval = 1
+    /// 許可されたかを、定期的に（とメニューを開いたときに）確かめ始める。間隔は `PermissionRetrySchedule` で決める
+    private func startWaitingForPermission() {
+        permissionWaitStartDate = Date()
+        schedulePermissionRetry(interval: PermissionRetrySchedule.interval(elapsedSinceWaitStart: 0))
+    }
 
-    /// 許可されないまま `permissionRetryInterval` で確かめ続ける時間。
-    /// 許可しないまま常駐させた場合に、1秒ごとの起床を続けないため
-    private static let frequentPermissionRetryDuration: TimeInterval = 60
-
-    /// `frequentPermissionRetryDuration` を過ぎた後に確かめる間隔（メニューを開いたときにもすぐ確かめる）
-    private static let slowPermissionRetryInterval: TimeInterval = 10
-
-    private func schedulePermissionRetry(interval: TimeInterval) {
+    private func stopWaitingForPermission() {
         permissionRetryTimer?.invalidate()
+        permissionRetryTimer = nil
+        permissionRetryInterval = nil
+        permissionWaitStartDate = nil
+    }
+
+    private func schedulePermissionRetry(interval: Double) {
+        permissionRetryTimer?.invalidate()
+        permissionRetryInterval = interval
         // メインの RunLoop に登録したタイマーなので、メインスレッドで呼ばれる
         permissionRetryTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
@@ -145,17 +162,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard let permissionWaitStartDate else { return }
 
         if keyboardMonitor.start() {
-            permissionRetryTimer?.invalidate()
-            permissionRetryTimer = nil
-            self.permissionWaitStartDate = nil
+            stopWaitingForPermission()
             updateStatusItem()
             return
         }
 
-        let isFrequent = permissionRetryTimer?.timeInterval == Self.permissionRetryInterval
-        if isFrequent, Date().timeIntervalSince(permissionWaitStartDate) >= Self.frequentPermissionRetryDuration {
-            schedulePermissionRetry(interval: Self.slowPermissionRetryInterval)
+        let interval = PermissionRetrySchedule.interval(
+            elapsedSinceWaitStart: Date().timeIntervalSince(permissionWaitStartDate)
+        )
+        if interval != permissionRetryInterval {
+            schedulePermissionRetry(interval: interval)
         }
+    }
+
+    /// 監視を始めた後にアクセシビリティの許可が外されていたら、監視を止めて許可を待つ状態に戻す。
+    /// 許可を外されてもイベントタップは残り、入力が届かなくなるだけなので、メニューバーの表示を「⚠︎」にして知らせる。
+    /// 利用者が自分で外した場合もあるので、許可を求めるダイアログは出さない
+    private func stopKeyboardMonitorIfPermissionRevoked() {
+        guard keyboardMonitor.isRunning, !keyboardMonitor.isPermitted else { return }
+
+        keyboardMonitor.stop()
+        detector.reset()
+        // 設定画面は入力が届かないと閉じられなくなる（Esc が効かない）ので、閉じる
+        triggerKeyRecorder?.cancelCapture()
+        startWaitingForPermission()
+        updateStatusItem()
     }
 
     // MARK: - メニュー
@@ -202,6 +233,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
+        // 許可を外したことは入力が届かなくなるだけで知らされないため、メニューを開いたときに確かめる
+        stopKeyboardMonitorIfPermissionRevoked()
         // 許可を待つ間隔を延ばした後も、メニューを開いたときにはすぐ確かめる
         retryKeyboardMonitor()
         updateStatusItem()
@@ -277,7 +310,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 try service.register()
             }
         } catch {
-            NSLog("ログイン項目の変更に失敗しました: \(error)")
+            AppLog.logger.error("ログイン項目の変更に失敗しました: \(String(describing: error), privacy: .public)")
             let alert = NSAlert(error: error)
             alert.messageText = "「ログイン時に起動」を変更できませんでした"
             NSApp.activate()
@@ -311,5 +344,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func showAboutPanel() {
         NSApp.activate()
         NSApp.orderFrontStandardAboutPanel(nil)
+    }
+}
+
+extension RunningInstance {
+    init(_ application: NSRunningApplication) {
+        self.init(
+            launchDate: application.launchDate,
+            processIdentifier: application.processIdentifier,
+            isTerminated: application.isTerminated
+        )
     }
 }

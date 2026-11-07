@@ -59,6 +59,13 @@ nonisolated struct TriggerKeyCapture: Sendable {
         }
     }
 
+    /// 読み取りの途中の状態を破棄する。入力を取りこぼした後（イベントタップが一時的に無効にされた場合など）に呼ぶ。
+    /// 押し下げを見ていない修飾キーの離しを、単独押しとして読み取らないため
+    mutating func reset() {
+        pendingModifierKeyCode = nil
+        suppressedKeyCode = nil
+    }
+
     /// 設定画面が前面にない（ほかのアプリを操作している）ときの入力を処理する。
     /// キーは読み取らず、入力もほかのアプリに渡す。
     /// ただし、前面にあったときに押し下げを渡さなかったキーは、離したときの入力も渡さない。

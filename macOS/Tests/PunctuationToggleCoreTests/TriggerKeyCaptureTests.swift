@@ -37,4 +37,15 @@ struct TriggerKeyCaptureTests {
     func macOSOnlyFunctionKeyCount() {
         #expect(KeyCode.functionKeys[13...].count == 7)
     }
+
+    @Test("reset() の後は、押し下げを見ていない修飾キーの離しを読み取らない")
+    func resetDiscardsPendingModifier() {
+        var capture = TriggerKeyCapture()
+        _ = capture.handle(.modifierChanged(keyCode: KeyCode.function, isPressed: true, otherModifiersHeld: false))
+        capture.reset()
+        let released = capture.handle(
+            .modifierChanged(keyCode: KeyCode.function, isPressed: false, otherModifiersHeld: false)
+        )
+        #expect(released.outcome == .waiting)
+    }
 }

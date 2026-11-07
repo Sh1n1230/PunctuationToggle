@@ -18,12 +18,8 @@ enum JapaneseInputPunctuation {
     static var current: PunctuationStyle {
         CFPreferencesAppSynchronize(preferencesDomain)
         let storedValue = CFPreferencesCopyAppValue(punctuationTypeKey as CFString, preferencesDomain)
-        guard let rawValue = storedValue as? Int,
-            let style = PunctuationStyle(rawValue: rawValue)
-        else {
-            return .systemDefault
-        }
-        return style
+        // 値の形式は非公開。整数として読めない値（文字列など）は、値が無いものとして扱う
+        return PunctuationStyle(storedValue: storedValue as? Int)
     }
 
     /// 設定を保存し、日本語入力に知らせる。

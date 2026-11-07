@@ -16,6 +16,19 @@ nonisolated struct TriggerKey: Hashable, Sendable {
         self.keyCode = keyCode
     }
 
+    /// 保存した値（UserDefaults の整数）から求める。
+    /// 値が無い・キーコードの範囲（UInt16）に収まらない・未対応のキーの場合は、初期設定のキーにする
+    init(storedKeyCode: Int?) {
+        guard let storedKeyCode,
+            let keyCode = UInt16(exactly: storedKeyCode),
+            let key = TriggerKey(keyCode: keyCode)
+        else {
+            self = .defaultKey
+            return
+        }
+        self = key
+    }
+
     static let rightCommand = TriggerKey(keyCode: KeyCode.rightCommand)!
 
     /// 初期設定の切り替えキー
