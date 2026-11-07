@@ -301,9 +301,11 @@
       ]
     },
     {
-      "name": "修飾キーと一緒に押したキーも読み取る",
+      "name": "修飾キーと一緒に押したキー（Alt＋F4・Command＋F5 などのショートカット）は読み取らず、そのまま渡す",
       "inputs": [
-        { "input": "keyDown", "key": "f13", "modifiersHeld": true, "expect": { "outcome": "captured", "key": "f13", "suppress": true } }
+        { "input": "keyDown", "key": "f13", "modifiersHeld": true, "expect": { "outcome": "waiting", "suppress": false } },
+        { "input": "keyUp", "key": "f13", "expect": { "outcome": "waiting", "suppress": false } },
+        { "input": "keyDown", "key": "f13", "expect": { "outcome": "captured", "key": "f13", "suppress": true } }
       ]
     },
     {
