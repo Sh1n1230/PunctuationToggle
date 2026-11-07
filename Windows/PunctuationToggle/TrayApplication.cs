@@ -196,9 +196,10 @@ internal sealed class TrayApplication : ApplicationContext
         isToggleFailing = false;
         UpdateDisplay();
 
+        // 移せなかった場合も、入力中のアプリでは次にフォーカスが移ったときに反映されるので、知らせない
         if (bounceFocus)
         {
-            focusBouncer.Bounce();
+            _ = focusBouncer.Bounce();
         }
     }
 
