@@ -7,7 +7,8 @@ tests/cases/ の固定のケースでは狙いにくい組み合わせ（改行�
 - 変換は冪等（変換した結果をもう一度変換しても変わらない）
 - 「、。」→「，．」→「、。」と戻すと、逆変換だけをした結果と同じになる
 - 成功したときは標準エラー出力が空
-- UTF-8 として正しくないバイトを混ぜると、変換でも逆変換でも、終了コード 1 と決まったメッセージになる
+- UTF-8 として正しくないバイトを混ぜると、変換でも逆変換でも、終了コード 1 と、最初の正しくないバイトの位置
+  （Python の UTF-8 の復号が示す位置）を示すメッセージになる
 
 失敗したときは、再現に使う乱数の種と何件目のケースかを表示し、入力と期待する出力を
 tests/cases/ と同じ形（input.txt・to_comma_period.txt・to_touten_kuten.txt）で保存する。
@@ -34,8 +35,22 @@ EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
 EXIT_USAGE_ERROR = 2
 
-# UTF-8 として正しくない入力のときに、3つの実装が標準エラー出力に書くメッセージ
-INVALID_UTF8_MESSAGE = "入力を UTF-8 として読み込めませんでした。\n".encode()
+
+def invalid_utf8_message(data: bytes) -> bytes:
+    """UTF-8 として正しくない入力のときに、3つの実装が標準エラー出力に書くメッセージ。
+
+    位置は、正しくないバイト列の最初のバイトが何バイト目か（1 から）と、何行目か（LF で数える）。
+    """
+    try:
+        data.decode("utf-8")
+    except UnicodeDecodeError as error:
+        line = data[: error.start].count(b"\n") + 1
+        return (
+            "入力を UTF-8 として読み込めませんでした"
+            f"（{line} 行目、先頭から {error.start + 1} バイト目）。\n"
+        ).encode()
+    raise ValueError("UTF-8 として正しい入力です")
+
 
 # 乱数の種の範囲（0 以上 2**32 未満）
 SEED_LIMIT = 2**32
@@ -242,11 +257,12 @@ def check_implementation(
             fail("変換して逆変換した結果が、逆変換だけの結果と異なります", data, result)
 
         # 文字の途中に差し込んでも、元の文字の継続バイトが余るなどして、どこに差し込んでも正しくなくなる
+        expected_message = invalid_utf8_message(invalid)
         for arguments in ([], ["--reverse"]):
             result = run(command, arguments, invalid)
-            if result.status != EXIT_FAILURE or result.errors != INVALID_UTF8_MESSAGE:
+            if result.status != EXIT_FAILURE or result.errors != expected_message:
                 fail(
-                    f"正しくない UTF-8 で、終了コード 1 と「{INVALID_UTF8_MESSAGE.decode().strip()}」を"
+                    f"正しくない UTF-8 で、終了コード 1 と「{expected_message.decode().strip()}」を"
                     f"期待しました（引数 {arguments}）",
                     invalid,
                     result,

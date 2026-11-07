@@ -123,7 +123,7 @@ make test-random
 
 今の運用を書き起こしたものです。
 
-- main には直接 push せず、ブランチを作って Pull Request を送ります。
+- main には直接 push せず、ブランチを作って Pull Request を送ります。main のルールセット「protect main」で、Pull Request を経由すること（承認の数は 0）と、CI の次のジョブが成功していることを必須にしています: 「macOS アプリ」「Windows アプリ」「変換コマンド（ubuntu-24.04・macos-26・windows-2025）」「変換コマンド（Python 3.10・Python 3.15）」「コーディング規約」。CI のジョブの名前を変えたり、マトリックスの版を変えたりしたときは、ルールセットの必須のチェックも合わせて変えてください（変えないと、Pull Request がいつまでもマージできません）。リリースのワークフローのジョブ（変更したファイルによって動かないことがある）と Security Check は、必須にしていません。main の削除と force push も禁止しています。
 - ブランチ名は `<種類>/<内容を表す英語の短い名前>` にします（例: `fix/windows-trigger-key-save-failure`、`feat/windows-tray-icon-dpi`、`ci/lint`）。リリースは `release/vX.Y.Z` です。
 - 種類は [Conventional Commits](https://www.conventionalcommits.org/ja/v1.0.0/) のものを使います: `feat`（機能の追加）・`fix`（不具合の修正）・`docs`（文書）・`test`（テスト）・`refactor`（動作を変えない整理）・`perf`（性能）・`build`（ビルドの設定・依存）・`ci`（CI）・`chore`（そのほか）。
 - コミットメッセージと Pull Request のタイトルは、`<種類>: <日本語の説明>` にします（例: `fix: Windows 版で、切り替えキーを保存できなくても異常終了しないようにする`）。説明の句読点は「、。」で、文末の「。」は付けません。リリースの Pull Request は `vX.Y.Z をリリースする` です。
@@ -181,7 +181,7 @@ make test-random
    - ファイルの末尾の比較リンクで、`[Unreleased]` の比較元を新しいタグにし（`compare/vX.Y.Z...HEAD`）、新しいバージョンのリンク（`[X.Y.Z]: .../compare/v<前のバージョン>...vX.Y.Z`）を追加します。
 2. README の「動作を確かめた OS の版」を、リリースする版で確かめた結果に更新します（手順は「OS や IME を更新したときの確認」）。
 3. バージョン番号を更新します（macOS: `PunctuationToggle.xcodeproj` の `MARKETING_VERSION` と `CURRENT_PROJECT_VERSION`、Windows: `Windows/Directory.Build.props` の `Version`、変換コマンド: 3つの実装の `VERSION`（`--version` で表示する版））。
-4. main ブランチで `v1.2.3` のようなタグを付けて push します。タグと手順 3 のバージョン番号が一致しない場合、リリースのワークフローはビルドの前に失敗します。一致していれば、GitHub Actions が macOS 版と Windows 版をビルドし、来歴証明（artifact attestation）を付けて、zip と `SHA256SUMS.txt` を添付した下書きのリリースを作ります。
+4. 手順 1〜3 の変更を Pull Request（ブランチは `release/vX.Y.Z`）で main に入れてから、main で `v1.2.3` のようなタグを付けて push します。リリースのタグ（`v*`）は、ルールセットで削除と付け直しを禁じ（「protect release tags」）、作れるのをリポジトリの管理者だけにしています（「restrict release tag creation」）。付け間違えた場合は、タグを付け直さずに次の版を出してください（来歴証明が、同じ版の名前の違う中身に付かないようにするため）。タグと手順 3 のバージョン番号が一致しない場合、リリースのワークフローはビルドの前に失敗します。一致していれば、GitHub Actions が macOS 版と Windows 版をビルドし、来歴証明（artifact attestation）を付けて、zip と `SHA256SUMS.txt` を添付した下書きのリリースを作ります。
 5. リリースの内容を確認して公開します。添付された zip は、README の「ダウンロードしたファイルの確認」の手順で検証できます。
 
 CI とリリースのランナーは、`windows-latest` のようなラベルではなく、イメージの版（`windows-2025`・`ubuntu-24.04`・`macos-26`）で指定しています。GitHub が `-latest` の指す先を変えても、リポジトリを変えないままビルド環境が変わらないようにするためです。新しいイメージに上げるときは、`.github/workflows/` のすべてのワークフロー（今は `ci.yml`・`release.yml`・`security.yml`・`benchmark.yml`。`git grep -n "runs-on:" .github/workflows` で確かめられます）の版をそろえて書き換え、Pull Request で CI とリリースのビルド（`release.yml` の Pull Request での実行）が通ることを確かめてからマージしてください。

@@ -16,8 +16,10 @@ CASES_DIR=tests/cases
 USAGE_FILE=tests/usage.txt
 # --version で表示する版。アプリと同じ番号にする
 EXPECTED_VERSION=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' ../Windows/Directory.Build.props)
-# UTF-8 として正しくない入力のときに、3つの実装が標準エラー出力に書くメッセージ
-INVALID_UTF8_MESSAGE="入力を UTF-8 として読み込めませんでした。"
+# UTF-8 として正しくない入力のときに、3つの実装が標準エラー出力に書くメッセージ（行とバイトの位置を入れる）
+invalid_utf8_message() {
+  echo "入力を UTF-8 として読み込めませんでした（$1 行目、先頭から $2 バイト目）。"
+}
 WORK_DIR=$(mktemp -d)
 trap 'rm -rf "$WORK_DIR"' EXIT
 
@@ -55,6 +57,22 @@ create_long_line_case() {
 
 failures=0
 skips=0
+
+# $WORK_DIR/invalid_input を、変換でも逆変換でも、終了コード 1 と位置を示すメッセージで拒むことを確かめる
+check_invalid_utf8() {
+  local command=$1 description=$2 expected_line=$3 expected_byte=$4
+  local expected_message
+  expected_message=$(invalid_utf8_message "$expected_line" "$expected_byte")
+  local option
+  for option in "" "--reverse"; do
+    local status=0
+    # shellcheck disable=SC2086
+    $command $option < "$WORK_DIR/invalid_input" > "$WORK_DIR/invalid_output" 2> "$WORK_DIR/invalid_errors" || status=$?
+    if [[ $status -ne 1 ]] || [[ $(cat "$WORK_DIR/invalid_errors") != "$expected_message" ]]; then
+      report_failure "不正な UTF-8 $description ${option:-（オプションなし）}: 終了コード 1 と「$expected_message」を期待しましたが、終了コードは $status、エラー出力は「$(head -c 200 "$WORK_DIR/invalid_errors")」でした"
+    fi
+  done
+}
 
 report_failure() {
   echo "  FAIL: $1"
@@ -138,21 +156,24 @@ test_implementation() {
   fi
 
   # UTF-8 として正しくない入力（不正なバイト、末尾で途中までしかない文字、先頭バイトの無い継続バイト、
-  # 冗長な符号化、サロゲートの符号化、U+10FFFF を超える符号位置）は、置き換えずに終了コード 1 にする
+  # 冗長な符号化、サロゲートの符号化、U+10FFFF を超える符号位置）は、置き換えずに終了コード 1 にし、
+  # 最初の正しくないバイトの位置（行とバイト）を示す。行は LF で数え、CR だけの改行は数えない。
+  # 書式は「printf の書式 期待する行 期待するバイト」
   local invalid_input="$WORK_DIR/invalid_input"
-  for invalid_bytes in 'a\xff\xe3\x80\x81\n' 'a\xe3\x80' '\x80' '\xc0\xaf' '\xed\xa0\x80' '\xf4\x90\x80\x80'; do
+  local invalid_case invalid_bytes expected_line expected_byte expected_message
+  for invalid_case in 'a\xff\xe3\x80\x81\n 1 2' 'a\xe3\x80 1 2' '\x80 1 1' '\xc0\xaf 1 1' '\xed\xa0\x80 1 1' \
+    '\xf4\x90\x80\x80 1 1' 'a\nb\r\nc\xff 3 7' 'a\rb\xff 1 4'; do
+    read -r invalid_bytes expected_line expected_byte <<< "$invalid_case"
     # shellcheck disable=SC2059 # 不正なバイト列を作るため、printf の書式として解釈させる
     printf "$invalid_bytes" > "$invalid_input"
-    # 変換でも逆変換でも同じように扱う
-    for option in "" "--reverse"; do
-      local status=0
-      # shellcheck disable=SC2086
-      $command $option < "$invalid_input" > "$output" 2> "$errors" || status=$?
-      if [[ $status -ne 1 ]] || [[ $(cat "$errors") != "$INVALID_UTF8_MESSAGE" ]]; then
-        report_failure "不正な UTF-8 '$invalid_bytes' ${option:-（オプションなし）}: 終了コード 1 と「$INVALID_UTF8_MESSAGE」を期待しましたが、終了コードは $status、エラー出力は「$(head -c 200 "$errors")」でした"
-      fi
-    done
+    check_invalid_utf8 "$command" "'$invalid_bytes'" "$expected_line" "$expected_byte"
   done
+  # 読み込みの区切り（64 KiB）をまたぐ位置: 2回目の読み込みの先頭が正しくない場合と、
+  # 1回目の読み込みの末尾で切れた文字が、2回目の読み込みで正しくないと分かる場合
+  { head -c 65535 /dev/zero | tr '\0' 'x'; printf '\n\xe3\x81\xff'; } > "$invalid_input"
+  check_invalid_utf8 "$command" "64 KiB の区切りの後の正しくないバイト" 2 65537
+  { head -c 65535 /dev/zero | tr '\0' 'x'; printf '\xe3\x80\xff'; } > "$invalid_input"
+  check_invalid_utf8 "$command" "64 KiB の区切りで切れた文字" 1 65536
 
   # 書き込めない出力先では、トレースバックなどではなくエラーメッセージを表示して終了コード 1 にする。
   # 書き込むと必ず失敗する /dev/full は Linux にしか無いため、ほかの OS では確かめない

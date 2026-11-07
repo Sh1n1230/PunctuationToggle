@@ -87,5 +87,36 @@ class MainTest(unittest.TestCase):
         )
 
 
+class ConvertStreamTest(unittest.TestCase):
+    def invalid_position(self, data: bytes, chunk_size: int) -> tuple[int, int]:
+        writer = io.StringIO()
+        with (
+            mock.patch.object(punctuation_converter, "CHUNK_SIZE", chunk_size),
+            self.assertRaises(punctuation_converter.InvalidUtf8Error) as raised,
+        ):
+            punctuation_converter.convert_stream(
+                io.BytesIO(data), writer, punctuation_converter.TO_COMMA_PERIOD
+            )
+        return raised.exception.line, raised.exception.byte_position
+
+    def test_正しくないUTF8の位置は読み込みの単位によらない(self) -> None:
+        # 3行目の 7 バイト目（CR だけの改行は数えない）
+        data = b"a\nb\r\nc\rd\xff"
+        for chunk_size in (1, 2, 3, 64):
+            with self.subTest(chunk_size=chunk_size):
+                self.assertEqual(self.invalid_position(data, chunk_size), (3, 9))
+
+    def test_読み込みの区切りで切れた文字が正しくない場合は_その文字の先頭の位置(
+        self,
+    ) -> None:
+        data = "、".encode()[:2] + b"\xff"
+        for chunk_size in (1, 2, 64):
+            with self.subTest(chunk_size=chunk_size):
+                self.assertEqual(self.invalid_position(data, chunk_size), (1, 1))
+
+    def test_末尾で文字が切れたまま終わると_その文字の先頭の位置(self) -> None:
+        self.assertEqual(self.invalid_position(b"a\n\xe3\x80", 64), (2, 3))
+
+
 if __name__ == "__main__":
     unittest.main()

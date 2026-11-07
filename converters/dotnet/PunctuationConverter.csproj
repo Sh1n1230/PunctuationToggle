@@ -10,6 +10,11 @@
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <PublishAot>true</PublishAot>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- 起動を速くする発行の設定（OptimizationPreference=Speed・Size、StackTraceSupport=false、
+         EventSourceSupport=false、UseSystemResourceKeys=true）は、試しても約 40KB の実文章での実行時間が
+         変わらなかった（Windows 11・win-x64 で 100 回の実行が、どれも 1.82〜1.85 秒。Rust 実装は 1.57 秒で、
+         差はほぼプロセスの起動）ため使わない。UseSystemResourceKeys は「変換に失敗しました: 」の後の OS の
+         メッセージをリソースのキーに変えてしまう（#274） -->
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
 
