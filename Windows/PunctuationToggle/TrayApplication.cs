@@ -36,6 +36,9 @@ internal sealed class TrayApplication : ApplicationContext
     private readonly KeyboardHook keyboardHook;
 
     private RegistryChangeWatcher? imeSettingsWatcher;
+
+    // Dispose を始めたか。スレッドプールからの通知が、破棄した後のトレイアイコンなどに触らないようにする
+    private volatile bool isDisposed;
     private bool isImeSettingsUnreadable;
     // UI スレッドで設定し、フックの専用のスレッドで読む
     private volatile TriggerKeyRecorderForm? triggerKeyRecorder;
@@ -85,6 +88,7 @@ internal sealed class TrayApplication : ApplicationContext
     {
         if (disposing)
         {
+            isDisposed = true;
             SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
             SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
             SystemEvents.SessionSwitch -= OnSessionSwitch;
@@ -273,10 +277,49 @@ internal sealed class TrayApplication : ApplicationContext
     private void StartWatchingImeSettings()
     {
         // 通知はスレッドプールで呼ばれるので、表示の更新は UI スレッドに移ってから行う
-        imeSettingsWatcher = MicrosoftImeSettings.WatchChanges(() => uiContext.Post(_ => UpdateDisplay(), null));
+        RegistryChangeWatcher? watcher = null;
+        watcher = MicrosoftImeSettings.WatchChanges(
+            onChanged: () => PostUnlessDisposed(UpdateDisplay),
+            // 通知は TryStart から戻った後に UI スレッドで処理されるので、watcher は代入済み
+            onStopped: () => PostUnlessDisposed(() => StopWatchingImeSettings(watcher)));
+        imeSettingsWatcher = watcher;
         pollTimer.Interval = imeSettingsWatcher is null
             ? PollIntervalWithoutWatcherMilliseconds
             : PollIntervalWithWatcherMilliseconds;
+    }
+
+    /// <summary>
+    /// 監視が止まったとき（IME の設定のキーが削除された場合など）に、短い間隔の読み直しに戻す。
+    /// 次の読み直しで、キーがあれば監視をやり直す。
+    /// </summary>
+    private void StopWatchingImeSettings(RegistryChangeWatcher? stoppedWatcher)
+    {
+        if (stoppedWatcher is null)
+        {
+            return;
+        }
+        if (imeSettingsWatcher == stoppedWatcher)
+        {
+            imeSettingsWatcher = null;
+            pollTimer.Interval = PollIntervalWithoutWatcherMilliseconds;
+        }
+        stoppedWatcher.Dispose();
+    }
+
+    /// <summary>ほかのスレッドから、UI スレッドで処理を行う。Dispose を始めた後は何もしない。</summary>
+    private void PostUnlessDisposed(Action action)
+    {
+        if (isDisposed)
+        {
+            return;
+        }
+        uiContext.Post(_ =>
+        {
+            if (!isDisposed)
+            {
+                action();
+            }
+        }, null);
     }
 
     /// <summary>

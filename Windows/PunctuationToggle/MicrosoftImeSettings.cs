@@ -63,6 +63,7 @@ internal static class MicrosoftImeSettings
     /// キーがまだ無い（IME の設定を一度も変えていない）場合などは監視できず、null を返す。
     /// </summary>
     /// <param name="onChanged">スレッドプールのスレッドで呼ばれる。</param>
-    public static RegistryChangeWatcher? WatchChanges(Action onChanged) =>
-        RegistryChangeWatcher.TryStart(KeyPath, onChanged);
+    /// <param name="onStopped">監視が止まったときに、スレッドプールのスレッドで呼ばれる（<see cref="RegistryChangeWatcher.TryStart"/> を参照）。</param>
+    public static RegistryChangeWatcher? WatchChanges(Action onChanged, Action onStopped) =>
+        RegistryChangeWatcher.TryStart(KeyPath, onChanged, onStopped);
 }
