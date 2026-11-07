@@ -40,6 +40,9 @@ internal sealed class TrayApplication : ApplicationContext
     // Dispose を始めたか。スレッドプールからの通知が、破棄した後のトレイアイコンなどに触らないようにする
     private volatile bool isDisposed;
     private bool isImeSettingsUnreadable;
+
+    // 句読点の切り替え（書き込み）に失敗し続けているか。失敗の知らせを、続いている間は1回だけにする
+    private bool isToggleFailing;
     // UI スレッドで設定し、フックの専用のスレッドで読む
     private volatile TriggerKeyRecorderForm? triggerKeyRecorder;
     private Icon? currentIcon;
@@ -180,13 +183,10 @@ internal sealed class TrayApplication : ApplicationContext
         // レジストリのアクセス権が変えられている場合なども、アプリを終了させずに知らせる
         catch (Exception exception) when (exception is InvalidDataException || RegistryErrors.IsAccessFailure(exception))
         {
-            MessageBox.Show(
-                $"句読点の設定を変更できませんでした。{Environment.NewLine}{exception.Message}",
-                "PunctuationToggle",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Warning);
+            NotifyToggleFailed(exception);
             return;
         }
+        isToggleFailing = false;
         UpdateDisplay();
 
         if (bounceFocus)
@@ -255,6 +255,27 @@ internal sealed class TrayApplication : ApplicationContext
         currentIcon = TrayIconRenderer.Render(style.Symbols(), AppSettings.IsTaskbarLight, iconSize);
         notifyIcon.Icon = currentIcon;
         previousIcon?.Dispose();
+    }
+
+    /// <summary>
+    /// 句読点の切り替えに失敗したことを、通知で知らせる。失敗が続いている間は、切り替えキーを何度押しても1回だけにする。
+    /// </summary>
+    /// <remarks>
+    /// ダイアログ（MessageBox）は、切り替えキーで切り替えたときに前面に出ず（前面はほかのアプリ）、
+    /// 表示中も切り替えキーで次のダイアログが重なって開くため、使わない。
+    /// </remarks>
+    private void NotifyToggleFailed(Exception exception)
+    {
+        if (isToggleFailing)
+        {
+            return;
+        }
+        isToggleFailing = true;
+        notifyIcon.ShowBalloonTip(
+            BalloonTipTimeoutMilliseconds,
+            "PunctuationToggle",
+            $"句読点の設定を変更できませんでした。{exception.Message}",
+            ToolTipIcon.Warning);
     }
 
     /// <summary>
