@@ -2,6 +2,7 @@
 ///
 /// - 修飾キーは、単独で押して離したときに読み取る（Command＋C のような組み合わせは無視する）。
 /// - それ以外のキーは、押したときに読み取る。読み取ったキーの入力はほかのアプリに渡さない。
+///   ただし、修飾キーと一緒に押したキー（Command＋F5 など）は、OS やアプリのショートカットなので読み取らずに渡す。
 /// - Esc でキャンセルする。
 /// - 設定画面が前面にない間の入力は `handleWhileInactive(_:)` に渡し、読み取らずにほかのアプリへ渡す。
 struct TriggerKeyCapture: Sendable {
@@ -39,6 +40,12 @@ struct TriggerKeyCapture: Sendable {
             }
             pendingModifierKeyCode = nil
             return Result(outcome: Self.outcome(for: keyCode), shouldSuppress: false)
+
+        // 修飾キーと一緒に押したキーは、VoiceOver のオン・オフ（Command＋F5）などのショートカットなので、
+        // 読み取らずに渡す（読み取ると、F5 が切り替えキーとして保存され、ショートカットも効かなくなる）
+        case .keyDown(keyCode: _, isRepeat: _, modifiersHeld: true):
+            pendingModifierKeyCode = nil
+            return Result(outcome: .waiting, shouldSuppress: false)
 
         case let .keyDown(keyCode, _, _):
             pendingModifierKeyCode = nil
