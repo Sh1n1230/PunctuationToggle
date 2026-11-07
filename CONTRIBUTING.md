@@ -49,7 +49,7 @@ PunctuationToggle/
 
 ### アプリアイコン
 
-macOS 版のアプリアイコンの PNG（`macOS/PunctuationToggle/Assets.xcassets/AppIcon.appiconset/`）は、`macOS/Scripts/generate_app_icon.swift` で描いて作っています。PNG を直接編集せず、スクリプトを直して、リポジトリのルートで `swift macOS/Scripts/generate_app_icon.swift` を実行し、できた PNG をスクリプトと一緒にコミットしてください。スクリプトも CI の `swift format lint` の対象（`Scripts`）です。
+macOS 版のアプリアイコンの PNG（`macOS/PunctuationToggle/Assets.xcassets/AppIcon.appiconset/`）は、`macOS/Scripts/generate_app_icon.swift` で描いて作っています。PNG を直接編集せず、スクリプトを直して、リポジトリのルートで `swift macOS/Scripts/generate_app_icon.swift` を実行し、できた PNG をスクリプトと一緒にコミットしてください。句読点はヒラギノ角ゴシック W7（macOS に標準で入っています）で描きます。見つからない場合、スクリプトはファイルを書き換えずにエラーで終わります。スクリプトも CI の `swift format lint` の対象（`Scripts`）です。
 
 ## ビルドとテスト
 
@@ -148,7 +148,7 @@ make test-random
 - コメントとユーザーに表示する文字列は日本語で書きます。コメントには「何をしているか」よりも「なぜそうしているか」を書きます。
 - ソースファイルには、ライセンスの告知を入れません（ルートの LICENSE で示します）。例外は、1つのファイルだけで持ち出して使える変換コマンドの3つの実装で、先頭に `SPDX-License-Identifier: MPL-2.0` と MPL-2.0 の告知（Exhibit A）を入れます。
 - 文書（README・CONTRIBUTING など）は、「です・ます」の易しい文体で書きます。「〜である」「〜して差し支えない」のような硬い言い回しや、難しい漢語は避けます。
-- Windows 版と変換コマンドの C# 実装は、`TreatWarningsAsErrors` と .NET のコード分析（`AnalysisLevel=latest-recommended`）を有効にしています。警告が出ない状態を保ってください。
+- 警告はエラーとして扱います。macOS 版はアプリ（`SWIFT_TREAT_WARNINGS_AS_ERRORS`・`GCC_TREAT_WARNINGS_AS_ERRORS`）と Core の `Package.swift`（`treatAllWarnings(as: .error)`）、Windows 版と変換コマンドの C# 実装は `TreatWarningsAsErrors` と .NET のコード分析（`AnalysisLevel=latest-recommended`）を有効にしています。警告が出ない状態を保ってください。
 - 変換コマンドは、すべての言語で同じ仕様（オプション、終了コード、入出力をバイト単位で保つこと）を守ります。仕様を変えるときはすべての実装と `tests/cases/` を同時に更新します。
 - 変換コマンドの Rust 実装は、外部のクレートを使わず、`#![forbid(unsafe_code)]` で `unsafe` を禁じています。`unsafe` が必要になった場合は、この属性を外す理由を Pull Request で説明してください。
 

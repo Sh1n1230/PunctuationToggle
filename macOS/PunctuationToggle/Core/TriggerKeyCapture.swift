@@ -4,8 +4,8 @@
 /// - それ以外のキーは、押したときに読み取る。読み取ったキーの入力はほかのアプリに渡さない。
 /// - Esc でキャンセルする。
 /// - 設定画面が前面にない間の入力は `handleWhileInactive(_:)` に渡し、読み取らずにほかのアプリへ渡す。
-struct TriggerKeyCapture: Sendable {
-    enum Outcome: Equatable, Sendable {
+nonisolated struct TriggerKeyCapture: Sendable {
+    nonisolated enum Outcome: Equatable, Sendable {
         /// まだキーが押されていない
         case waiting
         /// 切り替えキーとして使えるキーが押された
@@ -16,7 +16,7 @@ struct TriggerKeyCapture: Sendable {
         case cancelled
     }
 
-    struct Result: Equatable, Sendable {
+    nonisolated struct Result: Equatable, Sendable {
         var outcome: Outcome
         var shouldSuppress: Bool
     }

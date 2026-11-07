@@ -25,6 +25,8 @@
 | 共通のテストベクタ | `testdata/trigger_key_vectors.json`（`TriggerKeyVectorTests.swift`） | 同じファイル（`TriggerKeyVectorTests.cs`） |
 
 - 依存の向きは「アプリ本体 → Core」の一方向。Core から OS の API（AppKit、CoreGraphics、Win32、レジストリ）を使わない。
+- macOS 版はアプリも `swift test` も既定のアクター隔離がメインアクター。Core の型には `nonisolated` を付ける（付けないとテストの引数などから使えない）。
+- macOS 版も警告をエラーにしている（アプリは `SWIFT_TREAT_WARNINGS_AS_ERRORS`、Core は `Package.swift` の `treatAllWarnings`）。
 - 判定の仕様を変えるときは、先に Core のテストを追加・修正する。両 OS に共通の判定は `testdata/trigger_key_vectors.json` に書く（両方のテストが読む）。
 
 ## 作業時の注意

@@ -6,9 +6,10 @@ import Testing
 /// 切り替えキーの判定と読み取りを確かめる。ベクタの書き方は JSON の format を参照。
 @Suite("両 OS に共通のテストベクタ")
 struct TriggerKeyVectorTests {
-    @Test("切り替えキーの判定", arguments: TriggerKeyVectors.shared.detector)
+    // 読み込めない場合は、引数の式で投げたエラーがこのテストの失敗として記録され、ほかのテストは続けて実行される
+    @Test("切り替えキーの判定", arguments: try TriggerKeyVectors.load().detector)
     func detector(scenario: TriggerKeyVectors.Scenario) throws {
-        let vectors = TriggerKeyVectors.shared
+        let vectors = try TriggerKeyVectors.load()
         let triggerKeyCode = try vectors.keyCode(scenario.trigger ?? "")
         var detector = TriggerKeyDetector(triggerKey: try #require(TriggerKey(keyCode: triggerKeyCode)))
 
@@ -28,9 +29,9 @@ struct TriggerKeyVectorTests {
         }
     }
 
-    @Test("設定画面でのキーの読み取り", arguments: TriggerKeyVectors.shared.capture)
+    @Test("設定画面でのキーの読み取り", arguments: try TriggerKeyVectors.load().capture)
     func capture(scenario: TriggerKeyVectors.Scenario) throws {
-        let vectors = TriggerKeyVectors.shared
+        let vectors = try TriggerKeyVectors.load()
         var capture = TriggerKeyCapture()
 
         for (index, step) in scenario.inputs.enumerated() {
@@ -61,19 +62,19 @@ struct TriggerKeyVectorTests {
 }
 
 /// testdata/trigger_key_vectors.json の内容
-struct TriggerKeyVectors: Decodable, Sendable {
-    struct KeyCodes: Decodable, Sendable {
+nonisolated struct TriggerKeyVectors: Decodable, Sendable {
+    nonisolated struct KeyCodes: Decodable, Sendable {
         let macOS: UInt16
     }
 
-    struct Expectation: Decodable, Sendable {
+    nonisolated struct Expectation: Decodable, Sendable {
         let toggle: Bool?
         let suppress: Bool?
         let outcome: String?
         let key: String?
     }
 
-    struct Step: Decodable, Sendable {
+    nonisolated struct Step: Decodable, Sendable {
         let input: String
         let key: String?
         let otherModifiersHeld: Bool?
@@ -83,7 +84,7 @@ struct TriggerKeyVectors: Decodable, Sendable {
         let expect: Expectation?
     }
 
-    struct Scenario: Decodable, Sendable, CustomTestStringConvertible {
+    nonisolated struct Scenario: Decodable, Sendable, CustomTestStringConvertible {
         let name: String
         let trigger: String?
         let inputs: [Step]
@@ -91,7 +92,7 @@ struct TriggerKeyVectors: Decodable, Sendable {
         var testDescription: String { name }
     }
 
-    struct VectorError: Error, CustomStringConvertible {
+    nonisolated struct VectorError: Error, CustomStringConvertible {
         let description: String
     }
 
@@ -99,18 +100,25 @@ struct TriggerKeyVectors: Decodable, Sendable {
     let detector: [Scenario]
     let capture: [Scenario]
 
-    /// テストのソースの場所からたどって読み込む（swift test はリポジトリの中で実行する）
-    static let shared: TriggerKeyVectors = {
+    /// 読み込んだ結果。テストの引数の評価（メインアクターの外）からも使うので nonisolated にする
+    private nonisolated static let loaded: Result<TriggerKeyVectors, any Error> = {
         let url = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .appendingPathComponent("../../../testdata/trigger_key_vectors.json")
             .standardizedFileURL
         do {
-            return try JSONDecoder().decode(TriggerKeyVectors.self, from: Data(contentsOf: url))
+            return .success(try JSONDecoder().decode(TriggerKeyVectors.self, from: Data(contentsOf: url)))
         } catch {
-            fatalError("テストベクタを読み込めませんでした（\(url.path)）: \(error)")
+            // fatalError にすると swift test のプロセスごと落ち、ほかのテストの結果も出ないため、エラーとして返す
+            return .failure(VectorError(description: "テストベクタを読み込めませんでした（\(url.path)）: \(error)"))
         }
     }()
+
+    /// テストのソースの場所からたどって読み込む（swift test はリポジトリの中で実行する）。
+    /// 読み込みは1度だけ行い、2回目からは同じ結果（またはエラー）を返す
+    static func load() throws -> TriggerKeyVectors {
+        try loaded.get()
+    }
 
     func keyCode(_ name: String) throws -> UInt16 {
         guard let keyCodes = keys[name] else {

@@ -6,7 +6,7 @@
 ///
 /// 文字の入力に使うキーを選ぶと文字が打てなくなるため、
 /// 選べるのは修飾キー・ファンクションキー・「英数」「かな」に限っている（`supportedKeys`）。
-struct TriggerKey: Hashable, Sendable {
+nonisolated struct TriggerKey: Hashable, Sendable {
     /// macOS の仮想キーコード（`kVK_*`）
     let keyCode: UInt16
 
@@ -47,10 +47,10 @@ struct TriggerKey: Hashable, Sendable {
 
 // MARK: - キーの一覧
 
-extension TriggerKey {
+nonisolated extension TriggerKey {
     /// 修飾キーの種類と、押されているかを判定するための `CGEventFlags` のビット。
     /// 左右を区別するため、デバイス依存のビット（IOKit の `NX_DEVICE*KEYMASK`）を使う。
-    enum Modifier: CaseIterable, Sendable {
+    nonisolated enum Modifier: CaseIterable, Sendable {
         case leftControl, rightControl
         case leftShift, rightShift
         case leftOption, rightOption
@@ -81,7 +81,7 @@ extension TriggerKey {
         }
     }
 
-    struct KeyInfo: Sendable {
+    nonisolated struct KeyInfo: Sendable {
         let displayName: String
         let modifier: Modifier?
     }
@@ -109,7 +109,7 @@ extension TriggerKey {
 }
 
 /// macOS の仮想キーコード（Carbon の `kVK_*` と同じ値）
-enum KeyCode {
+nonisolated enum KeyCode {
     static let escape: UInt16 = 53
     static let capsLock: UInt16 = 57
 
