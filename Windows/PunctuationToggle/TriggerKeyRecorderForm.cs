@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+
 namespace PunctuationToggle;
 
 /// <summary>
@@ -9,7 +11,11 @@ namespace PunctuationToggle;
 /// ほかのアプリでの入力を読み取ったり握りつぶしたりしないよう、このウィンドウが前面にある間だけ読み取り、
 /// ほかのウィンドウに切り替えたら設定を中止して閉じる（開いている間は切り替えキーが効かないため、残さない）。
 /// </remarks>
-internal sealed class TriggerKeyRecorderForm : Form
+/// <remarks>
+/// <see cref="HandleInput"/> はフックの専用のスレッドで呼ばれる。<see cref="TriggerKeyCapture"/> はそのスレッドだけで使い、
+/// 画面の更新は BeginInvoke で UI スレッドに移して行う。
+/// </remarks>
+internal sealed partial class TriggerKeyRecorderForm : Form
 {
     private const string InstructionText =
         "修飾キー（Shift・Ctrl・Alt・Windows）は単独で押して離してください。" +
@@ -25,7 +31,13 @@ internal sealed class TriggerKeyRecorderForm : Form
     private readonly Font bodyFont = new("Yu Gothic UI", 9F);
     private readonly Font titleFont = new("Yu Gothic UI", 9F, FontStyle.Bold);
     private readonly Label statusLabel;
-    private bool isFinished;
+
+    // UI スレッドで設定し、フックの専用のスレッドで読む
+    private volatile bool isFinished;
+    private nint windowHandle;
+
+    [LibraryImport("user32.dll")]
+    private static partial IntPtr GetForegroundWindow();
 
     /// <summary>読み取りが終わったときに1度だけ発生する。キャンセルされた場合は null。</summary>
     public event Action<TriggerKey?>? Finished;
@@ -86,7 +98,7 @@ internal sealed class TriggerKeyRecorderForm : Form
         Deactivate += (_, _) => Finish(null);
     }
 
-    /// <summary>入力を1つ処理する。true を返した入力はほかのアプリに渡さない。</summary>
+    /// <summary>入力を1つ処理する。true を返した入力はほかのアプリに渡さない。フックの専用のスレッドで呼ばれる。</summary>
     public bool HandleInput(KeyboardInput input)
     {
         if (isFinished)
@@ -94,22 +106,22 @@ internal sealed class TriggerKeyRecorderForm : Form
             return false;
         }
 
-        // フックはこのウィンドウと同じ UI スレッドで呼ばれるので、ActiveForm をそのまま調べられる
-        var isActive = ActiveForm == this;
+        // ActiveForm は UI スレッドでしか正しく読めないため、前面のウィンドウがこのウィンドウかで調べる
+        var handle = Volatile.Read(ref windowHandle);
+        var isActive = handle != 0 && GetForegroundWindow() == handle;
         var result = isActive ? capture.Handle(input) : capture.HandleWhileInactive(input);
         if (!isActive && input.Kind == KeyboardInputKind.KeyDown)
         {
             // Windows がこのウィンドウを前面にしなかった場合に、何も起きないように見えないよう案内する
-            ShowInactiveMessage();
+            BeginInvoke(ShowInactiveMessage);
         }
         switch (result.Outcome)
         {
             case CaptureOutcome.Captured:
-                // キーボードフックの処理を早く終えるため、ウィンドウを閉じるのはフックを抜けてから
                 BeginInvoke(() => Finish(result.CapturedKey));
                 break;
             case CaptureOutcome.Rejected:
-                ShowRejectedMessage(result.RejectedVirtualKey);
+                BeginInvoke(() => ShowRejectedMessage(result.RejectedVirtualKey));
                 break;
             case CaptureOutcome.Cancelled:
                 BeginInvoke(() => Finish(null));
@@ -119,6 +131,18 @@ internal sealed class TriggerKeyRecorderForm : Form
                 break;
         }
         return result.ShouldSuppress;
+    }
+
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        Volatile.Write(ref windowHandle, Handle);
+    }
+
+    protected override void OnHandleDestroyed(EventArgs e)
+    {
+        Volatile.Write(ref windowHandle, 0);
+        base.OnHandleDestroyed(e);
     }
 
     protected override void Dispose(bool disposing)

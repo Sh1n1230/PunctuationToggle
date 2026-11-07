@@ -27,7 +27,9 @@ internal sealed class TrayApplication : ApplicationContext
     private readonly ToolStripMenuItem toggleMenuItem = new();
     private readonly ToolStripMenuItem usageMenuItem = new() { Enabled = false };
     private readonly ToolStripMenuItem launchAtLoginMenuItem = new("ログイン時に起動(&L)");
+    // 判定はフックの専用のスレッドで、切り替えキーの変更は UI スレッドで行うので、detectorLock の中で触る
     private readonly TriggerKeyDetector detector = new(AppSettings.TriggerKey);
+    private readonly Lock detectorLock = new();
     private readonly FocusBouncer focusBouncer = new();
     private readonly System.Windows.Forms.Timer pollTimer = new() { Interval = PollIntervalWithoutWatcherMilliseconds };
     private readonly SynchronizationContext uiContext;
@@ -35,7 +37,8 @@ internal sealed class TrayApplication : ApplicationContext
 
     private RegistryChangeWatcher? imeSettingsWatcher;
     private bool isImeSettingsUnreadable;
-    private TriggerKeyRecorderForm? triggerKeyRecorder;
+    // UI スレッドで設定し、フックの専用のスレッドで読む
+    private volatile TriggerKeyRecorderForm? triggerKeyRecorder;
     private Icon? currentIcon;
     private PunctuationStyle? displayedStyle;
     private int displayedIconSize;
@@ -96,6 +99,7 @@ internal sealed class TrayApplication : ApplicationContext
 
     // ---- 入力の処理 ----
 
+    /// <summary>入力を1つ処理する。フックの専用のスレッドで呼ばれる。</summary>
     private bool HandleInput(KeyboardInput input)
     {
         if (triggerKeyRecorder is { } recorder)
@@ -103,13 +107,35 @@ internal sealed class TrayApplication : ApplicationContext
             return recorder.HandleInput(input);
         }
 
-        var decision = detector.Handle(input);
+        InputDecision decision;
+        lock (detectorLock)
+        {
+            decision = detector.Handle(input);
+        }
         if (decision.ShouldToggle)
         {
-            // フックの処理が遅いと Windows にフックを外されるので、メッセージループに戻ってから切り替える
+            // フックの処理が遅いと Windows にフックを外されるので、切り替えは UI スレッドで行う
             uiContext.Post(_ => TogglePunctuationStyle(bounceFocus: true), null);
         }
         return decision.ShouldSuppress;
+    }
+
+    private TriggerKey CurrentTriggerKey
+    {
+        get
+        {
+            lock (detectorLock)
+            {
+                return detector.TriggerKey;
+            }
+        }
+        set
+        {
+            lock (detectorLock)
+            {
+                detector.TriggerKey = value;
+            }
+        }
     }
 
     /// <param name="bounceFocus">
@@ -173,7 +199,7 @@ internal sealed class TrayApplication : ApplicationContext
         NotifyIfImeSettingsUnreadable(readStyle is null);
         // 読み込めない間は、前回表示した句読点のまま表示を続ける
         var style = readStyle ?? displayedStyle ?? MicrosoftImeSettings.PunctuationStyle;
-        var triggerKey = detector.TriggerKey;
+        var triggerKey = CurrentTriggerKey;
 
         toggleMenuItem.Text = style == PunctuationStyle.CommaPeriod
             ? $"「、。」に切り替え(&T)（{triggerKey.DisplayName}）"
@@ -250,7 +276,7 @@ internal sealed class TrayApplication : ApplicationContext
             return;
         }
 
-        var recorder = new TriggerKeyRecorderForm(detector.TriggerKey);
+        var recorder = new TriggerKeyRecorderForm(CurrentTriggerKey);
         recorder.Finished += newKey =>
         {
             triggerKeyRecorder = null;
@@ -260,7 +286,7 @@ internal sealed class TrayApplication : ApplicationContext
                 try
                 {
                     AppSettings.TriggerKey = newKey;
-                    detector.TriggerKey = newKey;
+                    CurrentTriggerKey = newKey;
                 }
                 catch (Exception exception) when (RegistryErrors.IsAccessFailure(exception))
                 {
@@ -273,8 +299,9 @@ internal sealed class TrayApplication : ApplicationContext
             }
             UpdateDisplay();
         };
-        triggerKeyRecorder = recorder;
+        // フックから入力を渡すのは、ウィンドウのハンドルを作ってから（HandleInput が BeginInvoke を使う）
         recorder.Show();
+        triggerKeyRecorder = recorder;
         recorder.Activate();
     }
 
