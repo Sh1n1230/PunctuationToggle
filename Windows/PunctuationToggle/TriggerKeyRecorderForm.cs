@@ -214,7 +214,7 @@ internal sealed partial class TriggerKeyRecorderForm : Form
     /// <summary>利用者に示すキーの名前。名前を求められないキーは仮想キーコードで示す。</summary>
     private static string KeyName(int virtualKey)
     {
-        if (VirtualKeyNames.For(virtualKey) is { } name)
+        if ((VirtualKeyNames.For(virtualKey) ?? KeyboardLayoutKeyNames.For(virtualKey)) is { } name)
         {
             return name;
         }

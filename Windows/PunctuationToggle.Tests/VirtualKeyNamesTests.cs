@@ -14,13 +14,16 @@ public class VirtualKeyNamesTests
     [InlineData(0x60, "テンキーの 0")]
     [InlineData(0xF3, "半角/全角")]
     [InlineData(0xF4, "半角/全角")]
+    [InlineData(0x15, "カタカナ ひらがな")]
+    [InlineData(0xF2, "カタカナ ひらがな")]
+    [InlineData(0xF0, "英数")]
     public void よく押されるキーの名前(int virtualKey, string expected)
     {
         Assert.Equal(expected, VirtualKeyNames.For(virtualKey));
     }
 
     [Theory]
-    [InlineData(0xBC)] // VK_OEM_COMMA（アプリ本体で Keys の名前を使う）
+    [InlineData(0xBC)] // VK_OEM_COMMA（アプリ本体で、キーボード配列での名前を使う）
     [InlineData(0x00)]
     public void 表に無いキーはnull(int virtualKey)
     {
