@@ -19,7 +19,7 @@ internal sealed partial class RegistryChangeWatcher : IDisposable
     // 値の追加・削除・変更を通知させる
     private const uint REG_NOTIFY_CHANGE_LAST_SET = 0x00000004;
 
-    // 登録したスレッドが終わっても通知を続ける（Windows 8 以降）。
+    // 登録したスレッドが終わっても通知を続ける（Windows 8 以降。それより前の Windows では登録に失敗する）。
     // 通知を受けたスレッドプールのスレッドで登録し直すため、このフラグが無いとそのスレッドの終了で通知が止まる
     private const uint REG_NOTIFY_THREAD_AGNOSTIC = 0x10000000;
 

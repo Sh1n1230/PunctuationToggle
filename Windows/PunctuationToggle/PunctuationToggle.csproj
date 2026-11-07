@@ -3,6 +3,11 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
+    <!-- 動作に必要な最低の Windows の版は Windows 10 1607。使っている API のうち最も新しいものが
+         GetSystemMetricsForDpi（TrayIconRenderer.cs）で、.NET 10 が対応する最も古い Windows 10 とも同じ。
+         SupportedOSPlatformVersion で明示しないのは、net10.0-windows（TargetPlatformVersion 7.0）より大きな値を
+         書くには TargetFramework を net10.0-windows10.0.17763.0 以上にする必要があり、使わない WinRT の投影
+         （Microsoft.Windows.SDK.NET.dll などの大きな DLL）が配布用の exe に入るため（#177） -->
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <!-- 既定の Segoe UI には日本語の文字が無く、メニューの和文だけが別のフォントになって字面がそろわないため、

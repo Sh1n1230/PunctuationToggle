@@ -38,9 +38,11 @@ internal static partial class TrayIconRenderer
     [LibraryImport("user32.dll")]
     private static partial IntPtr MonitorFromPoint(POINT pt, uint dwFlags);
 
+    // Windows 8.1 以降
     [LibraryImport("shcore.dll")]
     private static partial int GetDpiForMonitor(IntPtr hmonitor, int dpiType, out uint dpiX, out uint dpiY);
 
+    // Windows 10 1607 以降（アプリが必要とする最低の版を決めている API。PunctuationToggle.csproj の SupportedOSPlatformVersion）
     [LibraryImport("user32.dll")]
     private static partial int GetSystemMetricsForDpi(int nIndex, uint dpi);
 
