@@ -28,22 +28,30 @@ internal static class MicrosoftImeSettings
         // 書き込み（set）は自分で option1 を読み直し、読み込めなければ例外にするので、ほかのビットを既定値で上書きすることはない
         get => TryReadPunctuationStyle()
             ?? MicrosoftImeOption1.GetPunctuationStyle(MicrosoftImeOption1.DefaultValue);
-        set
-        {
-            using var key = Registry.CurrentUser.CreateSubKey(KeyPath);
-            var option1 = MicrosoftImeOption1.FromStoredValue(key.GetValue(Option1ValueName));
-            key.SetValue(Option1ValueName, MicrosoftImeOption1.WithPunctuationStyle(option1, value), RegistryValueKind.DWord);
-        }
+        set => WritePunctuationStyle(KeyPath, value);
     }
 
     /// <summary>
     /// 句読点の設定を読む。レジストリを読み込めない場合（アクセス権が変更されている場合など）は null。
     /// </summary>
-    public static PunctuationStyle? TryReadPunctuationStyle()
+    public static PunctuationStyle? TryReadPunctuationStyle() => TryReadPunctuationStyle(KeyPath);
+
+    // 以下の keyPath を受け取るものは、テスト（PunctuationToggle.WindowsTests）で実際の IME の設定を変えずに確かめるため
+
+    /// <summary>option1 の句読点のビットだけを書き換える。ほかのビットは保つ。</summary>
+    /// <exception cref="InvalidDataException">option1 が DWORD 以外の形式で保存されている場合。</exception>
+    internal static void WritePunctuationStyle(string keyPath, PunctuationStyle value)
+    {
+        using var key = Registry.CurrentUser.CreateSubKey(keyPath);
+        var option1 = MicrosoftImeOption1.FromStoredValue(key.GetValue(Option1ValueName));
+        key.SetValue(Option1ValueName, MicrosoftImeOption1.WithPunctuationStyle(option1, value), RegistryValueKind.DWord);
+    }
+
+    internal static PunctuationStyle? TryReadPunctuationStyle(string keyPath)
     {
         try
         {
-            using var key = Registry.CurrentUser.OpenSubKey(KeyPath);
+            using var key = Registry.CurrentUser.OpenSubKey(keyPath);
             return MicrosoftImeOption1.GetPunctuationStyle(
                 MicrosoftImeOption1.FromStoredValue(key?.GetValue(Option1ValueName)));
         }

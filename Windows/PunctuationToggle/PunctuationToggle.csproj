@@ -17,4 +17,9 @@
     <ProjectReference Include="..\PunctuationToggle.Core\PunctuationToggle.Core.csproj" />
   </ItemGroup>
 
+  <!-- レジストリまわりの internal のメソッドを、Windows だけで動くテストから呼ぶ -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="PunctuationToggle.WindowsTests" />
+  </ItemGroup>
+
 </Project>

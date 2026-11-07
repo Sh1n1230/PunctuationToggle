@@ -26,6 +26,8 @@ on:
       - macOS/PunctuationToggle/**
       # リリースのジョブで実行するテストとその設定
       - Windows/PunctuationToggle.Tests/**
+      - Windows/PunctuationToggle.WindowsTests/**
+      - Windows/Directory.Packages.props
       - Windows/PunctuationToggle.sln
       - macOS/Tests/**
       - macOS/Package.swift

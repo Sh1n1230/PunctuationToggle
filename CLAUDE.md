@@ -21,7 +21,7 @@
 | OS の入力 → `KeyboardInput` | `KeyboardMonitor.swift`（CGEventTap） | `PunctuationToggle/KeyboardHook.cs`（低レベルフック） |
 | 句読点設定の読み書き | `JapaneseInputPunctuation.swift`（非公開の設定キーと通知） | `MicrosoftImeSettings.cs` + `MicrosoftImeOption1.cs`（レジストリ option1 のビット16〜17） |
 | 切り替えキーの保存 | `TriggerKeyStore.swift`（UserDefaults） | `PunctuationToggle/AppSettings.cs`（HKCU） |
-| テスト | `macOS/Tests/`（Swift Testing） | `PunctuationToggle.Tests/`（xUnit） |
+| テスト | `macOS/Tests/`（Swift Testing） | `PunctuationToggle.Tests/`（xUnit。Core）、`PunctuationToggle.WindowsTests/`（レジストリまわり。Windows だけ） |
 | 共通のテストベクタ | `testdata/trigger_key_vectors.json`（`TriggerKeyVectorTests.swift`） | 同じファイル（`TriggerKeyVectorTests.cs`） |
 
 - 依存の向きは「アプリ本体 → Core」の一方向。Core から OS の API（AppKit、CoreGraphics、Win32、レジストリ）を使わない。
