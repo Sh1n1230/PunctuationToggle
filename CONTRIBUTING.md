@@ -20,6 +20,7 @@ PunctuationToggle/
 │   ├── PunctuationToggle.Tests/    Core の単体テスト（xUnit。macOS・Linux でも実行できる）
 │   ├── PunctuationToggle.WindowsTests/  レジストリの読み書きと変更通知のテスト（Windows だけ。HKCU\Software\PunctuationToggle.Tests の下だけを使う）
 │   ├── Directory.Packages.props    テストのプロジェクトが使う NuGet パッケージの版
+│   ├── Scripts/                    開発用のスクリプト（macOS 版のアイコンの PNG から .ico を作る generate_app_icon.ps1）
 │   ├── PunctuationToggle.sln
 │   └── install.ps1 / uninstall.ps1   （共通の手順は InstallCommon.ps1）
 ├── converters/                     句読点の変換コマンド（3言語）とベンチマーク

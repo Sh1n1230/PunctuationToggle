@@ -33,6 +33,9 @@ internal sealed partial class TriggerKeyRecorderForm : Form
     private readonly TriggerKeyCapture capture = new();
     // 本文はアプリの既定のフォント（PunctuationToggle.csproj の ApplicationDefaultFont）、見出しはその太字
     private readonly Font titleFont;
+
+    // タイトルバーのアイコン（exe のアイコン。取り出せない場合は Windows Forms の既定のアイコンのまま）
+    private readonly Icon? appIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
     private readonly Label statusLabel;
 
     // UI スレッドで設定し、フックの専用のスレッドで読む
@@ -64,6 +67,10 @@ internal sealed partial class TriggerKeyRecorderForm : Form
         AutoSize = true;
         AutoSizeMode = AutoSizeMode.GrowAndShrink;
         titleFont = new Font(Font, FontStyle.Bold);
+        if (appIcon is not null)
+        {
+            Icon = appIcon;
+        }
 
         var titleLabel = new Label
         {
@@ -182,6 +189,7 @@ internal sealed partial class TriggerKeyRecorderForm : Form
         if (disposing)
         {
             titleFont.Dispose();
+            appIcon?.Dispose();
         }
         base.Dispose(disposing);
     }

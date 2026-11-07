@@ -10,6 +10,9 @@
          （Microsoft.Windows.SDK.NET.dll などの大きな DLL）が配布用の exe に入るため（#177） -->
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <!-- exe のアイコン（エクスプローラー・スタートアップ アプリの一覧・タスク マネージャー・設定画面のタイトルバー）。
+         macOS 版と同じ図柄で、Windows/Scripts/generate_app_icon.ps1 で作る。タスクトレイのアイコンは実行時に句読点を描く -->
+    <ApplicationIcon>PunctuationToggle.ico</ApplicationIcon>
     <!-- 既定の Segoe UI には日本語の文字が無く、メニューの和文だけが別のフォントになって字面がそろわないため、
          アプリ全体（タスクトレイのメニュー・設定画面・ダイアログ）の既定のフォントを日本語の UI フォントにする。
          ApplicationConfiguration.Initialize（Program.cs）が Application.SetDefaultFont を呼ぶ -->
