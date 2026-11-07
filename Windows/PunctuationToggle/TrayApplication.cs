@@ -61,6 +61,7 @@ internal sealed class TrayApplication : ApplicationContext
         };
         notifyIcon.Visible = true;
         UpdateDisplay();
+        NotifyIfMouseHookMissing();
 
         StartWatchingImeSettings();
         pollTimer.Tick += (_, _) =>
@@ -76,6 +77,8 @@ internal sealed class TrayApplication : ApplicationContext
 
         SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
         SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
+        SystemEvents.SessionSwitch += OnSessionSwitch;
+        SystemEvents.PowerModeChanged += OnPowerModeChanged;
     }
 
     protected override void Dispose(bool disposing)
@@ -84,6 +87,8 @@ internal sealed class TrayApplication : ApplicationContext
         {
             SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
             SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
+            SystemEvents.SessionSwitch -= OnSessionSwitch;
+            SystemEvents.PowerModeChanged -= OnPowerModeChanged;
             pollTimer.Dispose();
             imeSettingsWatcher?.Dispose();
             keyboardHook.Dispose();
@@ -202,6 +207,8 @@ internal sealed class TrayApplication : ApplicationContext
         menu.Items.Add("終了(&X)", null, (_, _) => ExitThread());
         menu.Opening += (_, _) =>
         {
+            // 切り替えキーが効かないと気づいた利用者はメニューを開くので、そのときにフックを登録し直す
+            ReinstallKeyboardHook();
             launchAtLoginMenuItem.Checked = AppSettings.LaunchAtLogin;
             UpdateDisplay();
         };
@@ -265,6 +272,51 @@ internal sealed class TrayApplication : ApplicationContext
         pollTimer.Interval = imeSettingsWatcher is null
             ? PollIntervalWithoutWatcherMilliseconds
             : PollIntervalWithWatcherMilliseconds;
+    }
+
+    /// <summary>
+    /// フックを登録し直し、判定の途中の状態を消す。フックが Windows に外されていた場合（外されたことは
+    /// アプリに知らされない）に、切り替えキーを使えるように戻す。古いフックを外してから登録するので、二重にはならない。
+    /// </summary>
+    private void ReinstallKeyboardHook()
+    {
+        keyboardHook.Reinstall();
+        lock (detectorLock)
+        {
+            detector.Reset();
+        }
+    }
+
+    private void OnSessionSwitch(object? sender, SessionSwitchEventArgs eventArgs)
+    {
+        // 画面のロックの間は入力がフックに届かず、ロックの解除の後にフックが外されていることもある
+        if (eventArgs.Reason == SessionSwitchReason.SessionUnlock)
+        {
+            ReinstallKeyboardHook();
+        }
+    }
+
+    private void OnPowerModeChanged(object? sender, PowerModeChangedEventArgs eventArgs)
+    {
+        if (eventArgs.Mode == PowerModes.Resume)
+        {
+            ReinstallKeyboardHook();
+        }
+    }
+
+    /// <summary>マウスのフックを登録できなかった場合に、起動時に1回だけ知らせる。</summary>
+    private void NotifyIfMouseHookMissing()
+    {
+        if (keyboardHook.MouseHookErrorCode is not { } errorCode)
+        {
+            return;
+        }
+        notifyIcon.ShowBalloonTip(
+            BalloonTipTimeoutMilliseconds,
+            "PunctuationToggle",
+            "マウスの操作を監視できないため、切り替えキー（修飾キー）を押したままクリックしても、句読点が切り替わることがあります。" +
+            $"（{new Win32Exception(errorCode).Message}）",
+            ToolTipIcon.Warning);
     }
 
     private void OnDisplaySettingsChanged(object? sender, EventArgs eventArgs)

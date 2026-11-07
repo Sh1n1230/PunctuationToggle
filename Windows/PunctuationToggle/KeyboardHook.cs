@@ -18,6 +18,9 @@ internal sealed partial class KeyboardHook : IDisposable
     private const int WH_KEYBOARD_LL = 13;
     private const int WH_MOUSE_LL = 14;
     private const int WM_QUIT = 0x0012;
+
+    // フックを登録し直すよう専用のスレッドに頼むメッセージ（アプリが自由に使える WM_APP 以降の値）
+    private const uint ReinstallMessage = 0x8000 + 1; // WM_APP + 1
     private const int WM_LBUTTONDOWN = 0x0201;
     private const int WM_RBUTTONDOWN = 0x0204;
     private const int WM_MBUTTONDOWN = 0x0207;
@@ -96,6 +99,7 @@ internal sealed partial class KeyboardHook : IDisposable
     private IntPtr keyboardHook;
     private IntPtr mouseHook;
     private int keyboardHookError;
+    private int mouseHookError;
 
     /// <param name="inputHandler">
     /// 入力ごとに、フックの専用のスレッドで呼ばれる。true を返すと、その入力はほかのアプリに渡さない。
@@ -128,6 +132,19 @@ internal sealed partial class KeyboardHook : IDisposable
         }
     }
 
+    /// <summary>
+    /// マウスのフックを登録できなかった場合の Win32 のエラーコード。登録できた場合は null。
+    /// マウスのフックが無いと、修飾キーを押したままのクリックを単独押しと区別できない。
+    /// </summary>
+    public int? MouseHookErrorCode => mouseHookError == 0 ? null : mouseHookError;
+
+    /// <summary>
+    /// フックを外して登録し直す。処理が LowLevelHooksTimeout を超えて Windows にフックを外された場合
+    /// （外されたことはアプリに知らされない）に、切り替えキーを使えるように戻す。
+    /// </summary>
+    public void Reinstall() =>
+        PostThreadMessage(hookThreadId, ReinstallMessage, IntPtr.Zero, IntPtr.Zero);
+
     public void Dispose()
     {
         // メッセージループを終わらせると、専用のスレッドがフックを外して終了する
@@ -142,27 +159,46 @@ internal sealed partial class KeyboardHook : IDisposable
     {
         hookThreadId = GetCurrentThreadId();
         var module = GetModuleHandle(null);
-        keyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, Marshal.GetFunctionPointerForDelegate(keyboardProc), module, 0);
+        Install(module);
+        started.Set();
         if (keyboardHook == IntPtr.Zero)
         {
-            keyboardHookError = Marshal.GetLastWin32Error();
-            started.Set();
             return;
         }
-        // マウスのフックは Ctrl＋クリックの判定に使うだけなので、登録できなくても動作は続ける
-        mouseHook = SetWindowsHookEx(WH_MOUSE_LL, Marshal.GetFunctionPointerForDelegate(mouseProc), module, 0);
-        started.Set();
 
         // 低レベルフックは、登録したスレッドがメッセージを待っている間に呼ばれる。
         // GetMessage は WM_QUIT で 0、エラーで -1 を返す
-        while (GetMessage(out _, IntPtr.Zero, 0, 0) > 0)
+        while (GetMessage(out var message, IntPtr.Zero, 0, 0) > 0)
         {
+            if (message.message == ReinstallMessage)
+            {
+                Uninstall();
+                Install(module);
+            }
         }
+        Uninstall();
+    }
 
-        UnhookWindowsHookEx(keyboardHook);
+    private void Install(IntPtr module)
+    {
+        keyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, Marshal.GetFunctionPointerForDelegate(keyboardProc), module, 0);
+        keyboardHookError = keyboardHook == IntPtr.Zero ? Marshal.GetLastWin32Error() : 0;
+        // マウスのフックは Ctrl＋クリックの判定に使うだけなので、登録できなくても動作は続ける
+        mouseHook = SetWindowsHookEx(WH_MOUSE_LL, Marshal.GetFunctionPointerForDelegate(mouseProc), module, 0);
+        mouseHookError = mouseHook == IntPtr.Zero ? Marshal.GetLastWin32Error() : 0;
+    }
+
+    private void Uninstall()
+    {
+        if (keyboardHook != IntPtr.Zero)
+        {
+            UnhookWindowsHookEx(keyboardHook);
+            keyboardHook = IntPtr.Zero;
+        }
         if (mouseHook != IntPtr.Zero)
         {
             UnhookWindowsHookEx(mouseHook);
+            mouseHook = IntPtr.Zero;
         }
     }
 
