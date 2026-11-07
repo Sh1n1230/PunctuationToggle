@@ -19,6 +19,11 @@ internal sealed partial class TriggerKeyRecorderForm : Form
         "修飾キー（Shift・Ctrl・Alt・Windows）は単独で押して離してください。" +
         "ほかに F1〜F24、変換、無変換、アプリケーション、Pause、Scroll Lock が使えます。Esc でキャンセルします。";
 
+    private const string InactiveMessage = "このウィンドウをクリックしてから、キーを押してください。";
+
+    // 案内を折り返す幅（96 DPI でのピクセル。表示倍率に合わせて拡大される）
+    private const int MessageWidth = 380;
+
     // 案内の文字色。ウィンドウの背景（SystemColors.Control。Windows 11 の既定で #F0F0F0）に対して、
     // WCAG 2.2 の達成基準 1.4.3 が通常の大きさの文字に求める 4.5:1 以上のコントラスト比にする。
     // #9C4A00 は 5.43:1（以前の Color.DarkOrange は 2.05:1 で足りなかった）、Firebrick（#B22222）は 5.86:1
@@ -42,6 +47,13 @@ internal sealed partial class TriggerKeyRecorderForm : Form
 
     public TriggerKeyRecorderForm(TriggerKey currentKey)
     {
+        // 余白や折り返しの幅（Padding・Margin・MaximumSize）は 96 DPI（表示倍率 100%）のピクセルで書き、
+        // 表示倍率に合わせて Windows Forms に拡大させる（フォントはポイントで指定しているので倍率に合わせて大きくなる）。
+        // PerMonitorV2 なので、倍率の違うモニターに動かしたときも拡大し直される
+        SuspendLayout();
+        AutoScaleDimensions = new SizeF(96F, 96F);
+        AutoScaleMode = AutoScaleMode.Dpi;
+
         Text = "切り替えキーの設定";
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
@@ -60,14 +72,20 @@ internal sealed partial class TriggerKeyRecorderForm : Form
             AutoSize = true,
         };
         var currentKeyLabel = new Label { Text = $"現在の切り替えキー: {currentKey.DisplayName}", AutoSize = true };
-        statusLabel = new Label
+        var instructionLabel = new Label
         {
             Text = InstructionText,
             ForeColor = SystemColors.GrayText,
             AutoSize = true,
-            MaximumSize = new Size(380, 0),
-            // 案内の文言が変わったこと（使えないキーを押したときなど）を、ナレーターなどのスクリーンリーダーに知らせる。
-            // LiveSetting を設定したラベルは、Text を変えるとライブ リージョンの変化を UI オートメーションに通知する
+            MaximumSize = new Size(MessageWidth, 0),
+        };
+        // 使えないキーを押したときなどの短い知らせ。変わらない案内（instructionLabel）とは分け、
+        // 知らせが変わったときに、短い知らせだけをナレーターなどのスクリーンリーダーに読み上げさせる。
+        // LiveSetting を設定したラベルは、Text を変えるとライブ リージョンの変化を UI オートメーションに通知する
+        statusLabel = new Label
+        {
+            AutoSize = true,
+            MaximumSize = new Size(MessageWidth, 0),
             LiveSetting = System.Windows.Forms.Automation.AutomationLiveSetting.Polite,
         };
 
@@ -86,7 +104,7 @@ internal sealed partial class TriggerKeyRecorderForm : Form
             Padding = new Padding(16),
             WrapContents = false,
         };
-        layout.Controls.AddRange([titleLabel, currentKeyLabel, statusLabel, buttonRow]);
+        layout.Controls.AddRange([titleLabel, currentKeyLabel, instructionLabel, statusLabel, buttonRow]);
         Controls.Add(layout);
 
         // Tab・Enter・スペースはボタンの操作に使えるが、開いた直後にボタンにフォーカスがあると、
@@ -94,6 +112,9 @@ internal sealed partial class TriggerKeyRecorderForm : Form
         Shown += (_, _) => ActiveControl = null;
         FormClosed += (_, _) => Finish(null);
         Deactivate += (_, _) => Finish(null);
+
+        ResumeLayout(performLayout: false);
+        PerformLayout();
     }
 
     /// <summary>入力を1つ処理する。true を返した入力はほかのアプリに渡さない。フックの専用のスレッドで呼ばれる。</summary>
@@ -167,13 +188,19 @@ internal sealed partial class TriggerKeyRecorderForm : Form
 
     private void ShowInactiveMessage()
     {
-        statusLabel.Text = $"このウィンドウをクリックしてから、キーを押してください。{Environment.NewLine}{InstructionText}";
+        // 前面にない間は、ほかのアプリで文字を入力していることがある。1文字ごとに同じ知らせを設定し直して
+        // スクリーンリーダーが繰り返し読み上げないよう、すでに表示していれば何もしない
+        if (statusLabel.Text == InactiveMessage)
+        {
+            return;
+        }
+        statusLabel.Text = InactiveMessage;
         statusLabel.ForeColor = StatusColor(InactiveMessageColor);
     }
 
     private void ShowRejectedMessage(int virtualKey)
     {
-        statusLabel.Text = $"そのキー（{KeyName(virtualKey)}）は使えません。{Environment.NewLine}{InstructionText}";
+        statusLabel.Text = $"そのキー（{KeyName(virtualKey)}）は使えません。";
         statusLabel.ForeColor = StatusColor(RejectedMessageColor);
     }
 
