@@ -10,8 +10,6 @@ namespace PunctuationToggle;
 /// キー入力は <see cref="KeyboardHook"/> で受け取る（修飾キーの単独押しや Windows キーはウィンドウのイベントでは扱いにくいため）。
 /// ほかのアプリでの入力を読み取ったり握りつぶしたりしないよう、このウィンドウが前面にある間だけ読み取り、
 /// ほかのウィンドウに切り替えたら設定を中止して閉じる（開いている間は切り替えキーが効かないため、残さない）。
-/// </remarks>
-/// <remarks>
 /// <see cref="HandleInput"/> はフックの専用のスレッドで呼ばれる。<see cref="TriggerKeyCapture"/> はそのスレッドだけで使い、
 /// 画面の更新は BeginInvoke で UI スレッドに移して行う。
 /// </remarks>
@@ -28,8 +26,8 @@ internal sealed partial class TriggerKeyRecorderForm : Form
     private static readonly Color RejectedMessageColor = Color.Firebrick;
 
     private readonly TriggerKeyCapture capture = new();
-    private readonly Font bodyFont = new("Yu Gothic UI", 9F);
-    private readonly Font titleFont = new("Yu Gothic UI", 9F, FontStyle.Bold);
+    // 本文はアプリの既定のフォント（PunctuationToggle.csproj の ApplicationDefaultFont）、見出しはその太字
+    private readonly Font titleFont;
     private readonly Label statusLabel;
 
     // UI スレッドで設定し、フックの専用のスレッドで読む
@@ -53,7 +51,7 @@ internal sealed partial class TriggerKeyRecorderForm : Form
         StartPosition = FormStartPosition.CenterScreen;
         AutoSize = true;
         AutoSizeMode = AutoSizeMode.GrowAndShrink;
-        Font = bodyFont;
+        titleFont = new Font(Font, FontStyle.Bold);
 
         var titleLabel = new Label
         {
@@ -162,7 +160,6 @@ internal sealed partial class TriggerKeyRecorderForm : Form
     {
         if (disposing)
         {
-            bodyFont.Dispose();
             titleFont.Dispose();
         }
         base.Dispose(disposing);
