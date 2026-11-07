@@ -84,6 +84,7 @@ internal sealed partial class KeyboardHook : IDisposable
     private static partial IntPtr GetModuleHandle(string? lpModuleName);
 
     private readonly Func<KeyboardInput, bool> inputHandler;
+    private readonly Action<Exception> handlerFailed;
 
     // 関数ポインターだけを渡したデリゲートが GC に回収されないよう、フィールドで保持する
     private readonly HookProc keyboardProc;
@@ -99,10 +100,14 @@ internal sealed partial class KeyboardHook : IDisposable
     /// <param name="inputHandler">
     /// 入力ごとに、フックの専用のスレッドで呼ばれる。true を返すと、その入力はほかのアプリに渡さない。
     /// </param>
+    /// <param name="handlerFailed">
+    /// <paramref name="inputHandler"/> が例外を投げたときに、フックの専用のスレッドで呼ばれる（その入力はほかのアプリに渡す）。
+    /// </param>
     /// <exception cref="Win32Exception">キーボードのフックを登録できなかった場合。</exception>
-    public KeyboardHook(Func<KeyboardInput, bool> inputHandler)
+    public KeyboardHook(Func<KeyboardInput, bool> inputHandler, Action<Exception> handlerFailed)
     {
         this.inputHandler = inputHandler;
+        this.handlerFailed = handlerFailed;
         keyboardProc = KeyboardProc;
         mouseProc = MouseProc;
 
@@ -163,7 +168,7 @@ internal sealed partial class KeyboardHook : IDisposable
 
     private IntPtr KeyboardProc(int nCode, IntPtr wParam, IntPtr lParam)
     {
-        if (nCode >= 0 && ToKeyboardInput(wParam.ToInt32(), lParam) is { } input && inputHandler(input))
+        if (nCode >= 0 && ToKeyboardInput(wParam.ToInt32(), lParam) is { } input && CallHandler(input))
         {
             return SuppressInput;
         }
@@ -177,9 +182,28 @@ internal sealed partial class KeyboardHook : IDisposable
                 or WM_MOUSEWHEEL or WM_MOUSEHWHEEL)
         {
             // マウスの入力は渡さないことがないので、戻り値は使わない
-            inputHandler(KeyboardInput.Mouse);
+            CallHandler(KeyboardInput.Mouse);
         }
         return CallNextHookEx(mouseHook, nCode, wParam, lParam);
+    }
+
+    /// <summary>ハンドラーを呼ぶ。例外が起きた場合は、その入力をほかのアプリに渡すため false を返す。</summary>
+    private bool CallHandler(KeyboardInput input)
+    {
+        try
+        {
+            return inputHandler(input);
+        }
+        // フックのコールバックは user32 から直接呼ばれ、例外がここから外へ出ると CallNextHookEx を呼ばないまま
+        // プロセスが終了する（その入力もほかのアプリに渡らない）。キー入力を止めないことを優先して、
+        // 種類を問わず捕まえて入力を渡し、扱い（知らせて終了するなど）は呼び出し元に任せる
+#pragma warning disable CA1031 // 上の理由で、すべての例外を捕まえる
+        catch (Exception exception)
+#pragma warning restore CA1031
+        {
+            handlerFailed(exception);
+            return false;
+        }
     }
 
     private static KeyboardInput? ToKeyboardInput(int message, IntPtr lParam)

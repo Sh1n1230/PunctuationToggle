@@ -113,24 +113,37 @@ internal sealed partial class TriggerKeyRecorderForm : Form
         if (!isActive && input.Kind == KeyboardInputKind.KeyDown)
         {
             // Windows がこのウィンドウを前面にしなかった場合に、何も起きないように見えないよう案内する
-            BeginInvoke(ShowInactiveMessage);
+            PostToUi(ShowInactiveMessage);
         }
         switch (result.Outcome)
         {
             case CaptureOutcome.Captured:
-                BeginInvoke(() => Finish(result.CapturedKey));
+                PostToUi(() => Finish(result.CapturedKey));
                 break;
             case CaptureOutcome.Rejected:
-                BeginInvoke(() => ShowRejectedMessage(result.RejectedVirtualKey));
+                PostToUi(() => ShowRejectedMessage(result.RejectedVirtualKey));
                 break;
             case CaptureOutcome.Cancelled:
-                BeginInvoke(() => Finish(null));
+                PostToUi(() => Finish(null));
                 break;
             case CaptureOutcome.Waiting:
             default:
                 break;
         }
         return result.ShouldSuppress;
+    }
+
+    /// <summary>画面の更新を UI スレッドに移す。ウィンドウがすでに閉じられていれば何もしない。</summary>
+    private void PostToUi(Action action)
+    {
+        try
+        {
+            BeginInvoke(action);
+        }
+        // 閉じる処理（Finish）とフックからの入力が重なり、ハンドルが破棄された後に呼ばれた場合
+        catch (InvalidOperationException)
+        {
+        }
     }
 
     protected override void OnHandleCreated(EventArgs e)

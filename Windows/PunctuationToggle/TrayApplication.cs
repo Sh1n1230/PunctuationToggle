@@ -49,7 +49,7 @@ internal sealed class TrayApplication : ApplicationContext
         uiContext = SynchronizationContext.Current ?? new WindowsFormsSynchronizationContext();
 
         // 登録できなかった場合はここで例外になる（トレイアイコンを表示する前に確かめる）
-        keyboardHook = new KeyboardHook(HandleInput);
+        keyboardHook = new KeyboardHook(HandleInput, HandleInputFailed);
 
         notifyIcon.ContextMenuStrip = CreateMenu();
         notifyIcon.MouseClick += (_, eventArgs) =>
@@ -119,6 +119,13 @@ internal sealed class TrayApplication : ApplicationContext
         }
         return decision.ShouldSuppress;
     }
+
+    /// <summary>
+    /// 入力の処理で想定外の例外が起きたとき（フックの専用のスレッドで呼ばれる）。入力はすでにほかのアプリに渡している。
+    /// 判定の途中の状態が分からないまま監視を続けないよう、UI スレッドで投げ直し、想定外の例外として扱う（Program を参照）。
+    /// </summary>
+    private void HandleInputFailed(Exception exception) =>
+        uiContext.Post(_ => throw new InvalidOperationException("キー入力の処理中にエラーが起きました。", exception), null);
 
     private TriggerKey CurrentTriggerKey
     {
