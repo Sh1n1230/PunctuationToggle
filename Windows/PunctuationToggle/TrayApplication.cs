@@ -29,7 +29,12 @@ internal sealed class TrayApplication : ApplicationContext
     private readonly NotifyIcon notifyIcon = new();
     private readonly ToolStripMenuItem toggleMenuItem = new();
     private readonly ToolStripMenuItem usageMenuItem = new() { Enabled = false };
-    private readonly ToolStripMenuItem launchAtLoginMenuItem = new("ログイン時に起動(&L)");
+    private const string LaunchAtLoginMenuText = "ログイン時に起動(&L)";
+
+    // Windows の設定のスタートアップ アプリの画面
+    private const string StartupAppsSettingsUri = "ms-settings:startupapps";
+
+    private readonly ToolStripMenuItem launchAtLoginMenuItem = new(LaunchAtLoginMenuText);
     // 判定はフックの専用のスレッドで、切り替えキーの変更は UI スレッドで行うので、detectorLock の中で触る
     private readonly TriggerKeyDetector detector = new(AppSettings.TriggerKey);
     private readonly Lock detectorLock = new();
@@ -226,7 +231,12 @@ internal sealed class TrayApplication : ApplicationContext
         {
             // 切り替えキーが効かないと気づいた利用者はメニューを開くので、そのときにフックを登録し直す
             ReinstallKeyboardHook();
-            launchAtLoginMenuItem.Checked = AppSettings.LaunchAtLogin;
+            var launchAtLoginState = AppSettings.LaunchAtLoginState;
+            launchAtLoginMenuItem.Checked = launchAtLoginState == LaunchAtLoginState.On;
+            // 登録していても Windows の設定で無効にされていると、ログイン時に起動しないため、オンと表示せずに理由を示す
+            launchAtLoginMenuItem.Text = launchAtLoginState == LaunchAtLoginState.DisabledByWindows
+                ? LaunchAtLoginMenuText + "（Windows の設定で無効）"
+                : LaunchAtLoginMenuText;
             UpdateDisplay();
         };
         return menu;
@@ -460,6 +470,12 @@ internal sealed class TrayApplication : ApplicationContext
 
     private static void ToggleLaunchAtLogin()
     {
+        // Windows の設定で無効にされた状態は非公開の値に保存されるため、アプリからは書き換えず、設定で有効にしてもらう
+        if (AppSettings.LaunchAtLoginState == LaunchAtLoginState.DisabledByWindows)
+        {
+            ShowStartupAppsSettingsGuide();
+            return;
+        }
         try
         {
             AppSettings.LaunchAtLogin = !AppSettings.LaunchAtLogin;
@@ -468,6 +484,33 @@ internal sealed class TrayApplication : ApplicationContext
         {
             MessageBox.Show(
                 $"「ログイン時に起動」を変更できませんでした。{Environment.NewLine}{exception.Message}",
+                "PunctuationToggle",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+        }
+    }
+
+    private static void ShowStartupAppsSettingsGuide()
+    {
+        var answer = MessageBox.Show(
+            "「ログイン時に起動」は、Windows の設定の「スタートアップ アプリ」（またはタスク マネージャー）で無効にされています。" +
+            $"{Environment.NewLine}有効にするには、Windows の設定で PunctuationToggle をオンにしてください。" +
+            $"{Environment.NewLine}{Environment.NewLine}Windows の設定を開きますか？",
+            "PunctuationToggle",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Information);
+        if (answer != DialogResult.Yes)
+        {
+            return;
+        }
+        try
+        {
+            Process.Start(new ProcessStartInfo(StartupAppsSettingsUri) { UseShellExecute = true });
+        }
+        catch (Win32Exception exception)
+        {
+            MessageBox.Show(
+                $"Windows の設定を開けませんでした。{Environment.NewLine}{exception.Message}",
                 "PunctuationToggle",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);

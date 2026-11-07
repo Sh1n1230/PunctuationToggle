@@ -32,7 +32,8 @@ public readonly record struct CaptureResult(
 /// <remarks>
 /// <list type="bullet">
 /// <item>修飾キーは、単独で押して離したときに読み取る（Ctrl＋C のような組み合わせは無視する）。</item>
-/// <item>それ以外のキーは、押したときに読み取る。押したキーの入力はほかのアプリに渡さない。</item>
+/// <item>それ以外のキーは、押したときに読み取る。押したキーの入力はほかのアプリに渡さない。
+/// ただし、修飾キーと一緒に押したキー（Alt＋F4 など）は、OS やアプリのショートカットなので読み取らずに渡す。</item>
 /// <item>Esc でキャンセルする。</item>
 /// <item>Tab・Enter・スペースは読み取らず、設定画面のボタンの操作に使えるよう渡す。</item>
 /// <item>設定画面が前面にない間の入力は <see cref="HandleWhileInactive"/> に渡し、読み取らずにほかのアプリへ渡す。</item>
@@ -69,6 +70,12 @@ public sealed class TriggerKeyCapture
 
             // 設定画面のボタンをキーボードで操作するキー。どれも切り替えキーにできないので、読み取らずに画面へ渡す
             case KeyboardInputKind.KeyDown when VirtualKeys.IsDialogNavigation(virtualKey):
+                pendingModifier = null;
+                return new CaptureResult(CaptureOutcome.Waiting, ShouldSuppress: false);
+
+            // 修飾キーと一緒に押したキーは、設定画面を閉じる Alt＋F4 などのショートカットなので、読み取らずに渡す
+            // （読み取ると、F4 が切り替えキーとして保存され、Alt＋F4 も効かなくなる）
+            case KeyboardInputKind.KeyDown when input.OtherModifiersHeld:
                 pendingModifier = null;
                 return new CaptureResult(CaptureOutcome.Waiting, ShouldSuppress: false);
 

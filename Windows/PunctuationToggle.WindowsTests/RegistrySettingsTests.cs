@@ -49,6 +49,38 @@ public sealed class AppSettingsTests : IDisposable
         // 登録が無いときに解除しても失敗しない
         AppSettings.SetLaunchAtLogin(testKey.Path, ExecutablePath, value: false);
     }
+
+    [Fact]
+    public void Windowsの設定のスタートアップアプリで無効にされた状態を読み取る()
+    {
+        var runKeyPath = testKey.Path + @"\Run";
+        var startupApprovedKeyPath = testKey.Path + @"\StartupApproved";
+        Assert.Equal(
+            LaunchAtLoginState.Off,
+            AppSettings.ReadLaunchAtLoginState(runKeyPath, startupApprovedKeyPath, ExecutablePath));
+
+        AppSettings.SetLaunchAtLogin(runKeyPath, ExecutablePath, value: true);
+        // StartupApproved に値が無ければ有効
+        Assert.Equal(
+            LaunchAtLoginState.On,
+            AppSettings.ReadLaunchAtLoginState(runKeyPath, startupApprovedKeyPath, ExecutablePath));
+
+        using (var key = Registry.CurrentUser.CreateSubKey(startupApprovedKeyPath))
+        {
+            key.SetValue("PunctuationToggle", new byte[] { 0x03, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, RegistryValueKind.Binary);
+        }
+        Assert.Equal(
+            LaunchAtLoginState.DisabledByWindows,
+            AppSettings.ReadLaunchAtLoginState(runKeyPath, startupApprovedKeyPath, ExecutablePath));
+
+        using (var key = Registry.CurrentUser.CreateSubKey(startupApprovedKeyPath))
+        {
+            key.SetValue("PunctuationToggle", new byte[] { 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, RegistryValueKind.Binary);
+        }
+        Assert.Equal(
+            LaunchAtLoginState.On,
+            AppSettings.ReadLaunchAtLoginState(runKeyPath, startupApprovedKeyPath, ExecutablePath));
+    }
 }
 
 public sealed class MicrosoftImeSettingsTests : IDisposable
