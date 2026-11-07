@@ -13,5 +13,6 @@ if ! [[ $repeat_count =~ ^[0-9]+$ ]]; then
   exit 2
 fi
 
-python3 -c 'import sys; print("、。" * int(sys.argv[1]))' "$repeat_count" > "$output_file"
+# Python に頼らず awk で作る（「、。」を繰り返し、最後に改行を1つ付ける）
+awk -v count="$repeat_count" 'BEGIN { for (index_ = 0; index_ < count; index_++) printf "%s", "、。"; printf "\n" }' > "$output_file"
 echo "作成しました: $output_file"

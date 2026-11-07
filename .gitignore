@@ -13,3 +13,8 @@ obj/
 *.user
 .vs/
 TestResults/
+
+# Python・lint のツール
+__pycache__/
+.mypy_cache/
+.ruff_cache/

@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MPL-2.0
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+// If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 // 標準入力の文章の句読点を「、。」⇔「，．」に変換して、標準出力に書き出す。
 using System;
 using System.IO;
@@ -14,7 +18,17 @@ internal static class PunctuationConverter
         "オプション:\n" +
         "  （なし）       「、」を「，」に、「。」を「．」に変換する\n" +
         "  -r, --reverse  「，」を「、」に、「．」を「。」に変換する\n" +
-        "  -h, --help     この使い方を表示する\n";
+        "  -h, --help     この使い方を表示する\n" +
+        "  --version      版を表示する\n" +
+        "\n" +
+        "終了コード:\n" +
+        "  0  成功\n" +
+        "  1  読み書きに失敗した、または入力が UTF-8 として正しくない\n" +
+        "  2  不正な引数\n";
+
+    // 版。リポジトリのアプリと同じ番号（Windows/Directory.Build.props の Version）にする。
+    // リリースのワークフローが一致を確かめる
+    private const string Version = "1.3.0";
 
     private const int ExitSuccess = 0;
     private const int ExitFailure = 1;
@@ -43,16 +57,17 @@ internal static class PunctuationConverter
             sources = CommaPeriod;
             targets = ToutenKuten;
         }
-        else if (argument == "-h" || argument == "--help")
+        else if (argument == "-h" || argument == "--help" || argument == "--version")
         {
+            var text = argument == "--version" ? "punctuation_converter " + Version + "\n" : Usage;
             try
             {
-                WriteUtf8(Console.OpenStandardOutput(), Usage);
+                WriteUtf8(OpenOrNull(Console.OpenStandardOutput), text);
                 return ExitSuccess;
             }
             catch (IOException exception)
             {
-                WriteError("使い方を表示できませんでした: " + exception.Message + "\n");
+                WriteError("表示できませんでした: " + exception.Message + "\n");
                 return ExitFailure;
             }
         }
@@ -64,7 +79,7 @@ internal static class PunctuationConverter
 
         try
         {
-            Convert(Console.OpenStandardInput(), Console.OpenStandardOutput(), sources, targets);
+            Convert(OpenOrNull(Console.OpenStandardInput), OpenOrNull(Console.OpenStandardOutput), sources, targets);
             return ExitSuccess;
         }
         catch (DecoderFallbackException)
@@ -72,6 +87,13 @@ internal static class PunctuationConverter
             // ほかの実装と同じく、UTF-8 として正しくない入力は置き換えずにエラーにする
             WriteError("入力を UTF-8 として読み込めませんでした。\n");
             return ExitFailure;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // 標準出力が閉じていると、.NET が標準入力を開いたときに空いた番号（1）を使うため、
+            // 標準出力を開けても書き込みが EBADF で失敗する。Rust の標準ライブラリと同じく、
+            // 閉じた出力先には書けたものとして扱う
+            return ExitSuccess;
         }
         catch (IOException exception)
         {
@@ -107,12 +129,30 @@ internal static class PunctuationConverter
         }
     }
 
+    // シェルの >&- などで標準入出力が閉じていると、.NET は開くときに例外を投げる。
+    // ほかの実装（Rust の標準ライブラリ）と同じく、閉じた出力先には書けたものとして、閉じた入力は空として扱う
+    private static Stream OpenOrNull(Func<Stream> open)
+    {
+        try
+        {
+            return open();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Stream.Null;
+        }
+        catch (IOException)
+        {
+            return Stream.Null;
+        }
+    }
+
     // 標準エラー出力に書く。書き込めなくても、終了コードはほかの実装と同じにするため無視する
     private static void WriteError(string text)
     {
         try
         {
-            WriteUtf8(Console.OpenStandardError(), text);
+            WriteUtf8(OpenOrNull(Console.OpenStandardError), text);
         }
         catch (IOException)
         {

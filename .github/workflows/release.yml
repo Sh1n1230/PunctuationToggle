@@ -2,7 +2,7 @@
 # 内容を確認してから、GitHub のリリース画面で公開すること。
 #
 # 配布用ファイルのビルドに影響するファイル（このワークフロー、両 OS のアプリのソースとプロジェクトの設定、
-# SDK の版、zip に入れる LICENSE）を変更した Pull Request では、リリースは作らずに配布用ファイルのビルドまでを確かめ、
+# リリースのジョブで動くテスト、SDK の版と NuGet の設定、zip に入れる LICENSE、版を確かめる変換コマンド）を変更した Pull Request では、リリースは作らずに配布用ファイルのビルドまでを確かめ、
 # できたファイルを Actions の成果物として保存する。CI のビルドとは条件が違う（Windows 版は自己完結型の単一ファイル、
 # macOS 版はユニバーサルバイナリ）ため、タグを付けて初めて失敗することがないようにする。
 # 公開リポジトリでは GitHub ホストのランナーは無料のため、ソースの変更も対象にしている。
@@ -24,6 +24,17 @@ on:
       - Windows/PunctuationToggle.Core/**
       - macOS/PunctuationToggle.xcodeproj/**
       - macOS/PunctuationToggle/**
+      # リリースのジョブで実行するテストとその設定
+      - Windows/PunctuationToggle.Tests/**
+      - Windows/PunctuationToggle.sln
+      - macOS/Tests/**
+      - macOS/Package.swift
+      - testdata/**
+      - nuget.config
+      # version ジョブが版を確かめる変換コマンド
+      - converters/punctuation_converter.py
+      - converters/punctuation_converter.rs
+      - converters/PunctuationConverter.cs
 
 # ジョブごとに必要な権限だけを付ける
 permissions: {}
@@ -37,6 +48,13 @@ env:
   # Pull Request では、タグの代わりに仮のバージョン名を使う
   RELEASE_NAME: ${{ github.event_name == 'push' && github.ref_name || 'pr-build' }}
 
+
+# Linux・macOS の run: を bash -eo pipefail で実行し、パイプの途中の失敗も検出する
+# （shell を指定しないと sh -e で実行され、pipefail が付かない）。Windows の手順は、それぞれ shell を指定する
+defaults:
+  run:
+    shell: bash
+
 jobs:
   # ビルドの前に確かめて、CHANGELOG の書き忘れで時間を無駄にしないようにする
   release-notes:
@@ -44,7 +62,7 @@ jobs:
     if: github.event_name == 'push'
     runs-on: ubuntu-24.04
     # ハングしたときに既定の 360 分までランナーを使い続けないよう、今の実行時間の数倍で止める（ほかのジョブも同じ）
-    timeout-minutes: 10
+    timeout-minutes: 10 # 2026-11 時点の実行時間は1分未満
     permissions:
       contents: read
     steps:
@@ -55,9 +73,11 @@ jobs:
       - name: CHANGELOG からリリースノートを作成
         run: |
           version="${GITHUB_REF_NAME#v}"
-          awk -v version="$version" '
-            $0 ~ "^## \\[?" version "\\]?" { found = 1; next }
+          # 正規表現ではなく文字列で比べる（1.3.1 が 1.3.10 に一致したり、. が任意の文字に一致したりしないように）。
+          # 見出しは「## [1.3.1]」の後に何も無いか「 - 日付」が続く形
+          awk -v heading="## [$version]" '
             found && /^## / { exit }
+            $0 == heading || index($0, heading " ") == 1 { found = 1; next }
             found { print }
           ' CHANGELOG.md > release-notes.md
           if [ ! -s release-notes.md ]; then
@@ -68,6 +88,12 @@ jobs:
           {
             echo
             echo "ソースコード: https://github.com/$GITHUB_REPOSITORY/tree/$GITHUB_REF_NAME （Mozilla Public License 2.0）"
+            echo
+            echo "起動する前に、ダウンロードしたファイルを確かめてください: https://github.com/$GITHUB_REPOSITORY#ダウンロードしたファイルの確認"
+            echo
+            echo '```sh'
+            echo "gh attestation verify <ファイル> --repo $GITHUB_REPOSITORY"
+            echo '```'
           } >> release-notes.md
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -80,16 +106,25 @@ jobs:
   version:
     name: バージョン番号を確認
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 10 # 2026-11 時点の実行時間は1分未満
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # タグの付いたコミットが main にあるかと、前のタグのビルド番号を確かめるため、履歴とタグをすべて取得する
+          fetch-depth: 0
 
       - name: タグとバージョン番号を比べる
         run: |
+          # macOS 版のビルド番号（CURRENT_PROJECT_VERSION）は、Debug と Release で1つの値にそろえる
+          build_number=$(sed -n 's/.*CURRENT_PROJECT_VERSION = \(.*\);/\1/p' macOS/PunctuationToggle.xcodeproj/project.pbxproj | sort -u)
+          echo "macOS 版のビルド番号: $build_number"
+          if [ -z "$build_number" ] || [ "$(echo "$build_number" | wc -l)" -ne 1 ]; then
+            echo "::error::macOS 版の CURRENT_PROJECT_VERSION が1つの値にそろっていません。"
+            exit 1
+          fi
           windows_version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Windows/Directory.Build.props)
           macos_version=$(sed -n 's/.*MARKETING_VERSION = \(.*\);/\1/p' macOS/PunctuationToggle.xcodeproj/project.pbxproj | sort -u)
           echo "Windows 版: $windows_version"
@@ -98,9 +133,35 @@ jobs:
             echo "::error::Windows 版（Directory.Build.props の Version）と macOS 版（MARKETING_VERSION）のバージョン番号が一致しません。"
             exit 1
           fi
+          # 変換コマンドの --version の版（3つの実装の VERSION）も同じ番号にする
+          for converter in converters/punctuation_converter.py converters/punctuation_converter.rs converters/PunctuationConverter.cs; do
+            converter_version=$(sed -n 's/.*VERSION[^=]*= "\(.*\)";\{0,1\}$/\1/p; s/.*const string Version = "\(.*\)";/\1/p' "$converter" | head -n 1)
+            echo "$converter: $converter_version"
+            if [ "$converter_version" != "$windows_version" ]; then
+              echo "::error::$converter の版（$converter_version）が、Windows 版のバージョン番号（$windows_version）と一致しません。"
+              exit 1
+            fi
+          done
           if [ "$GITHUB_EVENT_NAME" = push ] && [ "${GITHUB_REF_NAME#v}" != "$windows_version" ]; then
             echo "::error::タグ（$GITHUB_REF_NAME）とバージョン番号（$windows_version）が一致しません。"
             exit 1
+          fi
+          if [ "$GITHUB_EVENT_NAME" = push ]; then
+            # main で確かめていないコミット（別のブランチ）にタグを付けて配布しないようにする
+            if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+              echo "::error::タグ（$GITHUB_REF_NAME）の付いたコミットが main ブランチにありません。"
+              exit 1
+            fi
+            # ビルド番号は、前のリリースより大きくする（macOS がアップデートとして扱うため）
+            previous_tag=$(git describe --tags --abbrev=0 --match 'v*' "$GITHUB_SHA^" 2>/dev/null || true)
+            if [ -n "$previous_tag" ]; then
+              previous_build_number=$(git show "$previous_tag:macOS/PunctuationToggle.xcodeproj/project.pbxproj" | sed -n 's/.*CURRENT_PROJECT_VERSION = \(.*\);/\1/p' | sort -u | head -n 1)
+              echo "前のリリース（$previous_tag）のビルド番号: $previous_build_number"
+              if [ "$build_number" -le "$previous_build_number" ]; then
+                echo "::error::macOS 版の CURRENT_PROJECT_VERSION（$build_number）が、前のリリース（$previous_tag）の $previous_build_number より大きくありません。"
+                exit 1
+              fi
+            fi
           fi
 
   windows:
@@ -109,7 +170,7 @@ jobs:
     # Pull Request では release-notes が実行されないので、スキップされても続ける（version の失敗では止める）
     if: ${{ !failure() && !cancelled() }}
     runs-on: windows-2025
-    timeout-minutes: 20
+    timeout-minutes: 20 # 2026-11 時点の実行時間は約1.5分
     permissions:
       contents: read
     strategy:
@@ -120,27 +181,36 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
-        env:
-          # ランナーに入っている SDK とは別の場所に入れ、global.json の版の SDK だけが使われるようにする
-          # （同じ場所にあると、rollForward によってランナーの新しい SDK が選ばれる）
-          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
-        with:
-          global-json-file: global.json
+      - name: .NET SDK の導入
+        uses: ./.github/actions/setup-dotnet
 
+      # 単体テストは CPU によらないため、x64 のジョブでだけ実行する（arm64 のランナーではないので、どちらも x64 で動く）
       - name: テスト
+        shell: pwsh
+        if: matrix.runtime == 'win-x64'
         run: |
           dotnet --version
           dotnet test Windows/PunctuationToggle.sln -c Release
 
-      # .NET のランタイムが無い PC でも動くよう、ランタイムを含めた1つの exe にする
+      # .NET のランタイムが無い PC でも動くよう、ランタイムを含めた1つの exe にする。
+      # 単一ファイルの exe の中身（同梱した .NET ランタイムとライブラリの版）は利用者から見えないため、
+      # 構成要素の一覧（SBOM）を添付する。SBOM は、単一ファイルにまとめる前の形の deps.json と各 DLL から作るので、
+      # 同じ引数でもう一度発行する（引数は $common にまとめ、2つの発行で食い違わないようにする）。
+      # デバッグ用のシンボル（PDB）は zip に入れず、障害の調査のために成果物として残す
       - name: ビルド
-        run: >
-          dotnet publish Windows/PunctuationToggle/PunctuationToggle.csproj -c Release
-          -r ${{ matrix.runtime }} --self-contained
-          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
-          -p:EnableCompressionInSingleFile=true -p:DebugType=none
-          -p:PublishDir=${{ github.workspace }}/publish/
+        shell: pwsh
+        run: |
+          $common = @(
+            'Windows/PunctuationToggle/PunctuationToggle.csproj', '-c', 'Release',
+            '-r', '${{ matrix.runtime }}', '--self-contained', '-p:DebugType=portable'
+          )
+          dotnet publish @common -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:EnableCompressionInSingleFile=true "-p:PublishDir=${{ github.workspace }}/publish/"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet publish @common "-p:PublishDir=${{ github.workspace }}/sbom-source/"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          New-Item -ItemType Directory -Force symbols | Out-Null
+          Move-Item publish/*.pdb symbols/
 
       - name: zip にまとめる
         shell: pwsh
@@ -150,15 +220,6 @@ jobs:
           Compress-Archive -Path publish/* -DestinationPath $archive
           "ARCHIVE=$archive" >> $env:GITHUB_ENV
           "SBOM=PunctuationToggle-$env:RELEASE_NAME-${{ matrix.runtime }}.cdx.json" >> $env:GITHUB_ENV
-
-      # 単一ファイルの exe の中身（同梱した .NET ランタイムとライブラリの版）は利用者から見えないため、
-      # 構成要素の一覧（SBOM）を添付する。単一ファイルにまとめる前の形でも同じ条件で発行し、
-      # deps.json と各 DLL の版を読み取らせる
-      - name: SBOM のための発行
-        run: >
-          dotnet publish Windows/PunctuationToggle/PunctuationToggle.csproj -c Release
-          -r ${{ matrix.runtime }} --self-contained -p:DebugType=none
-          -p:PublishDir=${{ github.workspace }}/sbom-source/
 
       - name: SBOM を作成
         uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
@@ -180,12 +241,21 @@ jobs:
             ${{ env.SBOM }}
           if-no-files-found: error
 
+      # リリースには添付せず（利用者には不要なため）、Actions の成果物として残す
+      - name: デバッグ用のシンボルを保存
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: symbols-${{ matrix.runtime }}
+          path: symbols
+          if-no-files-found: error
+          retention-days: 90
+
   macos:
     name: macOS 版
     needs: [release-notes, version]
     if: ${{ !failure() && !cancelled() }}
     runs-on: macos-26
-    timeout-minutes: 20
+    timeout-minutes: 20 # 2026-11 時点の実行時間は約1.5分
     permissions:
       contents: read
     steps:
@@ -210,20 +280,43 @@ jobs:
           archive="PunctuationToggle-$RELEASE_NAME-macOS.zip"
           app=macOS/build/Build/Products/Release/PunctuationToggle.app
           lipo -info "$app/Contents/MacOS/PunctuationToggle"
+          # Apple シリコンと Intel の両方の Mac で動くよう、両方が入っていることを確かめる
+          if ! lipo "$app/Contents/MacOS/PunctuationToggle" -verify_arch arm64 x86_64; then
+            echo "::error::ユニバーサルバイナリに arm64 と x86_64 の両方が入っていません"
+            exit 1
+          fi
           code_directory=$(codesign -dv "$app" 2>&1 | grep '^CodeDirectory')
           echo "$code_directory"
           case "$code_directory" in
             *runtime*) ;;
             *) echo "::error::Hardened Runtime が有効になっていません"; exit 1 ;;
           esac
-          ditto -c -k --keepParent "$app" "$archive"
+          # Windows 版と同じく LICENSE も入れる（zip を展開すると PunctuationToggle.app と LICENSE が出てくる）
+          mkdir stage
+          ditto "$app" stage/PunctuationToggle.app
+          cp LICENSE stage/
+          ditto -c -k stage "$archive"
           echo "ARCHIVE=$archive" >> "$GITHUB_ENV"
+          echo "SBOM=PunctuationToggle-$RELEASE_NAME-macOS.cdx.json" >> "$GITHUB_ENV"
+
+      # Windows 版と同じく、構成要素の一覧（SBOM）を添付する
+      - name: SBOM を作成
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          path: stage
+          format: cyclonedx-json
+          output-file: ${{ env.SBOM }}
+          upload-artifact: false
+          upload-release-assets: false
+          dependency-snapshot: false
 
       - name: 成果物として保存
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ env.ARCHIVE }}
-          path: ${{ env.ARCHIVE }}
+          path: |
+            ${{ env.ARCHIVE }}
+            ${{ env.SBOM }}
           if-no-files-found: error
 
   # ビルド済みのファイルに来歴証明を付け、下書きのリリースに添付する。
@@ -233,7 +326,7 @@ jobs:
     needs: [release-notes, windows, macos]
     if: github.event_name == 'push'
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 10 # 2026-11 時点の実行時間は未計測（タグの push でだけ動く）
     permissions:
       contents: write # リリースの作成とファイルの添付
       id-token: write # 来歴証明の署名に使う OIDC トークンの発行
@@ -260,6 +353,16 @@ jobs:
             dist/PunctuationToggle-*.zip
             dist/PunctuationToggle-*.cdx.json
             dist/SHA256SUMS.txt
+
+      # 作った来歴証明が、このリポジトリのこのワークフローの署名で確かめられることを、下書きを作る前に確かめる
+      - name: 来歴証明を確かめる
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for file in dist/PunctuationToggle-*.zip dist/PunctuationToggle-*.cdx.json dist/SHA256SUMS.txt; do
+            gh attestation verify "$file" --repo "$GITHUB_REPOSITORY" \
+              --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml"
+          done
 
       - name: 下書きを作成
         env:

@@ -19,14 +19,24 @@ PunctuationToggle/
 │   ├── PunctuationToggle.Core/     OS に依存しない判定ロジック（単体テストの対象）
 │   ├── PunctuationToggle.Tests/    Core の単体テスト（xUnit）
 │   ├── PunctuationToggle.sln
-│   └── install.ps1 / uninstall.ps1
+│   └── install.ps1 / uninstall.ps1   （共通の手順は InstallCommon.ps1）
 ├── converters/                     句読点の変換コマンド（3言語）とベンチマーク
-├── testdata/                       両 OS の Core のテストに共通のテストベクタ
+│   ├── tests/run_tests.sh          全実装に tests/cases/ の入力を与えて出力を比べるテスト（make test）
+│   ├── tests/run_random_tests.py   ランダムな入力でのテスト（make test-random）
+│   ├── tests/test_sigint.py        入力待ちの Ctrl+C のテスト（run_tests.sh が全実装で実行する）
+│   ├── tests/test_punctuation_converter.py  Python 実装の main の単体テスト
+│   └── tests/cases/                入力と期待する出力（改行コードを含めてそのまま扱う）
+├── testdata/                       両 OS の Core のテストが読む共通のテストベクタ
+│                                   （trigger_key_vectors.json。両 OS に共通の判定を変えたら、まずここを直す）
 ├── docs/                           脅威モデルなどの文書
 ├── .github/
 │   ├── workflows/                  CI・リリース・ベンチマークの自動化
+│   ├── actions/                    ワークフローで共通の手順（.NET SDK・Rust の導入）の複合アクション
 │   ├── lint/                       CI の「コーディング規約」ジョブのツールの版の固定と設定
 │   └── scripts/                    ワークフローから使うスクリプト
+├── CLAUDE.md / AGENTS.md           AI のコーディングエージェント向けの指示（CLAUDE.md が正。AGENTS.md は参照だけ）
+├── NOTICE.md                       MIT License で受け入れた変更の著作権表示
+├── ruff.toml                       Python の ruff の設定
 ├── global.json                     .NET SDK の版
 ├── rust-toolchain.toml             Rust の版
 └── nuget.config                    NuGet のパッケージソース（nuget.org だけ）
@@ -53,7 +63,7 @@ xcodebuild -project PunctuationToggle.xcodeproj -scheme PunctuationToggle build
 
 ### Windows 版
 
-.NET 10 SDK が必要です。CI とリリースで使う SDK の版は、リポジトリのルートの `global.json` で固定しています（Dependabot が更新を提案します）。手元では、同じ 10.0 の、`global.json` の版以上の SDK が使われます（`rollForward` が `latestFeature`）。`global.json` は作業ディレクトリから上にたどって探されるため、リポジトリの外から `Windows/install.ps1` を実行した場合は効きません。`PunctuationToggle.Core` と単体テストは macOS や Linux でも実行でき、アプリ本体もビルド（コンパイルの確認）だけはできます。
+.NET 10 SDK が必要です。CI とリリースで使う SDK の版は、リポジトリのルートの `global.json` で固定しています（Dependabot が更新を提案します）。手元では、同じ 10.0 の、`global.json` の版以上の SDK が使われます（`rollForward` が `latestFeature`）。`global.json` は作業ディレクトリから上にたどって探されますが、`Windows/install.ps1` はリポジトリのルートに移ってから SDK を確かめて発行するので、ほかのフォルダーから実行しても効きます。`PunctuationToggle.Core` と単体テストは macOS や Linux でも実行でき、アプリ本体もビルド（コンパイルの確認）だけはできます。
 
 ```sh
 dotnet test Windows/PunctuationToggle.sln
@@ -113,6 +123,7 @@ make test-random
 - ブランチ名は `<種類>/<内容を表す英語の短い名前>` にします（例: `fix/windows-trigger-key-save-failure`、`feat/windows-tray-icon-dpi`、`ci/lint`）。リリースは `release/vX.Y.Z` です。
 - 種類は [Conventional Commits](https://www.conventionalcommits.org/ja/v1.0.0/) のものを使います: `feat`（機能の追加）・`fix`（不具合の修正）・`docs`（文書）・`test`（テスト）・`refactor`（動作を変えない整理）・`perf`（性能）・`build`（ビルドの設定・依存）・`ci`（CI）・`chore`（そのほか）。
 - コミットメッセージと Pull Request のタイトルは、`<種類>: <日本語の説明>` にします（例: `fix: Windows 版で、切り替えキーを保存できなくても異常終了しないようにする`）。説明の句読点は「、。」で、文末の「。」は付けません。リリースの Pull Request は `vX.Y.Z をリリースする` です。
+- Dependabot の Pull Request は、`.github/dependabot.yml` の `commit-message` で、どの種類の依存でも `build(deps): …` の形になります。
 - 関係する Issue は、Pull Request の本文に `Fixes #45` のように書きます（マージすると Issue が閉じます）。閉じない関係は `Refs #45` と書きます。
 
 ### OS や IME を更新したときの確認
@@ -132,57 +143,47 @@ make test-random
 - 名前は省略せずに、役割が分かるものにします（`rl`・`br`・`cp` のような略語や、1文字の変数名は使いません。ループの添字も `index` などにします）。
 - 数値の意味が分からない定数（キーコードやレジストリのビットなど）は、名前を付けた定数にして、出典や意味をコメントに書きます。
 - コメントとユーザーに表示する文字列は日本語で書きます。コメントには「何をしているか」よりも「なぜそうしているか」を書きます。
+- ソースファイルには、ライセンスの告知を入れません（ルートの LICENSE で示します）。例外は、1つのファイルだけで持ち出して使える変換コマンドの3つの実装で、先頭に `SPDX-License-Identifier: MPL-2.0` と MPL-2.0 の告知（Exhibit A）を入れます。
+- 文書（README・CONTRIBUTING など）は、「です・ます」の易しい文体で書きます。「〜である」「〜して差し支えない」のような硬い言い回しや、難しい漢語は避けます。
 - Windows 版と変換コマンドの C# 実装は、`TreatWarningsAsErrors` と .NET のコード分析（`AnalysisLevel=latest-recommended`）を有効にしています。警告が出ない状態を保ってください。
 - 変換コマンドは、すべての言語で同じ仕様（オプション、終了コード、入出力をバイト単位で保つこと）を守ります。仕様を変えるときはすべての実装と `tests/cases/` を同時に更新します。
+- 変換コマンドの Rust 実装は、外部のクレートを使わず、`#![forbid(unsafe_code)]` で `unsafe` を禁じています。`unsafe` が必要になった場合は、この属性を外す理由を Pull Request で説明してください。
 
 ### 書式の確認
 
-書式と静的解析は CI（「コーディング規約」ジョブと、macOS アプリのジョブ）で確かめています。Pull Request を送る前に、手元でも次のコマンドで確かめてください。ruff・mypy・ShellCheck・actionlint は、CI と同じ版を `.github/lint/requirements.txt` から導入できます（`pip install --require-hashes --no-deps -r .github/lint/requirements.txt`）。
+書式と静的解析は CI（「コーディング規約」ジョブと、macOS アプリのジョブ）で確かめています。Pull Request を送る前に、手元でも次のコマンドで確かめてください。ruff・mypy・ShellCheck・check-jsonschema は、CI と同じ版を `.github/lint/requirements.txt` から導入できます（`pip install --require-hashes --no-deps --only-binary :all: -r .github/lint/requirements.txt`）。actionlint は、`ci.yml` の「actionlint の導入」に書いた版を [GitHub のリリース](https://github.com/rhysd/actionlint/releases)から入れてください。
 
 ```sh
+# Rust・Python・シェルスクリプト・Markdown のリンク・通信する API・ワークフロー・設定ファイルのスキーマ・C# を、
+# CI と同じ内容でまとめて確かめる（入っていないツールはスキップと表示する。中身は .github/lint/lint.sh）
+.github/lint/lint.sh
+
 # Swift（Xcode に同梱の swift format。設定は macOS/.swift-format）
 (cd macOS && swift format lint --strict -r Package.swift PunctuationToggle Scripts Tests)
-
-# C#
-dotnet format Windows/PunctuationToggle.sln --verify-no-changes
-dotnet format converters/dotnet/PunctuationConverter.csproj --verify-no-changes
-
-# Rust
-rustfmt --check --edition 2021 converters/punctuation_converter.rs
-clippy-driver --edition 2021 -D warnings -o /tmp/punctuation_converter converters/punctuation_converter.rs
-clippy-driver --edition 2021 -D warnings --test -o /tmp/punctuation_converter_test converters/punctuation_converter.rs
-
-# Python
-ruff check converters
-ruff format --check converters
-mypy --strict --python-version 3.10 converters/punctuation_converter.py converters/tests/run_random_tests.py
-
-# シェルスクリプト
-git ls-files -z '*.sh' | xargs -0 shellcheck
 
 # PowerShell（CI と同じ版の PSScriptAnalyzer を入れて、PowerShell で実行する）
 #   Install-Module PSScriptAnalyzer -RequiredVersion 1.25.0 -Scope CurrentUser
 #   Invoke-ScriptAnalyzer -Path Windows -Recurse -Settings .github/lint/PSScriptAnalyzerSettings.psd1
-
-# GitHub Actions のワークフロー（shellcheck が PATH にあれば run: の中も検査する）
-actionlint
 ```
 
-`--verify-no-changes` や `--check` を外す（Swift は `lint --strict` を `format -i` にする）と、指摘された書式をその場で直せます。
+個々のコマンドは `lint.sh` の中にあります。`--verify-no-changes` や `--check` を外す（Swift は `lint --strict` を `format -i` にする）と、指摘された書式をその場で直せます。
 
 ## リリースの手順
 
 1. `CHANGELOG.md` を、[Keep a Changelog](https://keepachangelog.com/ja/1.1.0/) の形で次のように更新します（v1.3.0 の #44 が例です）。
    - `## [Unreleased]` の下にたまった項目を、新しい見出し `## [X.Y.Z] - YYYY-MM-DD`（例: `## [1.3.0] - 2026-10-15`）の下に移し、`## [Unreleased]` は空のまま残します。リリースのワークフローは `## [X.Y.Z]` の見出しを探してリリースノートを作るため、見出しの形を間違えると失敗します。
    - 新しい見出しのすぐ下に、そのリリースの要約を1段落書きます。
+   - 変更の種類の見出しは、Keep a Changelog と同じ「追加」「変更」「非推奨」「削除」「修正」「セキュリティ」の順に並べます（無い種類は書きません）。
    - ファイルの末尾の比較リンクで、`[Unreleased]` の比較元を新しいタグにし（`compare/vX.Y.Z...HEAD`）、新しいバージョンのリンク（`[X.Y.Z]: .../compare/v<前のバージョン>...vX.Y.Z`）を追加します。
 2. README の「動作を確かめた OS の版」を、リリースする版で確かめた結果に更新します（手順は「OS や IME を更新したときの確認」）。
-3. バージョン番号を更新します（macOS: `PunctuationToggle.xcodeproj` の `MARKETING_VERSION` と `CURRENT_PROJECT_VERSION`、Windows: `Windows/Directory.Build.props` の `Version`）。
+3. バージョン番号を更新します（macOS: `PunctuationToggle.xcodeproj` の `MARKETING_VERSION` と `CURRENT_PROJECT_VERSION`、Windows: `Windows/Directory.Build.props` の `Version`、変換コマンド: 3つの実装の `VERSION`（`--version` で表示する版））。
 4. main ブランチで `v1.2.3` のようなタグを付けて push します。タグと手順 3 のバージョン番号が一致しない場合、リリースのワークフローはビルドの前に失敗します。一致していれば、GitHub Actions が macOS 版と Windows 版をビルドし、来歴証明（artifact attestation）を付けて、zip と `SHA256SUMS.txt` を添付した下書きのリリースを作ります。
 5. リリースの内容を確認して公開します。添付された zip は、README の「ダウンロードしたファイルの確認」の手順で検証できます。
 
-CI とリリースのランナーは、`windows-latest` のようなラベルではなく、イメージの版（`windows-2025`・`ubuntu-24.04`・`macos-26`）で指定しています。GitHub が `-latest` の指す先を変えても、リポジトリを変えないままビルド環境が変わらないようにするためです。新しいイメージに上げるときは、3つのワークフロー（`ci.yml`・`release.yml`・`security.yml`）の版をそろえて書き換え、Pull Request で CI とリリースのビルド（`release.yml` の Pull Request での実行）が通ることを確かめてからマージしてください。
+CI とリリースのランナーは、`windows-latest` のようなラベルではなく、イメージの版（`windows-2025`・`ubuntu-24.04`・`macos-26`）で指定しています。GitHub が `-latest` の指す先を変えても、リポジトリを変えないままビルド環境が変わらないようにするためです。新しいイメージに上げるときは、`.github/workflows/` のすべてのワークフロー（今は `ci.yml`・`release.yml`・`security.yml`・`benchmark.yml`。`git grep -n "runs-on:" .github/workflows` で確かめられます）の版をそろえて書き換え、Pull Request で CI とリリースのビルド（`release.yml` の Pull Request での実行）が通ることを確かめてからマージしてください。
+
+各ジョブの `timeout-minutes` は、ハングしたときに既定の 360 分までランナーを使い続けないよう、今の実行時間の数倍にしています。値の横のコメントに、決めた時点の実行時間を書いています。実行時間が上限の半分を超えるようになったら、上限とコメントを見直してください。
 
 テストやビルドのジョブは読み取り権限だけで動かし、リリースへの書き込み権限はビルド済みのファイルを添付する最後のジョブにだけ与えています。ワークフローを変更するときもこの分担を保ってください。
 
-配布用ファイルのビルドに影響するファイル（`.github/workflows/release.yml`、`global.json`、`LICENSE`、`Windows/Directory.Build.props`、`Windows/PunctuationToggle/`・`Windows/PunctuationToggle.Core/`・`macOS/PunctuationToggle/`・`macOS/PunctuationToggle.xcodeproj/` 以下）を変更した Pull Request では、リリースは作らずに配布用ファイルのビルドまでが実行され、できた zip を Actions の成果物からダウンロードして確かめられます。条件は `release.yml` の `pull_request.paths` にあります。
+配布用ファイルのビルドに影響するファイル（`.github/workflows/release.yml`、`global.json`、`nuget.config`、`LICENSE`、`Windows/Directory.Build.props`、`Windows/PunctuationToggle/`・`Windows/PunctuationToggle.Core/`・`macOS/PunctuationToggle/`・`macOS/PunctuationToggle.xcodeproj/` 以下、リリースのジョブで動くテスト（`Windows/PunctuationToggle.Tests/`・`Windows/PunctuationToggle.sln`・`macOS/Tests/`・`macOS/Package.swift`・`testdata/`）、版を確かめる変換コマンドの3つのソース）を変更した Pull Request では、リリースは作らずに配布用ファイルのビルドまでが実行され、できた zip を Actions の成果物からダウンロードして確かめられます。条件は `release.yml` の `pull_request.paths` にあります。

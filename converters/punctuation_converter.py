@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: MPL-2.0
+# This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+# If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 """標準入力の文章の句読点を「、。」⇔「，．」に変換して、標準出力に書き出す。"""
 
 import io
@@ -16,7 +20,17 @@ USAGE = """\
   （なし）       「、」を「，」に、「。」を「．」に変換する
   -r, --reverse  「，」を「、」に、「．」を「。」に変換する
   -h, --help     この使い方を表示する
+  --version      版を表示する
+
+終了コード:
+  0  成功
+  1  読み書きに失敗した、または入力が UTF-8 として正しくない
+  2  不正な引数
 """
+
+# 版。リポジトリのアプリと同じ番号（Windows/Directory.Build.props の Version）にする。
+# リリースのワークフローが一致を確かめる
+VERSION = "1.3.0"
 
 EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
@@ -32,6 +46,10 @@ CHUNK_SIZE = 1 << 16
 
 
 def convert(text: str, replacements: dict[str, str]) -> str:
+    # str.translate より str.replace を2回呼ぶ方が速い。64 Ki 文字の読み込み1回分で、
+    # 合成データ（「、。」の繰り返し）は replace 57 µs・translate 2,871 µs、実文章
+    # （benchmark/wikipedia_programming.txt の先頭）は 7.5 µs・1,249 µs（Python 3.13、Linux、timeit）。
+    # translate は1文字ずつ表を引くが、replace は置き換える文字を高速に探して、まとめて複写する
     for source, target in replacements.items():
         text = text.replace(source, target)
     return text
@@ -40,6 +58,17 @@ def convert(text: str, replacements: dict[str, str]) -> str:
 def main(arguments: list[str]) -> int:
     # ほかの実装と同じく、Ctrl+C ではトレースバックを表示せずに終了する。
     signal.signal(signal.SIGINT, signal.SIG_DFL)
+
+    # シェルの `>&-` などで標準入出力が閉じていると、Python は sys.stdout などを None にする。
+    # Rust の標準ライブラリと同じく、閉じた出力先には書けたものとして扱い、閉じた入力は空として扱う。
+    # 閉じた番号から順に os.devnull を開き直すので、開いたファイルはその番号（0・1・2）になる。
+    # 終了まで使うため with では閉じない
+    if sys.stdin is None:
+        sys.stdin = open(os.devnull, encoding="utf-8")  # noqa: SIM115
+    if sys.stdout is None:
+        sys.stdout = open(os.devnull, "w", encoding="utf-8")  # noqa: SIM115
+    if sys.stderr is None:
+        sys.stderr = open(os.devnull, "w", encoding="utf-8")  # noqa: SIM115
 
     # Windows では標準出力・標準エラー出力の既定の文字コードが UTF-8 ではなく（cp932 など）、
     # 改行も CRLF に変わるため、使い方やエラーの表示もほかの実装と同じ UTF-8・LF に揃える
@@ -50,13 +79,18 @@ def main(arguments: list[str]) -> int:
 
     if arguments in ([], ["-r"], ["--reverse"]):
         replacements = TO_TOUTEN_KUTEN if arguments else TO_COMMA_PERIOD
-    elif arguments in (["-h"], ["--help"]):
+    elif arguments in (["-h"], ["--help"], ["--version"]):
+        text = (
+            USAGE
+            if arguments != ["--version"]
+            else f"punctuation_converter {VERSION}\n"
+        )
         try:
-            sys.stdout.write(USAGE)
+            sys.stdout.write(text)
             sys.stdout.flush()
         except OSError as error:
             discard_output(sys.stdout)
-            write_error(f"使い方を表示できませんでした: {error}\n")
+            write_error(f"表示できませんでした: {error}\n")
             return EXIT_FAILURE
         return EXIT_SUCCESS
     else:
@@ -79,6 +113,10 @@ def main(arguments: list[str]) -> int:
     except UnicodeDecodeError:
         write_error("入力を UTF-8 として読み込めませんでした。\n")
         return EXIT_FAILURE
+    except BrokenPipeError:
+        # 出力の読み手が先に終了した（`| head` など）ときは、ほかの実装と同じく黙って成功で終える
+        discard_output(sys.stdout)
+        return EXIT_SUCCESS
     except OSError as error:
         discard_output(sys.stdout)
         write_error(f"変換に失敗しました: {error}\n")

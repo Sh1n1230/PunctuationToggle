@@ -3,44 +3,31 @@
 # 使い方: powershell -ExecutionPolicy Bypass -File .\Windows\uninstall.ps1
 $ErrorActionPreference = 'Stop'
 
-$programsFolder = Join-Path $env:LOCALAPPDATA 'Programs'
-$destination = Join-Path $programsFolder 'PunctuationToggle'
+. (Join-Path $PSScriptRoot 'InstallCommon.ps1')
 
-# フォルダーごと削除するため、想定した場所の、このアプリのフォルダーであることを確かめてから削除する
-function Test-ReparsePoint([string] $Path) {
-    $item = Get-Item -LiteralPath $Path -Force
-    return [bool]($item.Attributes -band [IO.FileAttributes]::ReparsePoint)
-}
+Stop-InstalledApp
 
-if (-not [IO.Path]::IsPathRooted($env:LOCALAPPDATA)) {
-    throw "LOCALAPPDATA が絶対パスではありません（$env:LOCALAPPDATA）。削除する場所を決められないため中止します。"
-}
-
-$running = Get-Process PunctuationToggle -ErrorAction SilentlyContinue
-if ($running) {
-    $running | Stop-Process -Force
-    $running | Wait-Process -Timeout 5 -ErrorAction SilentlyContinue
-}
-
-Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'PunctuationToggle' -ErrorAction SilentlyContinue
-Remove-Item -Path 'HKCU:\Software\PunctuationToggle' -Recurse -ErrorAction SilentlyContinue
-
-if (Test-Path -LiteralPath $destination) {
-    # シンボリックリンクやジャンクションだと、リンク先の別の場所を消すおそれがある
-    if ((Test-ReparsePoint $programsFolder) -or (Test-ReparsePoint $destination)) {
-        throw "$destination またはその親のフォルダーがシンボリックリンク（ジャンクション）です。意図しない場所を削除しないよう中止します。"
+# 値やキーがあるときだけ削除し、消せなければ場所を示して中止する（消せなかったのに「アンインストールしました」と表示しない）
+$runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+$settingsKey = 'HKCU:\Software\PunctuationToggle'
+try {
+    if ($null -ne (Get-ItemProperty -Path $runKey -Name 'PunctuationToggle' -ErrorAction SilentlyContinue)) {
+        Remove-ItemProperty -Path $runKey -Name 'PunctuationToggle'
     }
-    if (-not (Test-Path -LiteralPath (Join-Path $destination 'PunctuationToggle.exe') -PathType Leaf)) {
-        throw "$destination に PunctuationToggle.exe がありません。PunctuationToggle のフォルダーではないおそれがあるため、削除せずに中止します。"
-    }
-
-    Write-Host "削除します: $destination"
-    try {
-        Remove-Item -LiteralPath $destination -Recurse -Force
-    }
-    catch {
-        throw "$destination を削除できませんでした。PunctuationToggle が終了していること、ほかのアプリ（PowerShell やエクスプローラーなど）でこのフォルダーを開いていないことを確かめてから、もう一度実行してください。`n$($_.Exception.Message)"
+    if (Test-Path -Path $settingsKey) {
+        Remove-Item -Path $settingsKey -Recurse
     }
 }
+catch {
+    throw "「ログイン時に起動」の登録（$runKey の PunctuationToggle）か設定（$settingsKey）を削除できませんでした。もう一度実行するか、レジストリ エディターで削除してください。`n$($_.Exception.Message)"
+}
 
-Write-Host "アンインストールしました: $destination"
+$wasInstalled = Test-Path -LiteralPath $destination
+Remove-InstalledFolder
+
+if ($wasInstalled) {
+    Write-Host "アンインストールしました: $destination"
+}
+else {
+    Write-Host "$destination にアプリはありませんでした。「ログイン時に起動」の登録と設定だけを削除しました。"
+}

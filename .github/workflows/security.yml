@@ -19,7 +19,7 @@ jobs:
   security:
     runs-on: ubuntu-24.04
     # ハングしたときに既定の 360 分までランナーを使い続けないよう、今の実行時間の数倍で止める（ほかのジョブも同じ）
-    timeout-minutes: 15
+    timeout-minutes: 15 # 2026-11 時点の実行時間は1分未満
     permissions:
       contents: read
       security-events: write # 結果を GitHub の Code Scanning に登録するため

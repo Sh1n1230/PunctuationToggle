@@ -2,6 +2,17 @@ name: 機能の要望
 description: 新しい機能や改善の提案はこちら
 labels: [enhancement]
 body:
+  - type: dropdown
+    id: target
+    attributes:
+      label: 対象
+      multiple: true
+      options:
+        - macOS 版
+        - Windows 版
+        - 変換コマンド（converters/）
+        - そのほか（文書・CI など）
+    validations: {required: true}
   - type: textarea
     id: problem
     attributes:

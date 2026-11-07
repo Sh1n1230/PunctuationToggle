@@ -1,0 +1,13 @@
+# 各ワークフローの Rust のツールチェーンの導入をまとめた複合アクション。使う前に actions/checkout が要る。
+name: Rust のツールチェーンの導入
+description: rust-toolchain.toml の版の Rust（rustfmt・Clippy を含む）を入れる
+runs:
+  using: composite
+  steps:
+    # rustup は、入っていない版を自動で入れないことがあるため明示する
+    - name: Rust のツールチェーンの導入
+      shell: bash
+      run: |
+        rustup toolchain install
+        rustc --version
+        rustfmt --version

@@ -15,48 +15,31 @@ concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
 
+
+# Linux・macOS の run: を bash -eo pipefail で実行し、パイプの途中の失敗も検出する
+# （shell を指定しないと sh -e で実行され、pipefail が付かない）。Windows の手順は、それぞれ shell を指定する
+defaults:
+  run:
+    shell: bash
+
 jobs:
   benchmark:
     name: 変換コマンドのベンチマーク
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 30 # 2026-11 時点の実行時間は未計測（このワークフローの変更の後、最初の定期実行で確かめる）
     permissions:
       contents: read
       actions: read # 前回の実行の成果物を取得する
     defaults:
       run:
+        shell: bash
         working-directory: converters
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
-        env:
-          # ランナーに入っている SDK とは別の場所に入れ、global.json の版の SDK だけが使われるようにする
-          # （同じ場所にあると、rollForward によってランナーの新しい SDK が選ばれる）
-          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
-        with:
-          global-json-file: global.json
-
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.13"
-
-      - name: Rust のツールチェーンの導入
-        run: rustup toolchain install
-
-      - name: ビルドと計測に必要なパッケージ
-        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev hyperfine
-
-      - name: ビルド
-        run: make all csharp-dotnet
-
-      - name: 計測
-        run: |
-          hyperfine --version
-          benchmark/run_benchmark.sh benchmark/repeated_text.txt --warmup 2 --runs 10
-          benchmark/run_benchmark.sh benchmark/wikipedia_programming.txt --warmup 5 --runs 30
+          # 前回の計測のコミットから変更があるかを比べるため、履歴を取得する
+          fetch-depth: 0
 
       # 前回の成功した実行の結果（無ければ表示しない）
       - name: 前回の結果の実行を探す
@@ -65,11 +48,73 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          run_id=$(gh run list --workflow benchmark.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
-          echo "run-id=$run_id" >> "$GITHUB_OUTPUT"
+          # ほかのブランチで手動実行した結果と比べないよう、main の実行に限る
+          previous=$(gh run list --workflow benchmark.yml --branch main --status success --limit 1 \
+            --json databaseId,headSha --jq '.[0] // empty | "\(.databaseId) \(.headSha[0:7])"')
+          echo "run-id=${previous%% *}" >> "$GITHUB_OUTPUT"
+          echo "head-sha=${previous##* }" >> "$GITHUB_OUTPUT"
+          # 定期実行で、前回の計測から変換コマンドと計測の設定に変更が無い週は、計測を飛ばす。
+          # ランナーの変化を見るため、前回から28日以上たっていれば変更が無くても計測する。手動の実行では必ず計測する
+          skip=false
+          if [[ $GITHUB_EVENT_NAME == schedule && -n $previous ]]; then
+            previous_sha=$(gh run view "${previous%% *}" --json headSha --jq .headSha)
+            previous_date=$(gh run view "${previous%% *}" --json createdAt --jq .createdAt)
+            age_days=$(( ($(date +%s) - $(date -d "$previous_date" +%s)) / 86400 ))
+            if git cat-file -e "$previous_sha^{commit}" 2>/dev/null \
+              && git diff --quiet "$previous_sha" HEAD -- . ../global.json ../rust-toolchain.toml \
+                ../.github/workflows/benchmark.yml ../.github/scripts/benchmark_compare.py ../.github/actions \
+              && [[ $age_days -lt 28 ]]; then
+              skip=true
+            fi
+          fi
+          echo "skip=$skip" >> "$GITHUB_OUTPUT"
+
+      - name: .NET SDK の導入
+        if: steps.previous.outputs.skip != 'true'
+        uses: ./.github/actions/setup-dotnet
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        if: steps.previous.outputs.skip != 'true'
+        with:
+          python-version: "3.13"
+
+      - name: Rust のツールチェーンの導入
+        if: steps.previous.outputs.skip != 'true'
+        uses: ./.github/actions/setup-rust
+
+      - name: ビルドと計測に必要なパッケージ
+        if: steps.previous.outputs.skip != 'true'
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev hyperfine
+
+      - name: ビルド
+        if: steps.previous.outputs.skip != 'true'
+        run: make all csharp-dotnet
+
+      # 前回と比べるときに、ランナーや各ツールの版の違いに気づけるよう、計測環境を記録する
+      # （hyperfine の版が変わると、計測の方法が変わって比べられないことがある）
+      - name: 計測環境の記録
+        if: steps.previous.outputs.skip != 'true'
+        run: |
+          mkdir -p benchmark/results
+          {
+            echo "| 項目 | 値 |"
+            echo "|---|---|"
+            echo "| ランナーのイメージ | ${ImageOS:-不明} ${ImageVersion:-} |"
+            echo "| CPU | $(lscpu | sed -n 's/^Model name: *//p') |"
+            echo "| rustc | $(rustc --version) |"
+            echo "| .NET SDK | $(dotnet --version) |"
+            echo "| Python | $(python3 --version) |"
+            echo "| hyperfine | $(hyperfine --version) |"
+          } > benchmark/results/environment.md
+
+      - name: 計測
+        if: steps.previous.outputs.skip != 'true'
+        run: |
+          benchmark/run_benchmark.sh benchmark/repeated_text.txt --warmup 2 --runs 10
+          benchmark/run_benchmark.sh benchmark/wikipedia_programming.txt --warmup 5 --runs 30
 
       - name: 前回の結果を取得
-        if: steps.previous.outputs.run-id != ''
+        if: steps.previous.outputs.skip != 'true' && steps.previous.outputs.run-id != ''
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: benchmark-results
@@ -78,18 +123,36 @@ jobs:
           github-token: ${{ github.token }}
 
       - name: サマリーに書き出す
+        if: steps.previous.outputs.skip != 'true'
+        env:
+          PREVIOUS_RUN_ID: ${{ steps.previous.outputs.run-id }}
+          PREVIOUS_HEAD_SHA: ${{ steps.previous.outputs.head-sha }}
         run: |
           {
             echo "## 変換コマンドのベンチマーク（$(git rev-parse --short HEAD)）"
-            for result in benchmark/results/*.md; do
+            echo
+            echo "### 計測環境"
+            echo
+            cat benchmark/results/environment.md
+            if [[ -f benchmark/previous-results/environment.md ]]; then
               echo
-              echo "### $(basename "$result" .md)"
+              echo "前回（実行 $PREVIOUS_RUN_ID、コミット $PREVIOUS_HEAD_SHA）:"
               echo
-              cat "$result"
-              previous="benchmark/previous-results/$(basename "$result")"
+              cat benchmark/previous-results/environment.md
+            fi
+            for result in benchmark/results/*.json; do
+              name=$(basename "$result" .json)
+              echo
+              echo "### $name"
+              echo
+              # 平均の変化率は目安。共有のランナーは性能がばらつくため、失敗の判定には使わない
+              python3 ../.github/scripts/benchmark_compare.py "$result" "benchmark/previous-results/$name.json"
+              echo
+              cat "benchmark/results/$name.md"
+              previous="benchmark/previous-results/$name.md"
               if [[ -f $previous ]]; then
                 echo
-                echo "前回（実行 ${{ steps.previous.outputs.run-id }}）:"
+                echo "前回（実行 $PREVIOUS_RUN_ID、コミット $PREVIOUS_HEAD_SHA）:"
                 echo
                 cat "$previous"
               fi
@@ -97,9 +160,18 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: 成果物として保存
+        if: steps.previous.outputs.skip != 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: benchmark-results
           path: converters/benchmark/results
           if-no-files-found: error
           retention-days: 90
+
+      - name: 計測を飛ばしたことをサマリーに書き出す
+        if: steps.previous.outputs.skip == 'true'
+        env:
+          PREVIOUS_RUN_ID: ${{ steps.previous.outputs.run-id }}
+          PREVIOUS_HEAD_SHA: ${{ steps.previous.outputs.head-sha }}
+        run: |
+          echo "前回の計測（実行 $PREVIOUS_RUN_ID、コミット $PREVIOUS_HEAD_SHA）から変換コマンドと計測の設定に変更が無いため、計測を飛ばしました。" >> "$GITHUB_STEP_SUMMARY"

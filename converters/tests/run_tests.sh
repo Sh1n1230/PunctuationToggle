@@ -12,6 +12,12 @@ cd "$(dirname "$0")/.."
 
 ALL_IMPLEMENTATIONS=(csharp-dotnet python rust)
 CASES_DIR=tests/cases
+# 3つの実装が --help で書き出す使い方（不正な引数のときは標準エラー出力にも書く）
+USAGE_FILE=tests/usage.txt
+# --version で表示する版。アプリと同じ番号にする
+EXPECTED_VERSION=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' ../Windows/Directory.Build.props)
+# UTF-8 として正しくない入力のときに、3つの実装が標準エラー出力に書くメッセージ
+INVALID_UTF8_MESSAGE="入力を UTF-8 として読み込めませんでした。"
 WORK_DIR=$(mktemp -d)
 trap 'rm -rf "$WORK_DIR"' EXIT
 
@@ -55,6 +61,27 @@ report_failure() {
   failures=$((failures + 1))
 }
 
+# 固定のケースが、確かめたい性質を本当に含んでいるかを確かめる（エディタの保存などで崩れていないか）
+check_case_preconditions() {
+  # バイトとして扱う（macOS の tr は、UTF-8 の文字の途中のバイトを渡すと Illegal byte sequence で失敗する）
+  local LC_ALL=C
+  local cases=$CASES_DIR
+  local failures_before=$failures
+  # grep は Windows の Git Bash で行末の CR を取り除いて比べるため、バイトを数えて確かめる
+  local crlf_count
+  crlf_count=$(od -An -v -tx1 "$cases/crlf/input.txt" | tr -d ' \n' | { grep -o '0d0a' || true; } | wc -l)
+  [[ $crlf_count -gt 0 ]] || report_failure "crlf/input.txt に CRLF がありません"
+  if [[ $(tr -cd '\r' < "$cases/cr_only/input.txt" | wc -c) -eq 0 || $(tr -cd '\n' < "$cases/cr_only/input.txt" | wc -c) -ne 0 ]]; then
+    report_failure "cr_only/input.txt に CR が無いか、LF が含まれています"
+  fi
+  [[ $(head -c 3 "$cases/bom/input.txt" | od -An -tx1 | tr -d ' \n') == efbbbf ]] || report_failure "bom/input.txt が BOM で始まっていません"
+  [[ -n $(tail -c 1 "$cases/no_trailing_newline/input.txt" | tr -d '\n\r') ]] || report_failure "no_trailing_newline/input.txt の最後が改行です"
+  [[ ! -s $cases/empty/input.txt ]] || report_failure "empty/input.txt が空ではありません"
+  if [[ $failures -eq $failures_before ]]; then
+    echo "PASS  テストケースの前提"
+  fi
+}
+
 # 1つの実装をすべてのケースでテストする
 test_implementation() {
   local name=$1
@@ -75,16 +102,40 @@ test_implementation() {
         report_failure "$case_name ${option:-（オプションなし）}: 異常終了しました: $(head -c 200 "$errors")"
       elif ! cmp -s "$output" "$expected"; then
         report_failure "$case_name ${option:-（オプションなし）}: 出力が期待と異なります"
+      elif [[ -s $errors ]]; then
+        report_failure "$case_name ${option:-（オプションなし）}: 成功したのに標準エラー出力に書いています: $(head -c 200 "$errors")"
       fi
     done
   done
 
+  # 使い方の文章は3つの実装にそれぞれ書いてあるため、tests/usage.txt とバイト単位で比べて食い違いを防ぐ
   for option in "--help" "-h"; do
     # shellcheck disable=SC2086
-    if ! $command $option < /dev/null > "$output" 2> "$errors" || ! grep -q "使い方" "$output"; then
-      report_failure "$option: 使い方が表示されません"
+    if ! $command $option < /dev/null > "$output" 2> "$errors"; then
+      report_failure "$option: 異常終了しました: $(head -c 200 "$errors")"
+    elif ! cmp -s "$output" "$USAGE_FILE"; then
+      report_failure "$option: 使い方が tests/usage.txt と異なります"
+    elif [[ -s $errors ]]; then
+      report_failure "$option: 成功したのに標準エラー出力に書いています: $(head -c 200 "$errors")"
     fi
   done
+
+  # --version は、リポジトリの版（Windows/Directory.Build.props の Version）を1行で書く
+  # shellcheck disable=SC2086
+  if ! $command --version < /dev/null > "$output" 2> "$errors"; then
+    report_failure "--version: 異常終了しました: $(head -c 200 "$errors")"
+  elif [[ $(cat "$output") != "punctuation_converter $EXPECTED_VERSION" || -s $errors ]]; then
+    report_failure "--version: 「punctuation_converter $EXPECTED_VERSION」を期待しましたが「$(head -c 200 "$output")」でした"
+  fi
+
+  # 不正な引数では、標準エラー出力に「不正な引数です: <引数>」・空行・使い方を書く
+  local expected_errors="$WORK_DIR/expected_errors"
+  { printf '不正な引数です: --unknown\n\n'; cat "$USAGE_FILE"; } > "$expected_errors"
+  # shellcheck disable=SC2086
+  $command --unknown < /dev/null > "$output" 2> "$errors" || true
+  if ! cmp -s "$errors" "$expected_errors"; then
+    report_failure "不正な引数のエラー出力が「不正な引数です: --unknown」と tests/usage.txt の使い方になっていません"
+  fi
 
   # UTF-8 として正しくない入力（不正なバイト、末尾で途中までしかない文字、先頭バイトの無い継続バイト、
   # 冗長な符号化、サロゲートの符号化、U+10FFFF を超える符号位置）は、置き換えずに終了コード 1 にする
@@ -92,12 +143,15 @@ test_implementation() {
   for invalid_bytes in 'a\xff\xe3\x80\x81\n' 'a\xe3\x80' '\x80' '\xc0\xaf' '\xed\xa0\x80' '\xf4\x90\x80\x80'; do
     # shellcheck disable=SC2059 # 不正なバイト列を作るため、printf の書式として解釈させる
     printf "$invalid_bytes" > "$invalid_input"
-    local status=0
-    # shellcheck disable=SC2086
-    $command < "$invalid_input" > "$output" 2> "$errors" || status=$?
-    if [[ $status -ne 1 || ! -s $errors ]]; then
-      report_failure "不正な UTF-8 '$invalid_bytes': 終了コード 1 とエラー出力を期待しましたが、終了コードは $status でした"
-    fi
+    # 変換でも逆変換でも同じように扱う
+    for option in "" "--reverse"; do
+      local status=0
+      # shellcheck disable=SC2086
+      $command $option < "$invalid_input" > "$output" 2> "$errors" || status=$?
+      if [[ $status -ne 1 ]] || [[ $(cat "$errors") != "$INVALID_UTF8_MESSAGE" ]]; then
+        report_failure "不正な UTF-8 '$invalid_bytes' ${option:-（オプションなし）}: 終了コード 1 と「$INVALID_UTF8_MESSAGE」を期待しましたが、終了コードは $status、エラー出力は「$(head -c 200 "$errors")」でした"
+      fi
+    done
   done
 
   # 書き込めない出力先では、トレースバックなどではなくエラーメッセージを表示して終了コード 1 にする。
@@ -127,9 +181,39 @@ test_implementation() {
     fi
   fi
 
+  # 出力の読み手が先に終了した（`| head` など）ときは、何も表示せずに終了コード 0 で終える
+  # （converters/README.md の「使い方」）。Windows の Git Bash では、読み手の終了が書き手に伝わる時機が違うため確かめない
+  if [[ $(uname -s) != MINGW* && $(uname -s) != MSYS* && $(uname -s) != CYGWIN* ]]; then
+    local statuses
+    # shellcheck disable=SC2086
+    statuses=$($command < "$WORK_DIR/cases/long_line/input.txt" 2> "$errors" | head -c 1 > /dev/null; echo "${PIPESTATUS[0]}")
+    if [[ $statuses -ne 0 || -s $errors ]]; then
+      report_failure "出力の読み手が先に終了: 終了コード 0 と空の標準エラー出力を期待しましたが、終了コードは $statuses でした: $(head -c 200 "$errors")"
+    fi
+  fi
+
+  # 標準入出力が閉じている（シェルの >&- など）ときは、閉じた出力先には書けたものとして、閉じた入力は空として
+  # 扱い、トレースバックなどを出さない（Rust の標準ライブラリの動作に合わせる）。Windows では確かめない
+  if [[ $(uname -s) != MINGW* && $(uname -s) != MSYS* && $(uname -s) != CYGWIN* ]]; then
+    local closed_case closed_status
+    for closed_case in "convert:0" "closed_input:0" "help:0" "bad_argument:2"; do
+      closed_status=0
+      # shellcheck disable=SC2086
+      case ${closed_case%%:*} in
+        convert) $command < "$CASES_DIR/basic/input.txt" >&- 2> "$errors" || closed_status=$? ;;
+        closed_input) $command <&- > "$output" 2> "$errors" || closed_status=$? ;;
+        help) $command --help < /dev/null >&- 2> "$errors" || closed_status=$? ;;
+        bad_argument) : > "$errors"; $command --bad < /dev/null > "$output" 2>&- || closed_status=$? ;;
+      esac
+      if [[ $closed_status -ne ${closed_case##*:} || -s $errors ]]; then
+        report_failure "閉じた標準入出力（${closed_case%%:*}）: 終了コード ${closed_case##*:} を期待しましたが、終了コードは $closed_status でした: $(head -c 200 "$errors")"
+      fi
+    done
+  fi
+
   # オプションは1つだけ受け付け、大文字小文字の違いや "--"・"-" も不正な引数とする。
   # UTF-8 でない引数（macOS や Linux で渡せる）も、異常終了させずに不正な引数として扱う
-  for arguments in "--unknown" "-r -r" "extra" "-h -r" "--reverse --help" "-R" "--" "-" $'\xff'; do
+  for arguments in "--unknown" "-r -r" "extra" "-h -r" "--reverse --help" "-R" "-V" "--version -r" "--" "-" $'\xff'; do
     local status=0
     # shellcheck disable=SC2086
     $command $arguments < /dev/null > "$output" 2> "$errors" || status=$?
@@ -146,6 +230,7 @@ test_implementation() {
 }
 
 create_long_line_case
+check_case_preconditions
 
 implementations=("$@")
 if [[ ${#implementations[@]} -eq 0 ]]; then
@@ -162,8 +247,13 @@ done
 for name in "${implementations[@]}"; do
   if command=$(command_for "$name"); then
     test_implementation "$name" "$command"
-    if [[ "$name" == python ]] && ! "$(python_command)" tests/test_sigint.py; then
-      report_failure "Ctrl+C: トレースバックを表示せずに終了しませんでした"
+    # Ctrl+C のテストは Python で動かすため、Python が無い環境では省く
+    if python_name=$(python_command) && ! "$python_name" tests/test_sigint.py "$command"; then
+      report_failure "$name Ctrl+C: メッセージなどを表示せずに終了しませんでした"
+    fi
+    # Python 実装は、main をプロセスを起動せずに確かめる単体テストも実行する
+    if [[ $name == python ]] && ! "$(python_command)" tests/test_punctuation_converter.py; then
+      report_failure "python の単体テスト（tests/test_punctuation_converter.py）が失敗しました"
     fi
   else
     echo "SKIP  ${name}（ビルドされていないか、実行環境がありません）"
