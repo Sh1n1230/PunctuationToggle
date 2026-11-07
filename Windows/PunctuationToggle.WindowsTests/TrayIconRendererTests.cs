@@ -9,7 +9,7 @@ public class TrayIconRendererTests
     [InlineData("？", 32)]
     public void 指定した大きさのアイコンを描く(string text, int iconSize)
     {
-        using var icon = TrayIconRenderer.Render(text, isTaskbarLight: true, iconSize);
+        using var icon = TrayIconRenderer.Render(text, Color.Black, iconSize);
         Assert.Equal(iconSize, icon.Width);
         Assert.Equal(iconSize, icon.Height);
 
@@ -24,5 +24,19 @@ public class TrayIconRendererTests
             }
         }
         Assert.True(hasInk);
+    }
+
+    [Fact]
+    public void コントラストテーマではテーマの文字色で描く()
+    {
+        Assert.Equal(SystemColors.WindowText, TrayIconRenderer.TextColorForTaskbar(isHighContrast: true, isTaskbarLight: true));
+        Assert.Equal(SystemColors.WindowText, TrayIconRenderer.TextColorForTaskbar(isHighContrast: true, isTaskbarLight: false));
+    }
+
+    [Fact]
+    public void 通常はタスクバーのライトとダークに合わせる()
+    {
+        Assert.Equal(Color.Black, TrayIconRenderer.TextColorForTaskbar(isHighContrast: false, isTaskbarLight: true));
+        Assert.Equal(Color.White, TrayIconRenderer.TextColorForTaskbar(isHighContrast: false, isTaskbarLight: false));
     }
 }

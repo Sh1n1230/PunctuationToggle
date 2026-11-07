@@ -265,7 +265,8 @@ internal sealed class TrayApplication : ApplicationContext
         displayedIconSize = iconSize;
 
         var previousIcon = currentIcon;
-        currentIcon = TrayIconRenderer.Render(symbols, AppSettings.IsTaskbarLight, iconSize);
+        var textColor = TrayIconRenderer.TextColorForTaskbar(SystemInformation.HighContrast, AppSettings.IsTaskbarLight);
+        currentIcon = TrayIconRenderer.Render(symbols, textColor, iconSize);
         notifyIcon.Icon = currentIcon;
         previousIcon?.Dispose();
     }
@@ -409,8 +410,10 @@ internal sealed class TrayApplication : ApplicationContext
 
     private void OnUserPreferenceChanged(object? sender, UserPreferenceChangedEventArgs eventArgs)
     {
-        // タスクバーのライト・ダークが切り替わったら、文字の色を合わせて描き直す
-        if (eventArgs.Category == UserPreferenceCategory.General)
+        // タスクバーのライト・ダークや、コントラスト テーマ（ハイコントラスト）とその配色が切り替わったら、
+        // 文字の色を合わせて描き直す
+        if (eventArgs.Category is UserPreferenceCategory.General or UserPreferenceCategory.Accessibility
+            or UserPreferenceCategory.Color)
         {
             displayedSymbols = null;
             UpdateDisplay();
