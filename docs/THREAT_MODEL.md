@@ -19,7 +19,7 @@ PunctuationToggle は、すべてのキー入力を監視する権限を持つ�
 | 依存の乗っ取り（GitHub Actions・NuGet・lint のツール） | アクションはコミットの SHA で、lint のツールは版と sha256 で、NuGet は `packages.lock.json` で固定し、NuGet のソースは nuget.org だけにする（`nuget.config`）。Dependabot の更新は公開から7日待つ |
 | DYLD の環境変数などによる、macOS 版へのコードの注入 | Hardened Runtime を有効にし（CI とリリースで確かめる）、ライブラリの検証を外す entitlement は付けない |
 | DLL の差し替え（DLL プランティング）による、Windows 版へのコードの注入 | P/Invoke の DLL は System32 からだけ読み込む（`DefaultDllImportSearchPaths`）。exe と同じフォルダーの DLL を読み込む apphost の性質があるため、README で専用のフォルダーに展開するよう案内する |
-| 権限の低いプロセスが、キー入力を注入して勝手に切り替える | Windows 版は、整合性レベルが低いプロセスが注入した入力（`LLKHF_LOWER_IL_INJECTED`）を判定に使わない |
+| 権限の低いプロセスが、キー入力を注入して勝手に切り替える | Windows 版は、整合性レベルが低いプロセスが注入した入力（`LLKHF_LOWER_IL_INJECTED`）を判定に使わない。macOS 版は、キー入力を送る（`CGEvent.post`）のにもアクセシビリティの許可が要り、権限の低いプロセスは送れないため、送られた入力も判定に使う（#160） |
 | アクセシビリティの許可（TCC）の悪用 | アドホック署名ではビルドし直すと許可が無効になるため、`install.sh` は古い許可をリセットしてから求め直す。許可は本アプリのバンドル ID とコード署名に結び付く |
 | インストール・アンインストールのスクリプトによる誤った削除 | 削除の前に、想定した場所の、このアプリのものであること、シンボリックリンクでないことを確かめる |
 

@@ -13,10 +13,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// アクセシビリティの許可を待ち始めた時刻。待っていないときは nil
     private var permissionWaitStartDate: Date?
     private var isShowingSaveFailureAlert = false
+    /// ログイン項目として起動されたか。起動の Apple Event は起動の処理の間しか読めないので、覚えておく
+    private var isLaunchedAsLoginItem = false
 
     private var statusItem: NSStatusItem?
     private let toggleMenuItem = NSMenuItem()
     private let usageMenuItem = NSMenuItem()
+    /// セキュア入力が有効で切り替えキーが届かないことを知らせる項目（有効な間だけ表示する）
+    private let secureInputMenuItem = NSMenuItem()
+    /// 句読点が切り替わらない日本語入力を使っていることを知らせる項目（その間だけ表示する）
+    private let unsupportedInputSourceMenuItem = NSMenuItem()
     private let changeTriggerKeyMenuItem = NSMenuItem()
     private let launchAtLoginMenuItem = NSMenuItem()
 
@@ -24,10 +30,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// 定数はグローバルな `var` として読み込まれ、Swift 6 の言語モードでは並行処理で安全でないとして使えないため、値を書く
     private static let trustedCheckOptionPromptKey = "AXTrustedCheckOptionPrompt"
 
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        isLaunchedAsLoginItem = LaunchGuidance.isLaunchedAsLoginItem()
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // 二重に起動すると切り替えキーで2回切り替わって元に戻ってしまうため、後から起動した方は何もせずに終わる
-        // （~/Applications のアプリとビルドしたアプリなど、別の場所のアプリでも同じバンドル ID なら対象にする）
-        if earlierRunningInstance() != nil {
+        // 二重に起動すると切り替えキーで2回切り替わって元に戻ってしまうため、後から起動した方は終わる
+        // （~/Applications のアプリとビルドしたアプリなど、別の場所のアプリでも同じバンドル ID なら対象にする）。
+        // 利用者が開いた場合は、何も起きないように見えないよう知らせる。ログイン時の自動起動では、ログインのたびに
+        // 知らせることになるので、黙って終わる
+        if let earlierInstance = earlierRunningInstance() {
+            if !isLaunchedAsLoginItem {
+                LaunchGuidance.showAlreadyRunningAlert(runningApplication: earlierInstance)
+            }
             NSApp.terminate(nil)
             return
         }
@@ -50,8 +65,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             suspensionBehavior: .deliverImmediately
         )
 
+        // アクセシビリティの許可は場所に結び付くため、許可を求める前に案内する
+        LaunchGuidance.suggestMovingToApplicationsIfNeeded()
+
         startKeyboardMonitor()
         updateStatusItem()
+    }
+
+    /// 起動中にもう一度開かれたとき（Finder や Spotlight から）に、メニューを開く。
+    /// ウィンドウを持たないアプリなので、何もしないと何も起きないように見え、メニューバーの項目が隠れているときには
+    /// メニューを開く手段も無くなるため
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        statusItem?.button?.performClick(nil)
+        return false
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -206,6 +232,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         usageMenuItem.isEnabled = false
         menu.addItem(usageMenuItem)
 
+        secureInputMenuItem.title = "セキュア入力が有効なため、切り替えキーは使えません（パスワードの入力欄を閉じると戻ります）"
+        secureInputMenuItem.isEnabled = false
+        secureInputMenuItem.isHidden = true
+        menu.addItem(secureInputMenuItem)
+
+        unsupportedInputSourceMenuItem.isEnabled = false
+        unsupportedInputSourceMenuItem.isHidden = true
+        menu.addItem(unsupportedInputSourceMenuItem)
+
         menu.addItem(.separator())
 
         changeTriggerKeyMenuItem.title = "切り替えキーを変更…"
@@ -223,7 +258,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         menu.addItem(.separator())
 
-        menu.addItem(withTitle: "最新版を確認…", action: #selector(openLatestRelease), keyEquivalent: "")
+        menu.addItem(withTitle: Self.latestReleaseMenuTitle, action: #selector(openLatestRelease), keyEquivalent: "")
             .target = self
         menu.addItem(withTitle: "PunctuationToggle について", action: #selector(showAboutPanel), keyEquivalent: "")
             .target = self
@@ -232,12 +267,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem.menu = menu
     }
 
+    /// 「最新版を確認…」の項目の名前。リリースのページと見比べられるよう、今の版を添える
+    private static var latestReleaseMenuTitle: String {
+        guard let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String else {
+            return "最新版を確認…"
+        }
+        return "最新版を確認…（今の版: \(version)）"
+    }
+
     func menuNeedsUpdate(_ menu: NSMenu) {
         // 許可を外したことは入力が届かなくなるだけで知らされないため、メニューを開いたときに確かめる
         stopKeyboardMonitorIfPermissionRevoked()
         // 許可を待つ間隔を延ばした後も、メニューを開いたときにはすぐ確かめる
         retryKeyboardMonitor()
         updateStatusItem()
+        updateInputEnvironmentMenuItems()
+    }
+
+    /// 切り替えキーや句読点の切り替えが効かない状態を、メニューを開いたときに知らせる
+    private func updateInputEnvironmentMenuItems() {
+        secureInputMenuItem.isHidden = !InputEnvironment.isSecureEventInputEnabled
+
+        if let inputSourceName = InputEnvironment.unsupportedJapaneseInputSourceName() {
+            unsupportedInputSourceMenuItem.title = "今の入力ソース（\(inputSourceName)）では、句読点は切り替わりません"
+            unsupportedInputSourceMenuItem.isHidden = false
+        } else {
+            unsupportedInputSourceMenuItem.isHidden = true
+        }
     }
 
     private func updateStatusItem() {
@@ -261,7 +317,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         usageMenuItem.title = triggerKey.usageDescription
         changeTriggerKeyMenuItem.isEnabled = keyboardMonitor.isRunning
         changeTriggerKeyMenuItem.toolTip = keyboardMonitor.isRunning ? nil : "アクセシビリティの許可が必要です"
-        launchAtLoginMenuItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
+        updateLaunchAtLoginMenuItem()
+    }
+
+    private func updateLaunchAtLoginMenuItem() {
+        let status = SMAppService.mainApp.status
+        launchAtLoginMenuItem.state = status == .enabled ? .on : .off
+        // 登録はできたが、システム設定の「ログイン項目と機能拡張」でオフにされているなど、利用者の操作が要る状態
+        launchAtLoginMenuItem.title =
+            status == .requiresApproval ? "ログイン時に起動（システム設定で承認が必要）" : "ログイン時に起動"
     }
 
     @objc
@@ -303,6 +367,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc
     private func toggleLaunchAtLogin() {
         let service = SMAppService.mainApp
+        // 承認待ちの状態では、登録し直しても変わらないので、承認する場所（システム設定のログイン項目）を開く
+        if service.status == .requiresApproval {
+            SMAppService.openSystemSettingsLoginItems()
+            return
+        }
         do {
             if service.status == .enabled {
                 try service.unregister()
