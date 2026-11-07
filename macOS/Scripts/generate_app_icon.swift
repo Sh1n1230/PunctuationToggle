@@ -7,6 +7,17 @@ let iconSetDirectory = URL(fileURLWithPath: #filePath)
     .appendingPathComponent("../PunctuationToggle/Assets.xcassets/AppIcon.appiconset")
     .standardizedFileURL
 
+/// 句読点を描くフォント。句読点の位置合わせ（`drawText` のずらし）はこのフォントの字面に合わせているので、
+/// 見つからない場合は別のフォントで描かずに終わる（見た目の違うアイコンを黙って上書きしないため）
+let iconFontName = "HiraginoSans-W7"
+let iconFontSize: CGFloat = 300
+guard let iconFont = NSFont(name: iconFontName, size: iconFontSize) else {
+    FileHandle.standardError.write(
+        Data("エラー: フォント \(iconFontName)（ヒラギノ角ゴシック W7）が見つかりません。ファイルは書き換えていません。\n".utf8)
+    )
+    exit(1)
+}
+
 /// 1024pt のキャンバスに描いたアイコンを、指定したピクセル数の PNG にする。
 func renderIcon(pixelSize: Int) -> Data {
     let canvasSize: CGFloat = 1024
@@ -30,12 +41,11 @@ func renderIcon(pixelSize: Int) -> Data {
     gradient.draw(in: tilePath, angle: -90)
 
     // 上段に「、。」、下段に「，．」を描き、間に切り替えを表す両向きの矢印を置く
-    let font = NSFont(name: "HiraginoSans-W7", size: 300) ?? .boldSystemFont(ofSize: 300)
     let paragraphStyle = NSMutableParagraphStyle()
     paragraphStyle.alignment = .center
     func drawText(_ text: String, centerY: CGFloat, alpha: CGFloat) {
         let attributes: [NSAttributedString.Key: Any] = [
-            .font: font,
+            .font: iconFont,
             .foregroundColor: NSColor.white.withAlphaComponent(alpha),
             .paragraphStyle: paragraphStyle,
         ]

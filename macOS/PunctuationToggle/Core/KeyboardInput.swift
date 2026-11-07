@@ -1,6 +1,6 @@
 /// キーボード・マウスの入力のうち、切り替えキーの判定に必要な情報だけを取り出したもの。
 /// `CGEvent` から取り出した値で作る（`init(kind:keyCode:flags:isAutorepeat:)` と `KeyboardMonitor` を参照）。
-enum KeyboardInput: Equatable, Sendable {
+nonisolated enum KeyboardInput: Equatable, Sendable {
     /// 修飾キーが押された、または離された。
     /// `otherModifiersHeld` は、このキー以外の修飾キーが押されたままになっているか。
     case modifierChanged(keyCode: UInt16, isPressed: Bool, otherModifiersHeld: Bool)
@@ -19,7 +19,7 @@ enum KeyboardInput: Equatable, Sendable {
 
 /// 入力イベントの種類のうち、判定に使うもの。
 /// Core は CoreGraphics を使わないため、`CGEventType` の代わりに使う。
-enum KeyboardEventKind: Sendable {
+nonisolated enum KeyboardEventKind: Sendable {
     /// `CGEventType.keyDown`
     case keyDown
     /// `CGEventType.keyUp`
@@ -32,7 +32,7 @@ enum KeyboardEventKind: Sendable {
 
 /// `CGEventFlags` の生の値のうち、左右を区別しない修飾キーのビット。
 /// 値は CoreGraphics の CGEventTypes.h の `kCGEventFlagMask*` と同じ。
-enum EventFlagMask {
+nonisolated enum EventFlagMask {
     static let shift: UInt64 = 0x0002_0000  // kCGEventFlagMaskShift
     static let control: UInt64 = 0x0004_0000  // kCGEventFlagMaskControl
     static let option: UInt64 = 0x0008_0000  // kCGEventFlagMaskAlternate
@@ -43,7 +43,7 @@ enum EventFlagMask {
     static let shortcutModifiers: UInt64 = shift | control | option | command
 }
 
-extension KeyboardInput {
+nonisolated extension KeyboardInput {
     /// 入力イベントから取り出した値で作る。判定に使わない入力（Caps Lock など）では nil を返す。
     /// - Parameters:
     ///   - kind: イベントの種類。

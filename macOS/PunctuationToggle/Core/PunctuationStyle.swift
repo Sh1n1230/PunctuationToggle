@@ -1,7 +1,7 @@
 /// macOS 標準の日本語入力の「句読点の種類」設定。
 /// rawValue は `com.apple.inputmethod.Kotoeri` ドメインの `JIMPrefPunctuationTypeKey` に保存される値で、
 /// システム設定のポップアップの並び順と一致する。
-enum PunctuationStyle: Int, CaseIterable, Sendable {
+nonisolated enum PunctuationStyle: Int, CaseIterable, Sendable {
     /// 「、。」
     case toutenKuten = 0
     /// 「，。」

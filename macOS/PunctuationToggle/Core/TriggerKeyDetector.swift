@@ -1,5 +1,5 @@
 /// 1つの入力に対して、句読点を切り替えるか、入力をほかのアプリに渡さないかの判断。
-struct InputDecision: Equatable, Sendable {
+nonisolated struct InputDecision: Equatable, Sendable {
     var shouldToggle = false
     var shouldSuppress = false
 
@@ -12,7 +12,7 @@ struct InputDecision: Equatable, Sendable {
 ///   マウスが使われた場合（Command＋C など）は切り替えない。入力はすべてそのまま渡す。
 /// - それ以外のキーの場合: 修飾キーなしで押されたときに切り替え、そのキーの入力は渡さない。
 ///   修飾キーと一緒に押された場合（Command＋F13 など）はショートカットとしてそのまま渡す。
-struct TriggerKeyDetector: Sendable {
+nonisolated struct TriggerKeyDetector: Sendable {
     var triggerKey: TriggerKey {
         didSet { reset() }
     }

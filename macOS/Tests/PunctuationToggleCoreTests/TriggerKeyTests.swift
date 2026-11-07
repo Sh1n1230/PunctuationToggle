@@ -80,8 +80,43 @@ struct TriggerKeyTests {
     }
 
     @Test("操作の説明")
-    func usageDescription() {
+    func usageDescription() throws {
         #expect(TriggerKey.rightCommand.usageDescription == "右Commandを単独で押すと切り替え")
-        #expect(TriggerKey(keyCode: KeyCode.kana)!.usageDescription == "かなを押すと切り替え")
+        #expect(try #require(TriggerKey(keyCode: KeyCode.kana)).usageDescription == "かなを押すと切り替え")
+    }
+}
+
+@Suite("選べるキーの名前")
+struct TriggerKeyNameTests {
+    /// 修飾キー・英数・かなの、キーコードと表示名と修飾キーかどうか。
+    /// 名前は README の「切り替えキーの変更」の表と、設定画面の案内（TriggerKeyRecorderWindowController の instructionText）
+    /// に書いたキーと揃える。キーを増やしたり名前を変えたりしたら、README と案内も直す
+    private static let expectedKeys: [(keyCode: UInt16, displayName: String, isModifier: Bool)] = [
+        (KeyCode.leftCommand, "左Command", true),
+        (KeyCode.rightCommand, "右Command", true),
+        (KeyCode.leftShift, "左Shift", true),
+        (KeyCode.rightShift, "右Shift", true),
+        (KeyCode.leftOption, "左Option", true),
+        (KeyCode.rightOption, "右Option", true),
+        (KeyCode.leftControl, "左Control", true),
+        (KeyCode.rightControl, "右Control", true),
+        (KeyCode.function, "fn", true),
+        (KeyCode.eisu, "英数", false),
+        (KeyCode.kana, "かな", false),
+    ]
+
+    @Test("修飾キー9個と英数・かなの名前と種類")
+    func namesOfModifiersAndJapaneseKeys() throws {
+        for expected in Self.expectedKeys {
+            let key = try #require(TriggerKey(keyCode: expected.keyCode), "キーコード \(expected.keyCode)")
+            #expect(key.displayName == expected.displayName, "キーコード \(expected.keyCode)")
+            #expect(key.isModifier == expected.isModifier, "キーコード \(expected.keyCode)")
+        }
+    }
+
+    @Test("選べるキーは、上の表のキーと F1〜F20 だけ")
+    func supportedKeysAreExactlyListed() {
+        let listedKeyCodes = Set(Self.expectedKeys.map(\.keyCode)).union(KeyCode.functionKeys)
+        #expect(Set(TriggerKey.supportedKeys.keys) == listedKeyCodes)
     }
 }

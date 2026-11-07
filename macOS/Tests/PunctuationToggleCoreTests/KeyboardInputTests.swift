@@ -83,3 +83,50 @@ struct KeyboardInputTests {
         #expect(KeyboardInput(kind: .mouse, keyCode: 0, flags: EventFlagMask.command, isAutorepeat: false) == .mouse)
     }
 }
+
+@Suite("すべての修飾キーの flagsChanged")
+struct AllModifiersKeyboardInputTests {
+    /// 修飾キーのキーコード。`TriggerKey.supportedKeys` から求める
+    private static func keyCode(of modifier: TriggerKey.Modifier) throws -> UInt16 {
+        try #require(TriggerKey.supportedKeys.first { _, info in info.modifier == modifier }?.key)
+    }
+
+    /// 押したときに一緒に立つ、左右を区別しないビット。fn は左右が無いので、デバイス依存のビットと同じ
+    private static func deviceIndependentMask(of modifier: TriggerKey.Modifier) -> UInt64 {
+        switch modifier {
+        case .leftControl, .rightControl: EventFlagMask.control
+        case .leftShift, .rightShift: EventFlagMask.shift
+        case .leftOption, .rightOption: EventFlagMask.option
+        case .leftCommand, .rightCommand: EventFlagMask.command
+        case .function: modifier.flagMask
+        }
+    }
+
+    @Test("そのキーのビットだけなら、ほかの修飾キーなしの押し下げになる", arguments: TriggerKey.Modifier.allCases)
+    func pressedAlone(modifier: TriggerKey.Modifier) throws {
+        let keyCode = try Self.keyCode(of: modifier)
+        let flags = modifier.flagMask | Self.deviceIndependentMask(of: modifier)
+        let input = KeyboardInput(kind: .flagsChanged, keyCode: keyCode, flags: flags, isAutorepeat: false)
+        #expect(input == .modifierChanged(keyCode: keyCode, isPressed: true, otherModifiersHeld: false))
+    }
+
+    @Test("そのキーのビットが無ければ、離したことになる", arguments: TriggerKey.Modifier.allCases)
+    func released(modifier: TriggerKey.Modifier) throws {
+        let keyCode = try Self.keyCode(of: modifier)
+        let input = KeyboardInput(kind: .flagsChanged, keyCode: keyCode, flags: 0, isAutorepeat: false)
+        #expect(input == .modifierChanged(keyCode: keyCode, isPressed: false, otherModifiersHeld: false))
+    }
+
+    @Test("ほかの修飾キーのビットが1つでもあれば、ほかの修飾キーが押されている", arguments: TriggerKey.Modifier.allCases)
+    func pressedWithEachOtherModifier(modifier: TriggerKey.Modifier) throws {
+        let keyCode = try Self.keyCode(of: modifier)
+        for other in TriggerKey.Modifier.allCases where other != modifier {
+            let flags = modifier.flagMask | Self.deviceIndependentMask(of: modifier) | other.flagMask
+            let input = KeyboardInput(kind: .flagsChanged, keyCode: keyCode, flags: flags, isAutorepeat: false)
+            #expect(
+                input == .modifierChanged(keyCode: keyCode, isPressed: true, otherModifiersHeld: true),
+                "\(modifier) と一緒に \(other)"
+            )
+        }
+    }
+}
