@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: 使い方の質問
-    url: https://github.com/Sh1n1230/PunctuationToggle#readme
-    about: まず README の「使い方」を確認してください。
+    url: https://github.com/Sh1n1230/PunctuationToggle/discussions/categories/q-a
+    about: README の「使い方」で解決しない質問（不具合かどうか分からない場合も）は、Discussions の Q&A で聞いてください。
   - name: 脆弱性の報告
     url: https://github.com/Sh1n1230/PunctuationToggle/security/advisories/new
     about: 脆弱性は公開の Issue ではなく、こちらから非公開で報告してください（SECURITY.md を参照）。
