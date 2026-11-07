@@ -98,6 +98,12 @@ public static class VirtualKeys
 
     public static bool IsModifier(int virtualKey) => Modifiers.Contains(virtualKey);
 
+    /// <summary>
+    /// 単独で押して離すと、スタートメニュー（Windows キー）や前面のアプリのメニューバー（Alt キー）が開くキーか。
+    /// </summary>
+    public static bool OpensMenuWhenPressedAlone(int virtualKey) =>
+        virtualKey is LeftWindows or RightWindows or LeftAlt or RightAlt;
+
     /// <summary>ダイアログのボタンをキーボードで操作するキー（フォーカスの移動と、ボタンを押すキー）か。</summary>
     public static bool IsDialogNavigation(int virtualKey) => virtualKey is Tab or Enter or Space;
 }

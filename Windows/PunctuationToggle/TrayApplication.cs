@@ -113,11 +113,11 @@ internal sealed class TrayApplication : ApplicationContext
     // ---- 入力の処理 ----
 
     /// <summary>入力を1つ処理する。フックの専用のスレッドで呼ばれる。</summary>
-    private bool HandleInput(KeyboardInput input)
+    private HookAction HandleInput(KeyboardInput input)
     {
         if (triggerKeyRecorder is { } recorder)
         {
-            return recorder.HandleInput(input);
+            return recorder.HandleInput(input) ? HookAction.Suppress : HookAction.PassThrough;
         }
 
         InputDecision decision;
@@ -130,7 +130,12 @@ internal sealed class TrayApplication : ApplicationContext
             // フックの処理が遅いと Windows にフックを外されるので、切り替えは UI スレッドで行う
             uiContext.Post(_ => TogglePunctuationStyle(bounceFocus: true), null);
         }
-        return decision.ShouldSuppress;
+        return decision switch
+        {
+            { ShouldMaskMenu: true } => HookAction.ReplayKeyUpWithMenuMask,
+            { ShouldSuppress: true } => HookAction.Suppress,
+            _ => HookAction.PassThrough,
+        };
     }
 
     /// <summary>

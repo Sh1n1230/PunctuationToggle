@@ -1,7 +1,14 @@
 namespace PunctuationToggle;
 
 /// <summary>1つの入力に対して、句読点を切り替えるか、入力をほかのアプリに渡さないかの判断。</summary>
-public readonly record struct InputDecision(bool ShouldToggle = false, bool ShouldSuppress = false)
+/// <param name="ShouldToggle">句読点を切り替えるか。</param>
+/// <param name="ShouldSuppress">この入力をほかのアプリに渡さないか。</param>
+/// <param name="ShouldMaskMenu">
+/// 離した入力（<paramref name="ShouldSuppress"/> で渡さないもの）の代わりに、メニューを抑えるキーの入力と、
+/// 離した入力を送り直すか。Windows キー・Alt キーを単独で押して離すと、スタートメニューやメニューバーが開くため、
+/// その間にほかのキーが押されたように見せて開かないようにする。
+/// </param>
+public readonly record struct InputDecision(bool ShouldToggle = false, bool ShouldSuppress = false, bool ShouldMaskMenu = false)
 {
     public static InputDecision PassThrough => default;
 }
@@ -12,7 +19,9 @@ public readonly record struct InputDecision(bool ShouldToggle = false, bool Shou
 /// <remarks>
 /// <list type="bullet">
 /// <item>修飾キーの場合: 単独で押して離したときだけ切り替える。押している間にほかのキー・修飾キー・
-/// マウスが使われた場合（Ctrl＋C など）は切り替えない。入力はすべてそのまま渡す。</item>
+/// マウスが使われた場合（Ctrl＋C など）は切り替えない。入力はすべてそのまま渡す。ただし Windows キー・Alt キーを
+/// 単独で押して離して切り替えたときは、スタートメニューやメニューバーが開かないよう、離した入力を
+/// メニューを抑えるキーと一緒に送り直させる（<see cref="InputDecision.ShouldMaskMenu"/>）。</item>
 /// <item>それ以外のキーの場合: 修飾キーなしで押されたときに切り替え、そのキーの入力は渡さない。
 /// 修飾キーと一緒に押された場合（Ctrl＋F13 など）はショートカットとしてそのまま渡す。</item>
 /// </list>
@@ -66,7 +75,12 @@ public sealed class TriggerKeyDetector(TriggerKey triggerKey)
                 if (isTriggerModifierHeld)
                 {
                     isTriggerModifierHeld = false;
-                    return new InputDecision(ShouldToggle: !wasUsedWithOtherInput);
+                    if (wasUsedWithOtherInput)
+                    {
+                        return InputDecision.PassThrough;
+                    }
+                    var shouldMaskMenu = VirtualKeys.OpensMenuWhenPressedAlone(triggerKey.VirtualKey);
+                    return new InputDecision(ShouldToggle: true, ShouldSuppress: shouldMaskMenu, ShouldMaskMenu: shouldMaskMenu);
                 }
                 break;
 
