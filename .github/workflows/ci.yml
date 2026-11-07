@@ -114,13 +114,11 @@ jobs:
             echo "::error::カバレッジのレポート（coverage.cobertura.xml）が $RUNNER_TEMP/coverage に見つかりません。dotnet test の --collect の指定を確かめてください。"
             exit 1
           fi
-          if [ "$(echo "$reports" | wc -l)" -gt 1 ]; then
-            echo "::warning::カバレッジのレポートが複数あります。1つ目だけを集計します: $reports"
-          fi
-          report=$(echo "$reports" | head -n 1)
+          # テストのプロジェクト（Core の PunctuationToggle.Tests と、Windows だけの PunctuationToggle.WindowsTests）ごとに1つある
+          mapfile -t report_files <<< "$reports"
           {
-            echo "### Windows 版の Core のカバレッジ"
-            python .github/scripts/cobertura_summary.py "$report"
+            echo "### Windows 版のカバレッジ"
+            python .github/scripts/cobertura_summary.py "${report_files[@]}"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: カバレッジを成果物として保存

@@ -17,7 +17,10 @@ PunctuationToggle/
 ├── Windows/                        Windows 版（C# / .NET）
 │   ├── PunctuationToggle/          アプリ本体（Windows Forms）
 │   ├── PunctuationToggle.Core/     OS に依存しない判定ロジック（単体テストの対象）
-│   ├── PunctuationToggle.Tests/    Core の単体テスト（xUnit）
+│   ├── PunctuationToggle.Tests/    Core の単体テスト（xUnit。macOS・Linux でも実行できる）
+│   ├── PunctuationToggle.WindowsTests/  レジストリの読み書きと変更通知のテスト（Windows だけ。HKCU\Software\PunctuationToggle.Tests の下だけを使う）
+│   ├── Directory.Packages.props    テストのプロジェクトが使う NuGet パッケージの版
+│   ├── Scripts/                    開発用のスクリプト（macOS 版のアイコンの PNG から .ico を作る generate_app_icon.ps1）
 │   ├── PunctuationToggle.sln
 │   └── install.ps1 / uninstall.ps1   （共通の手順は InstallCommon.ps1）
 ├── converters/                     句読点の変換コマンド（3言語）とベンチマーク
@@ -72,7 +75,7 @@ dotnet build Windows/PunctuationToggle.sln
 
 CI では、両 OS の Core の単体テストのカバレッジを集計し、Actions の実行結果のサマリーに表示しています（下限は設けていません）。手元では `swift test --enable-code-coverage`（macOS）や `dotnet test Windows/PunctuationToggle.sln --collect:"XPlat Code Coverage"`（Windows）で同じものを作れます。
 
-テストで使う NuGet パッケージは `Windows/PunctuationToggle.Tests/packages.lock.json` で固定しています。パッケージを追加・更新したときは `dotnet restore Windows/PunctuationToggle.sln` で lock ファイルを更新し、一緒にコミットしてください（CI では lock ファイルと食い違うと失敗します）。
+テストで使う NuGet パッケージの版は `Windows/Directory.Packages.props` にまとめ、テストのプロジェクトごとの `packages.lock.json`（`Windows/PunctuationToggle.Tests/`・`Windows/PunctuationToggle.WindowsTests/`）で固定しています。パッケージを追加・更新したときは `dotnet restore Windows/PunctuationToggle.sln` で lock ファイルを更新し、一緒にコミットしてください（CI では lock ファイルと食い違うと失敗します）。
 
 ### 変換コマンド
 
@@ -186,4 +189,4 @@ CI とリリースのランナーは、`windows-latest` のようなラベルで
 
 テストやビルドのジョブは読み取り権限だけで動かし、リリースへの書き込み権限はビルド済みのファイルを添付する最後のジョブにだけ与えています。ワークフローを変更するときもこの分担を保ってください。
 
-配布用ファイルのビルドに影響するファイル（`.github/workflows/release.yml`、`global.json`、`nuget.config`、`LICENSE`、`Windows/Directory.Build.props`、`Windows/PunctuationToggle/`・`Windows/PunctuationToggle.Core/`・`macOS/PunctuationToggle/`・`macOS/PunctuationToggle.xcodeproj/` 以下、リリースのジョブで動くテスト（`Windows/PunctuationToggle.Tests/`・`Windows/PunctuationToggle.sln`・`macOS/Tests/`・`macOS/Package.swift`・`testdata/`）、版を確かめる変換コマンドの3つのソース）を変更した Pull Request では、リリースは作らずに配布用ファイルのビルドまでが実行され、できた zip を Actions の成果物からダウンロードして確かめられます。条件は `release.yml` の `pull_request.paths` にあります。
+配布用ファイルのビルドに影響するファイル（`.github/workflows/release.yml`、`global.json`、`nuget.config`、`LICENSE`、`Windows/Directory.Build.props`、`Windows/PunctuationToggle/`・`Windows/PunctuationToggle.Core/`・`macOS/PunctuationToggle/`・`macOS/PunctuationToggle.xcodeproj/` 以下、リリースのジョブで動くテスト（`Windows/PunctuationToggle.Tests/`・`Windows/PunctuationToggle.WindowsTests/`・`Windows/Directory.Packages.props`・`Windows/PunctuationToggle.sln`・`macOS/Tests/`・`macOS/Package.swift`・`testdata/`）、版を確かめる変換コマンドの3つのソース）を変更した Pull Request では、リリースは作らずに配布用ファイルのビルドまでが実行され、できた zip を Actions の成果物からダウンロードして確かめられます。条件は `release.yml` の `pull_request.paths` にあります。

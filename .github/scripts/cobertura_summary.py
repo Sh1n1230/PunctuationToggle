@@ -1,7 +1,8 @@
 """Cobertura 形式のカバレッジ（coverlet が出力する）を、ファイルごとの Markdown の表にする。
 
 CI で、Actions の実行結果のサマリーに書き出すために使う。
-使い方: python3 cobertura_summary.py <coverage.cobertura.xml>
+使い方: python3 cobertura_summary.py <coverage.cobertura.xml>...
+  テストのプロジェクトごとのレポートを複数渡すと、レポートごとに、対象のアセンブリの名前の見出しと表を書く。
 """
 
 import sys
@@ -10,11 +11,33 @@ from xml.etree import ElementTree
 
 
 def main(arguments: list[str]) -> int:
-    if len(arguments) != 1:
-        print("使い方: cobertura_summary.py <coverage.cobertura.xml>", file=sys.stderr)
+    if not arguments:
+        print(
+            "使い方: cobertura_summary.py <coverage.cobertura.xml>...", file=sys.stderr
+        )
         return 2
 
-    root = ElementTree.parse(arguments[0]).getroot()
+    for index, report in enumerate(arguments):
+        if index > 0:
+            print()
+        # 読むのは CI の dotnet test（coverlet）が作ったレポートだけで、外から受け取った XML ではない。
+        # また、Python の xml.etree（expat）は外部実体を読み込まず（3.7.1 以降）、実体の展開による
+        # 肥大化（billion laughs）も expat 2.4.1 以降の上限で止まるため、defusedxml は使わない
+        # nosemgrep: python.lang.security.use-defused-xml-parse.use-defused-xml-parse
+        root = ElementTree.parse(report).getroot()
+        if len(arguments) > 1:
+            print(f"#### {', '.join(package_names(root))}")
+            print()
+        print_table(root)
+    return 0
+
+
+def package_names(root: ElementTree.Element) -> list[str]:
+    """レポートの対象のアセンブリ（coverlet の package）の名前。"""
+    return sorted({package.get("name", "") for package in root.iter("package")})
+
+
+def print_table(root: ElementTree.Element) -> None:
     covered_lines, all_lines = count_lines(root)
     names = display_names(sorted(all_lines))
 
@@ -30,7 +53,6 @@ def main(arguments: list[str]) -> int:
             f"| {names[filename]} | {line_count} | {covered_count} | {percentage(covered_count, line_count)} |"
         )
     print(f"| **合計** | {total} | {covered} | {percentage(covered, total)} |")
-    return 0
 
 
 def count_lines(

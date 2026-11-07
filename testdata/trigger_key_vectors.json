@@ -234,6 +234,15 @@
       "name": "修飾キー以外: 起動前から押されていたキーのリピートでは切り替えない",
       "trigger": "f13",
       "inputs": [{ "input": "keyDown", "key": "f13", "isRepeat": true, "expect": { "suppress": true } }]
+    },
+    {
+      "name": "修飾キー以外: 離した入力を取りこぼしても、次の押し下げ（リピートでない）で切り替える",
+      "trigger": "f13",
+      "inputs": [
+        { "input": "keyDown", "key": "f13", "expect": { "toggle": true, "suppress": true } },
+        { "input": "keyDown", "key": "f13", "expect": { "toggle": true, "suppress": true } },
+        { "input": "keyUp", "key": "f13", "expect": { "suppress": true } }
+      ]
     }
   ],
   "capture": [

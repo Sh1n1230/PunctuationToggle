@@ -70,7 +70,10 @@ public sealed record TriggerKey
 /// <summary>Windows の仮想キーコード。</summary>
 public static class VirtualKeys
 {
+    public const int Tab = 0x09;
+    public const int Enter = 0x0D;
     public const int Pause = 0x13;
+    public const int Space = 0x20;
     public const int Convert = 0x1C;
     public const int NonConvert = 0x1D;
     public const int Escape = 0x1B;
@@ -94,4 +97,13 @@ public static class VirtualKeys
     ];
 
     public static bool IsModifier(int virtualKey) => Modifiers.Contains(virtualKey);
+
+    /// <summary>
+    /// 単独で押して離すと、スタートメニュー（Windows キー）や前面のアプリのメニューバー（Alt キー）が開くキーか。
+    /// </summary>
+    public static bool OpensMenuWhenPressedAlone(int virtualKey) =>
+        virtualKey is LeftWindows or RightWindows or LeftAlt or RightAlt;
+
+    /// <summary>ダイアログのボタンをキーボードで操作するキー（フォーカスの移動と、ボタンを押すキー）か。</summary>
+    public static bool IsDialogNavigation(int virtualKey) => virtualKey is Tab or Enter or Space;
 }

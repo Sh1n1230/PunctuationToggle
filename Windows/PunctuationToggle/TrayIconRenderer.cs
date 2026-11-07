@@ -38,9 +38,11 @@ internal static partial class TrayIconRenderer
     [LibraryImport("user32.dll")]
     private static partial IntPtr MonitorFromPoint(POINT pt, uint dwFlags);
 
+    // Windows 8.1 以降
     [LibraryImport("shcore.dll")]
     private static partial int GetDpiForMonitor(IntPtr hmonitor, int dpiType, out uint dpiX, out uint dpiY);
 
+    // Windows 10 1607 以降（アプリが必要とする最低の版を決めている API。PunctuationToggle.csproj の SupportedOSPlatformVersion）
     [LibraryImport("user32.dll")]
     private static partial int GetSystemMetricsForDpi(int nIndex, uint dpi);
 
@@ -66,11 +68,11 @@ internal static partial class TrayIconRenderer
     }
 
     /// <param name="text">描く文字。</param>
-    /// <param name="isTaskbarLight">タスクバーがライトテーマなら黒、ダークテーマなら白で描く。</param>
+    /// <param name="textColor">文字の色（タスクバーの背景と見分けられる色。<see cref="TextColorForTaskbar"/>）。</param>
     /// <param name="iconSize">
     /// アイコンの幅と高さ（ピクセル）。表示される大きさで描くと、Windows による縮小で句読点の点がにじまない。
     /// </param>
-    public static Icon Render(string text, bool isTaskbarLight, int iconSize)
+    public static Icon Render(string text, Color textColor, int iconSize)
     {
         // 全角の句読点は字面（1文字分の正方形）の左下に小さく描かれるため、字面のまま並べると
         // 2文字がアイコンからはみ出したり、間が空きすぎて点が小さくなったりする。
@@ -96,7 +98,7 @@ internal static partial class TrayIconRenderer
         {
             graphics.SmoothingMode = SmoothingMode.AntiAlias;
             graphics.Clear(Color.Transparent);
-            using var brush = new SolidBrush(isTaskbarLight ? Color.Black : Color.White);
+            using var brush = new SolidBrush(textColor);
             graphics.FillPath(brush, outline);
         }
 
@@ -112,6 +114,18 @@ internal static partial class TrayIconRenderer
             DestroyIcon(iconHandle);
         }
     }
+
+    /// <summary>タスクバーに表示するアイコンの文字の色。</summary>
+    /// <param name="isHighContrast">コントラスト テーマ（ハイコントラスト）を使っているか。</param>
+    /// <param name="isTaskbarLight">タスクバーがライトテーマか（コントラスト テーマでないときに使う）。</param>
+    /// <remarks>
+    /// コントラスト テーマでは、タスクバーの背景と文字はテーマの配色（「砂漠」は明るい背景、「水生」「夕暮れ」は暗い背景など）になり、
+    /// ライト・ダークの設定（SystemUsesLightTheme）とは一致しないため、テーマの文字色で描く。
+    /// </remarks>
+    public static Color TextColorForTaskbar(bool isHighContrast, bool isTaskbarLight) =>
+        isHighContrast ? SystemColors.WindowText
+        : isTaskbarLight ? Color.Black
+        : Color.White;
 
     /// <summary>
     /// 文字ごとの輪郭を、縦の位置（ベースラインからの高さ）は保ったまま、横の間を詰めて並べた輪郭を作る。

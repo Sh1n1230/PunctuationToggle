@@ -27,6 +27,10 @@ internal sealed partial class FocusBouncer : IDisposable
 
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool IsWindow(IntPtr hWnd);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool AttachThreadInput(uint idAttach, uint idAttachTo, [MarshalAs(UnmanagedType.Bool)] bool fAttach);
 
     /// <summary>画面外に置く、タスクバーにも Alt+Tab にも出ない 1px の透明なウィンドウ。</summary>
@@ -63,30 +67,50 @@ internal sealed partial class FocusBouncer : IDisposable
         returnTimer.Tick += (_, _) => ReturnFocus();
     }
 
-    public void Bounce()
+    /// <summary>前面のウィンドウからフォーカスを移し、少し後に戻す。</summary>
+    /// <returns>
+    /// フォーカスを移せたか。false の場合、書き換えた句読点の設定は、入力中のアプリでは次にフォーカスが移るまで反映されない。
+    /// </returns>
+    public bool Bounce()
     {
         var foregroundWindow = GetForegroundWindow();
         if (foregroundWindow == IntPtr.Zero || foregroundWindow == bounceWindow.Handle)
         {
-            return;
+            return false;
         }
         windowToReturnTo = foregroundWindow;
 
-        // 前面のウィンドウのスレッドに入力を接続すると、SetForegroundWindow の制限を受けない
+        // 前面のウィンドウのスレッドに入力を接続すると、SetForegroundWindow の制限を受けない。
+        // 前面が自分のスレッドのウィンドウ（設定画面やダイアログ）なら接続は要らない（同じスレッドを指定すると失敗する）
         var foregroundThreadId = GetWindowThreadProcessId(foregroundWindow, IntPtr.Zero);
         var currentThreadId = GetCurrentThreadId();
-        AttachThreadInput(currentThreadId, foregroundThreadId, fAttach: true);
+        var isAttached = foregroundThreadId != currentThreadId
+            && AttachThreadInput(currentThreadId, foregroundThreadId, fAttach: true);
         bounceWindow.Show();
-        SetForegroundWindow(bounceWindow.Handle);
-        AttachThreadInput(currentThreadId, foregroundThreadId, fAttach: false);
+        var isMoved = SetForegroundWindow(bounceWindow.Handle);
+        if (isAttached)
+        {
+            AttachThreadInput(currentThreadId, foregroundThreadId, fAttach: false);
+        }
 
+        // フォーカスを移せなかった場合は、戻す必要も無い（前のウィンドウを前面にし直すと、かえってフォーカスが揺れる）
+        if (!isMoved)
+        {
+            bounceWindow.Hide();
+            return false;
+        }
         returnTimer.Start();
+        return true;
     }
 
     private void ReturnFocus()
     {
         returnTimer.Stop();
-        SetForegroundWindow(windowToReturnTo);
+        // 戻すまでの間に元のウィンドウが閉じられた場合は、ほかのウィンドウのハンドルになっているおそれがあるので戻さない
+        if (IsWindow(windowToReturnTo))
+        {
+            SetForegroundWindow(windowToReturnTo);
+        }
         bounceWindow.Hide();
     }
 
