@@ -80,9 +80,9 @@ struct TriggerKeyTests {
     }
 
     @Test("操作の説明")
-    func usageDescription() {
+    func usageDescription() throws {
         #expect(TriggerKey.rightCommand.usageDescription == "右Commandを単独で押すと切り替え")
-        #expect(TriggerKey(keyCode: KeyCode.kana)!.usageDescription == "かなを押すと切り替え")
+        #expect(try #require(TriggerKey(keyCode: KeyCode.kana)).usageDescription == "かなを押すと切り替え")
     }
 }
 

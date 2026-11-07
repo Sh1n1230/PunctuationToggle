@@ -17,16 +17,16 @@ struct ModifierTriggerTests {
     }
 
     @Test("fn キーも単独押しで切り替える")
-    mutating func functionModifier() {
-        detector.triggerKey = TriggerKey(keyCode: KeyCode.function)!
+    mutating func functionModifier() throws {
+        detector.triggerKey = try #require(TriggerKey(keyCode: KeyCode.function))
         _ = detector.handle(press(KeyCode.function))
         #expect(detector.handle(release(KeyCode.function)).shouldToggle)
     }
 
     @Test("切り替えキーを変えると、押し下げ中の状態は破棄される")
-    mutating func changingTriggerKeyResetsState() {
+    mutating func changingTriggerKeyResetsState() throws {
         _ = detector.handle(press(KeyCode.rightCommand))
-        detector.triggerKey = TriggerKey(keyCode: KeyCode.rightOption)!
+        detector.triggerKey = try #require(TriggerKey(keyCode: KeyCode.rightOption))
         #expect(!detector.handle(release(KeyCode.rightCommand)).shouldToggle)
 
         _ = detector.handle(press(KeyCode.rightOption))
@@ -40,8 +40,8 @@ struct RegularTriggerTests {
     private var detector = TriggerKeyDetector(triggerKey: TriggerKey(keyCode: f13)!)
 
     @Test("英数キーも押したときに切り替える")
-    mutating func eisu() {
-        detector.triggerKey = TriggerKey(keyCode: KeyCode.eisu)!
+    mutating func eisu() throws {
+        detector.triggerKey = try #require(TriggerKey(keyCode: KeyCode.eisu))
         #expect(
             detector.handle(.keyDown(keyCode: KeyCode.eisu, isRepeat: false, modifiersHeld: false))
                 == InputDecision(shouldToggle: true, shouldSuppress: true)
@@ -49,9 +49,9 @@ struct RegularTriggerTests {
     }
 
     @Test("切り替えキーを変えると、押し下げ中の状態は破棄される")
-    mutating func changingTriggerKeyResetsState() {
+    mutating func changingTriggerKeyResetsState() throws {
         _ = detector.handle(.keyDown(keyCode: Self.f13, isRepeat: false, modifiersHeld: false))
-        detector.triggerKey = TriggerKey(keyCode: KeyCode.eisu)!
+        detector.triggerKey = try #require(TriggerKey(keyCode: KeyCode.eisu))
         // 古いキーを離した入力は、もう切り替えキーの入力ではないのでそのまま渡す
         #expect(detector.handle(.keyUp(keyCode: Self.f13)) == .passThrough)
         #expect(detector.handle(.keyDown(keyCode: KeyCode.eisu, isRepeat: false, modifiersHeld: false)).shouldToggle)

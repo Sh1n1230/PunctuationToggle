@@ -7,7 +7,7 @@ import Testing
 @Suite("設定画面でのキーの読み取り（macOS だけのキー）")
 struct TriggerKeyCaptureTests {
     @Test("fn を単独で押して離すと、fn を読み取る")
-    func functionModifierAlone() {
+    func functionModifierAlone() throws {
         var capture = TriggerKeyCapture()
         let pressed = capture.handle(
             .modifierChanged(keyCode: KeyCode.function, isPressed: true, otherModifiersHeld: false)
@@ -17,7 +17,7 @@ struct TriggerKeyCaptureTests {
         let released = capture.handle(
             .modifierChanged(keyCode: KeyCode.function, isPressed: false, otherModifiersHeld: false)
         )
-        #expect(released.outcome == .captured(TriggerKey(keyCode: KeyCode.function)!))
+        #expect(released.outcome == .captured(try #require(TriggerKey(keyCode: KeyCode.function))))
         // 修飾キーの入力は止めない
         #expect(!released.shouldSuppress)
     }
