@@ -113,7 +113,7 @@ final class TriggerKeyRecorderWindowController: NSWindowController, NSWindowDele
         let buttonRow = NSStackView(views: [resetButton, cancelButton])
         buttonRow.orientation = .horizontal
 
-        let contentStack = NSStackView(views: [titleLabel, currentKeyLabel, statusLabel, buttonRow])
+        let contentStack = RecorderContentView(views: [titleLabel, currentKeyLabel, statusLabel, buttonRow])
         contentStack.orientation = .vertical
         contentStack.alignment = .leading
         contentStack.spacing = 10
@@ -121,6 +121,10 @@ final class TriggerKeyRecorderWindowController: NSWindowController, NSWindowDele
         contentStack.setCustomSpacing(16, after: statusLabel)
 
         window.contentView = contentStack
+        // Tab・Return・スペースはボタンの操作に使えるが、キーボードナビゲーションがオンだと、開いた直後に
+        // 「初期設定に戻す」が選ばれ、スペースを押しただけで押されてしまう。
+        // Windows 版（TriggerKeyRecorderForm の ActiveControl = null）と同じく、Tab で選ぶまではどのボタンも選ばない
+        window.initialFirstResponder = contentStack
     }
 
     private static let instructionText = """
@@ -206,5 +210,25 @@ final class TriggerKeyRecorderWindowController: NSWindowController, NSWindowDele
         if closesWindow {
             close()
         }
+    }
+}
+
+/// 設定画面の中身。開いた直後に入力を受け取る部品になり、どのボタンも選ばれていない状態を作る。
+///
+/// Return・スペースは、ボタンが選ばれていないときは何もしない（ほかの部品に渡すと、警告音が鳴る）。
+/// Tab などは、ウィンドウに渡してボタンを選べるようにする。
+private final class RecorderContentView: NSStackView {
+    /// 何もしないキー（Return、テンキーの Enter、スペース）の文字
+    private static let ignoredCharacters: Set<String> = ["\r", "\u{3}", " "]
+
+    override var acceptsFirstResponder: Bool {
+        true
+    }
+
+    override func keyDown(with event: NSEvent) {
+        if let characters = event.charactersIgnoringModifiers, Self.ignoredCharacters.contains(characters) {
+            return
+        }
+        super.keyDown(with: event)
     }
 }
