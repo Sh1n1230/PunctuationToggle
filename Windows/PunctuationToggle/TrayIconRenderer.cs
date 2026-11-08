@@ -76,20 +76,17 @@ internal static partial class TrayIconRenderer
     {
         // 全角の句読点は字面（1文字分の正方形）の左下に小さく描かれるため、字面のまま並べると
         // 2文字がアイコンからはみ出したり、間が空きすぎて点が小さくなったりする。
-        // 文字の輪郭そのものの範囲を測って間を詰めて並べ、アイコンいっぱいに拡大して中央に置く
+        // 文字の輪郭そのものの範囲を測って間を詰めて並べ、拡大してアイコンの中央に置く
         using var outline = CreateTightOutline(text);
         var outlineBounds = outline.GetBounds();
+        var layout = MeasureLayout(outlineBounds, iconSize * (1 - (2 * PaddingRatio)));
 
-        var available = iconSize * (1 - (2 * PaddingRatio));
-        var scale = Math.Min(available / outlineBounds.Width, available / outlineBounds.Height);
         using (var transform = new Matrix())
         {
             // 輪郭の中心を原点に移し、拡大・縮小してから、アイコンの中心に移す（後に書いたものから順に適用される）
             transform.Translate(iconSize / 2f, iconSize / 2f);
-            transform.Scale(scale, scale);
-            transform.Translate(
-                -(outlineBounds.X + (outlineBounds.Width / 2)),
-                -(outlineBounds.Y + (outlineBounds.Height / 2)));
+            transform.Scale(layout.Scale, layout.Scale);
+            transform.Translate(-(outlineBounds.X + (outlineBounds.Width / 2)), -layout.CenterY);
             outline.Transform(transform);
         }
 
@@ -126,6 +123,39 @@ internal static partial class TrayIconRenderer
         isHighContrast ? SystemColors.WindowText
         : isTaskbarLight ? Color.Black
         : Color.White;
+
+    /// <summary>輪郭を描くときの倍率と、アイコンの縦の中心に置く輪郭上の位置。</summary>
+    private readonly record struct Layout(float Scale, float CenterY);
+
+    /// <param name="outlineBounds">描く文字の輪郭（<see cref="CreateTightOutline"/>）の範囲。</param>
+    /// <param name="available">アイコンの中で文字を描ける幅と高さ（ピクセル）。</param>
+    /// <remarks>
+    /// 句読点の組み合わせ（「、。」「，．」など）ごとにアイコンいっぱいに拡大すると、字形の小さい「，．」が
+    /// 「、。」の約1.5倍の倍率で描かれ、切り替えたときに大きさが変わって見える（#322）。
+    /// そのため、輪郭の範囲の面積が、どの組み合わせでも同じになる倍率で描く。基準の面積は、すべての組み合わせを
+    /// 同じ倍率でアイコンに収めたときの、最も広い組み合わせ（「、。」）の面積。面積をそろえても収まらない文字（「？」など）は、
+    /// 収まる大きさに縮める。縦の位置も、すべての組み合わせを重ねた範囲の中央をアイコンの中央に置き、句読点の高さをそろえる。
+    /// </remarks>
+    private static Layout MeasureLayout(RectangleF outlineBounds, float available)
+    {
+        var referenceBounds = Enum.GetValues<PunctuationStyle>()
+            .Select(style =>
+            {
+                using var referenceOutline = CreateTightOutline(style.Symbols());
+                return referenceOutline.GetBounds();
+            })
+            .ToList();
+        var top = Math.Min(referenceBounds.Min(bounds => bounds.Top), outlineBounds.Top);
+        var bottom = Math.Max(referenceBounds.Max(bounds => bounds.Bottom), outlineBounds.Bottom);
+
+        var commonScale = Math.Min(
+            available / referenceBounds.Max(bounds => bounds.Width),
+            available / (referenceBounds.Max(bounds => bounds.Bottom) - referenceBounds.Min(bounds => bounds.Top)));
+        var referenceArea = referenceBounds.Max(bounds => bounds.Width * bounds.Height) * commonScale * commonScale;
+        var areaScale = MathF.Sqrt(referenceArea / (outlineBounds.Width * outlineBounds.Height));
+        var fittingScale = Math.Min(available / outlineBounds.Width, available / (bottom - top));
+        return new Layout(Math.Min(areaScale, fittingScale), (top + bottom) / 2);
+    }
 
     /// <summary>
     /// 文字ごとの輪郭を、縦の位置（ベースラインからの高さ）は保ったまま、横の間を詰めて並べた輪郭を作る。
