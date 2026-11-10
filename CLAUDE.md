@@ -19,7 +19,7 @@
 | 設定画面でのキーの読み取り | `Core/TriggerKeyCapture.swift` | `TriggerKeyCapture.cs` |
 | 選べるキー | `Core/TriggerKey.swift`（修飾キー9・英数・かな・F1〜F20） | `TriggerKey.cs`（修飾キー8・変換など5・F1〜F24） |
 | OS の入力 → `KeyboardInput` | `KeyboardMonitor.swift`（CGEventTap） | `PunctuationToggle/KeyboardHook.cs`（低レベルフック） |
-| 句読点設定の読み書き | `JapaneseInputPunctuation.swift`（非公開の設定キーと通知） | `MicrosoftImeSettings.cs` + `MicrosoftImeOption1.cs`（レジストリ option1 のビット16〜17） |
+| 句読点設定の読み書き | `JapaneseInputPunctuation.swift`（非公開の設定キーと通知） | `PunctuationToggle/MicrosoftImeSettings.cs` + `MicrosoftImeOption1.cs`（レジストリ option1 のビット16〜17） |
 | 切り替えキーの保存 | `TriggerKeyStore.swift`（UserDefaults） | `PunctuationToggle/AppSettings.cs`（HKCU） |
 | テスト | `macOS/Tests/`（Swift Testing） | `PunctuationToggle.Tests/`（xUnit。Core）、`PunctuationToggle.WindowsTests/`（レジストリまわり。Windows だけ） |
 | 共通のテストベクタ | `testdata/trigger_key_vectors.json`（`TriggerKeyVectorTests.swift`） | 同じファイル（`TriggerKeyVectorTests.cs`） |
