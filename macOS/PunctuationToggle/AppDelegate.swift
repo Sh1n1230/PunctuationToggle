@@ -303,10 +303,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if let button = statusItem?.button {
             // 記号だけでは VoiceOver の読み上げで意味が伝わりにくいため、読み上げる名前を別に付ける
             if keyboardMonitor.isRunning {
-                button.title = style.symbols
+                // 文字のままだと「，．」が「、。」より小さく見えるため、大きさをそろえて描いた画像で表示する。
+                // 画像を作れなかった場合は、文字で表示する
+                let image = StatusItemImageRenderer.image(for: style)
+                button.image = image
+                button.title = image == nil ? style.symbols : ""
                 button.toolTip = "句読点: \(style.symbols)（\(triggerKey.usageDescription)）"
                 button.setAccessibilityLabel("PunctuationToggle、句読点: \(style.spokenName)")
             } else {
+                button.image = nil
                 button.title = "⚠︎"
                 button.toolTip = "アクセシビリティの許可が必要です"
                 button.setAccessibilityLabel("PunctuationToggle、アクセシビリティの許可が必要です")
