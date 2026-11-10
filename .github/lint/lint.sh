@@ -16,7 +16,7 @@ skips=()
 run_check() {
   local name=$1 tool=$2 script=$3
   if ! command -v "$tool" >/dev/null; then
-    echo "スキップ: $name（$tool が見つかりません）"
+    echo "スキップ: ${name}（$tool が見つかりません）"
     skips+=("$name")
     return
   fi
@@ -35,6 +35,7 @@ run_check "CI 用のスクリプトのテスト" "$python" "$python -m unittest 
 run_check "Python（ruff）" ruff "ruff check converters .github/scripts && ruff format --check --diff converters .github/scripts"
 run_check "Python（mypy）" mypy "mypy --strict --python-version 3.10 converters/punctuation_converter.py converters/tests/*.py .github/scripts/*.py .github/scripts/tests/*.py"
 run_check "シェルスクリプト（ShellCheck）" shellcheck "git ls-files -z '*.sh' | xargs -0 shellcheck"
+run_check "シェルスクリプト（変数のすぐ後ろの文字）" git ".github/scripts/check_shell_variable_names.sh"
 run_check "Markdown のリンク" "$python" "$python .github/scripts/check_markdown_links.py"
 run_check "通信する API が無いことの確認" git ".github/scripts/check_no_network.sh"
 run_check "ワークフロー（actionlint）" actionlint "actionlint"

@@ -79,4 +79,4 @@ result_file="benchmark/results/${result_name}.md"
 # hyperfine 1.x と 2.x、Windows（シェルが cmd.exe になる）で計測の方法がそろう
 hyperfine -N "${hyperfine_options[@]}" --input "$input_file" --sort mean-time \
   --export-markdown "$result_file" --export-json "benchmark/results/${result_name}.json" "${arguments[@]}"
-echo "結果を保存しました: $result_file（JSON: benchmark/results/${result_name}.json）"
+echo "結果を保存しました: ${result_file}（JSON: benchmark/results/${result_name}.json）"

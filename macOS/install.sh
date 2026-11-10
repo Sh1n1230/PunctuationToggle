@@ -22,7 +22,7 @@ if [ -z "$xcode_version" ]; then
   exit 1
 fi
 if [ "$xcode_version" -lt "$MINIMUM_XCODE_MAJOR_VERSION" ]; then
-  echo "Xcode $MINIMUM_XCODE_MAJOR_VERSION 以降が必要です（今の Xcode は $xcode_version）。" >&2
+  echo "Xcode $MINIMUM_XCODE_MAJOR_VERSION 以降が必要です（今の Xcode は ${xcode_version}）。" >&2
   exit 1
 fi
 
