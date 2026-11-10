@@ -58,7 +58,7 @@ remove_installed_app() {
     exit 1
   fi
   if [ "$installed_bundle_id" != "$BUNDLE_ID" ] && [ "$installed_bundle_id" != "$LEGACY_BUNDLE_ID" ]; then
-    echo "$DEST は $APP_NAME のアプリではないようです（バンドルID: $installed_bundle_id）。削除せずに中止します。" >&2
+    echo "$DEST は $APP_NAME のアプリではないようです（バンドルID: ${installed_bundle_id}）。削除せずに中止します。" >&2
     echo "別のアプリであれば、別の場所に移してから、もう一度実行してください。" >&2
     exit 1
   fi

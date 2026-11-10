@@ -69,7 +69,7 @@ check_invalid_utf8() {
     # shellcheck disable=SC2086
     $command $option < "$WORK_DIR/invalid_input" > "$WORK_DIR/invalid_output" 2> "$WORK_DIR/invalid_errors" || status=$?
     if [[ $status -ne 1 ]] || [[ $(cat "$WORK_DIR/invalid_errors") != "$expected_message" ]]; then
-      report_failure "不正な UTF-8 $description ${option:-（オプションなし）}: 終了コード 1 と「$expected_message」を期待しましたが、終了コードは $status、エラー出力は「$(head -c 200 "$WORK_DIR/invalid_errors")」でした"
+      report_failure "不正な UTF-8 $description ${option:-（オプションなし）}: 終了コード 1 と「${expected_message}」を期待しましたが、終了コードは ${status}、エラー出力は「$(head -c 200 "$WORK_DIR/invalid_errors")」でした"
     fi
   done
 }
@@ -81,8 +81,9 @@ report_failure() {
 
 # 固定のケースが、確かめたい性質を本当に含んでいるかを確かめる（エディタの保存などで崩れていないか）
 check_case_preconditions() {
-  # バイトとして扱う（macOS の tr は、UTF-8 の文字の途中のバイトを渡すと Illegal byte sequence で失敗する）
-  local LC_ALL=C
+  # バイトとして扱う（macOS の tr は、UTF-8 の文字の途中のバイトを渡すと Illegal byte sequence で失敗する）。
+  # local だけでは、LC_ALL が環境に無いときに tr などの子プロセスに渡らないので、-x で渡す
+  local -x LC_ALL=C
   local cases=$CASES_DIR
   local failures_before=$failures
   # grep は Windows の Git Bash で行末の CR を取り除いて比べるため、バイトを数えて確かめる
@@ -143,7 +144,7 @@ test_implementation() {
   if ! $command --version < /dev/null > "$output" 2> "$errors"; then
     report_failure "--version: 異常終了しました: $(head -c 200 "$errors")"
   elif [[ $(cat "$output") != "punctuation_converter $EXPECTED_VERSION" || -s $errors ]]; then
-    report_failure "--version: 「punctuation_converter $EXPECTED_VERSION」を期待しましたが「$(head -c 200 "$output")」でした"
+    report_failure "--version: 「punctuation_converter ${EXPECTED_VERSION}」を期待しましたが「$(head -c 200 "$output")」でした"
   fi
 
   # 不正な引数では、標準エラー出力に「不正な引数です: <引数>」・空行・使い方を書く
