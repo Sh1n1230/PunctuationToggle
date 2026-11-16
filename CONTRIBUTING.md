@@ -53,6 +53,8 @@ macOS 版のアプリアイコンの PNG（`macOS/PunctuationToggle/Assets.xcass
 
 ## ビルドとテスト
 
+利用者は [Releases](https://github.com/Sh1n1230/PunctuationToggle/releases) からダウンロードして使うため、README にはビルドの手順を書いていません。リポジトリを取得してビルドする手順は、ここにまとめています。macOS 版（`macOS/`）・Windows 版（`Windows/`）・変換コマンド（`converters/`）は互いに依存していないので、関係するものだけをビルドすれば足ります。
+
 ### macOS 版
 
 Xcode 26 以降が必要です。
@@ -62,7 +64,13 @@ cd macOS
 swift test                                   # Core の単体テスト
 xcodebuild -project PunctuationToggle.xcodeproj -scheme PunctuationToggle build
 ./install.sh                                 # ビルドして ~/Applications にインストール
+./uninstall.sh                               # アプリ・アクセシビリティの許可・設定をまとめて消す
 ```
+
+`install.sh` は、Release ビルドの生成、`~/Applications` への配置、古いビルドに由来するアクセシビリティの許可のリセット、アプリの起動までを行います。起動後は、配布版と同じくアクセシビリティの許可を有効にします。
+
+> [!WARNING]
+> 開発チームを指定せずに手元でビルドしたアプリは、アドホック署名になります。ビルドし直すたびに署名が変わるため、システム設定の一覧では許可がオンのままでも、許可は無効になり、キー入力を検知できなくなります。ビルドし直したら、`./install.sh` を実行し直すか、一覧から古い PunctuationToggle を削除して登録し直してください。一覧に同じ名前の項目が重複している場合も、すべて削除してから `./install.sh` を実行すると解消します。
 
 ### Windows 版
 
@@ -72,6 +80,15 @@ xcodebuild -project PunctuationToggle.xcodeproj -scheme PunctuationToggle build
 dotnet test Windows/PunctuationToggle.sln
 dotnet build Windows/PunctuationToggle.sln
 ```
+
+Windows では、PowerShell から次を実行すると、ビルドから `%LOCALAPPDATA%\Programs\PunctuationToggle` への配置、起動までを行います（`uninstall.ps1` は、配置先のフォルダーとレジストリの設定をまとめて消します）。
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\Windows\install.ps1
+powershell -ExecutionPolicy Bypass -File .\Windows\uninstall.ps1
+```
+
+管理者ではない、ふだんの PowerShell で実行してください（インストール先はユーザーのフォルダーなので、管理者権限は要りません。管理者として実行した場合は、アプリが管理者権限で動かないよう、起動はせずに案内だけを表示します）。手元でビルドしたアプリの実行には、[.NET 10 デスクトップ ランタイム](https://dotnet.microsoft.com/download/dotnet/10.0)（SDK に同梱）が必要です。
 
 CI では、両 OS の Core の単体テストのカバレッジを集計し、Actions の実行結果のサマリーに表示しています（下限は設けていません）。手元では `swift test --enable-code-coverage`（macOS）や `dotnet test Windows/PunctuationToggle.sln --collect:"XPlat Code Coverage"`（Windows）で同じものを作れます。
 
@@ -140,7 +157,7 @@ make test-random
 
 ### OS や IME を更新したときの確認
 
-本ツールは、macOS の日本語入力の設定（`com.apple.inputmethod.Kotoeri` の `JIMPrefPunctuationTypeKey` と分散通知）と、Microsoft IME の設定（レジストリの `option1` のビット16〜17）という、公開されていない仕様に依存しています。OS の大型アップデートやベータ版の公開のときは、実機で次を確かめ、README の「動作を確かめた OS の版」の表を更新してください。
+本ツールは、macOS の日本語入力の設定（`com.apple.inputmethod.Kotoeri` の `JIMPrefPunctuationTypeKey` と分散通知）と、Microsoft IME の設定（レジストリの `option1` のビット16〜17）という、公開されていない仕様に依存しています。OS の大型アップデートやベータ版の公開のときは、実機で次を確かめ、README の「動作を確認した OS 環境」の表を更新してください。
 
 1. 切り替えキーで「、。」⇔「，．」が切り替わり、メモ（メモ帳）・ブラウザー・ターミナルで入力する句読点が変わる。変換中の未確定の文字が消えない。
 2. OS の設定画面（システム設定の日本語入力、Microsoft IME の設定）の句読点の表示も切り替わる。逆に、設定画面で変えると、メニューバー・タスクトレイの表示が追従する。
@@ -187,10 +204,10 @@ make test-random
    - 新しい見出しのすぐ下に、そのリリースの要約を1段落書きます。
    - 変更の種類の見出しは、Keep a Changelog と同じ「追加」「変更」「非推奨」「削除」「修正」「セキュリティ」の順に並べます（無い種類は書きません）。
    - ファイルの末尾の比較リンクで、`[Unreleased]` の比較元を新しいタグにし（`compare/vX.Y.Z...HEAD`）、新しいバージョンのリンク（`[X.Y.Z]: .../compare/v<前のバージョン>...vX.Y.Z`）を追加します。
-2. README の「動作を確かめた OS の版」を、リリースする版で確かめた結果に更新します（手順は「OS や IME を更新したときの確認」）。
+2. README の「動作を確認した OS 環境」を、リリースする版で確かめた結果に更新します（手順は「OS や IME を更新したときの確認」）。
 3. バージョン番号を更新します（macOS: `PunctuationToggle.xcodeproj` の `MARKETING_VERSION` と `CURRENT_PROJECT_VERSION`、Windows: `Windows/Directory.Build.props` の `Version`、変換コマンド: 3つの実装の `VERSION`（`--version` で表示する版））。
 4. 手順 1〜3 の変更を Pull Request（ブランチは `release/vX.Y.Z`）で main に入れてから、main で `v1.2.3` のようなタグを付けて push します。リリースのタグ（`v*`）は、ルールセットで削除と付け直しを禁じ（「protect release tags」）、作れるのをリポジトリの管理者だけにしています（「restrict release tag creation」）。付け間違えた場合は、タグを付け直さずに次の版を出してください（来歴証明が、同じ版の名前の違う中身に付かないようにするため）。タグと手順 3 のバージョン番号が一致しない場合、リリースのワークフローはビルドの前に失敗します。一致していれば、GitHub Actions が macOS 版と Windows 版をビルドし、来歴証明（artifact attestation）を付けて、zip と `SHA256SUMS.txt` を添付した下書きのリリースを作ります。
-5. リリースの内容を確認して公開します。添付された zip は、README の「ダウンロードしたファイルの確認」の手順で検証できます。
+5. リリースの内容を確認して公開します。添付された zip は、README の「ダウンロードしたファイルの検証」の手順で検証できます。
 
 CI とリリースのランナーは、`windows-latest` のようなラベルではなく、イメージの版（`windows-2025`・`ubuntu-24.04`・`macos-26`）で指定しています。GitHub が `-latest` の指す先を変えても、リポジトリを変えないままビルド環境が変わらないようにするためです。新しいイメージに上げるときは、`.github/workflows/` のすべてのワークフロー（今は `ci.yml`・`release.yml`・`security.yml`・`benchmark.yml`。`git grep -n "runs-on:" .github/workflows` で確かめられます）の版をそろえて書き換え、Pull Request で CI とリリースのビルド（`release.yml` の Pull Request での実行）が通ることを確かめてからマージしてください。
 

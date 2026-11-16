@@ -12,7 +12,7 @@ cd "$(dirname "$0")"
 . ./app_bundle.sh
 BUILD_DIR=build
 
-# README のとおり Xcode 26 以降が要る。Command Line Tools だけの環境では xcodebuild はあっても -version が失敗する
+# CONTRIBUTING.md のとおり Xcode 26 以降が要る。Command Line Tools だけの環境では xcodebuild はあっても -version が失敗する
 MINIMUM_XCODE_MAJOR_VERSION=26
 if ! xcode_version=$(xcodebuild -version 2>/dev/null | sed -n 's/^Xcode \([0-9][0-9]*\).*/\1/p'); then
   xcode_version=
