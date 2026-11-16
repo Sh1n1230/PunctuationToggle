@@ -157,7 +157,7 @@ make test-random
 
 ### OS や IME を更新したときの確認
 
-本ツールは、macOS の日本語入力の設定（`com.apple.inputmethod.Kotoeri` の `JIMPrefPunctuationTypeKey` と分散通知）と、Microsoft IME の設定（レジストリの `option1` のビット16〜17）という、公開されていない仕様に依存しています。OS の大型アップデートやベータ版の公開のときは、実機で次を確かめ、README の「動作を確かめた OS の版」の表を更新してください。
+本ツールは、macOS の日本語入力の設定（`com.apple.inputmethod.Kotoeri` の `JIMPrefPunctuationTypeKey` と分散通知）と、Microsoft IME の設定（レジストリの `option1` のビット16〜17）という、公開されていない仕様に依存しています。OS の大型アップデートやベータ版の公開のときは、実機で次を確かめ、README の「動作を確認した OS 環境」の表を更新してください。
 
 1. 切り替えキーで「、。」⇔「，．」が切り替わり、メモ（メモ帳）・ブラウザー・ターミナルで入力する句読点が変わる。変換中の未確定の文字が消えない。
 2. OS の設定画面（システム設定の日本語入力、Microsoft IME の設定）の句読点の表示も切り替わる。逆に、設定画面で変えると、メニューバー・タスクトレイの表示が追従する。
@@ -204,10 +204,10 @@ make test-random
    - 新しい見出しのすぐ下に、そのリリースの要約を1段落書きます。
    - 変更の種類の見出しは、Keep a Changelog と同じ「追加」「変更」「非推奨」「削除」「修正」「セキュリティ」の順に並べます（無い種類は書きません）。
    - ファイルの末尾の比較リンクで、`[Unreleased]` の比較元を新しいタグにし（`compare/vX.Y.Z...HEAD`）、新しいバージョンのリンク（`[X.Y.Z]: .../compare/v<前のバージョン>...vX.Y.Z`）を追加します。
-2. README の「動作を確かめた OS の版」を、リリースする版で確かめた結果に更新します（手順は「OS や IME を更新したときの確認」）。
+2. README の「動作を確認した OS 環境」を、リリースする版で確かめた結果に更新します（手順は「OS や IME を更新したときの確認」）。
 3. バージョン番号を更新します（macOS: `PunctuationToggle.xcodeproj` の `MARKETING_VERSION` と `CURRENT_PROJECT_VERSION`、Windows: `Windows/Directory.Build.props` の `Version`、変換コマンド: 3つの実装の `VERSION`（`--version` で表示する版））。
 4. 手順 1〜3 の変更を Pull Request（ブランチは `release/vX.Y.Z`）で main に入れてから、main で `v1.2.3` のようなタグを付けて push します。リリースのタグ（`v*`）は、ルールセットで削除と付け直しを禁じ（「protect release tags」）、作れるのをリポジトリの管理者だけにしています（「restrict release tag creation」）。付け間違えた場合は、タグを付け直さずに次の版を出してください（来歴証明が、同じ版の名前の違う中身に付かないようにするため）。タグと手順 3 のバージョン番号が一致しない場合、リリースのワークフローはビルドの前に失敗します。一致していれば、GitHub Actions が macOS 版と Windows 版をビルドし、来歴証明（artifact attestation）を付けて、zip と `SHA256SUMS.txt` を添付した下書きのリリースを作ります。
-5. リリースの内容を確認して公開します。添付された zip は、README の「ダウンロードしたファイルの確認」の手順で検証できます。
+5. リリースの内容を確認して公開します。添付された zip は、README の「ダウンロードしたファイルの検証」の手順で検証できます。
 
 CI とリリースのランナーは、`windows-latest` のようなラベルではなく、イメージの版（`windows-2025`・`ubuntu-24.04`・`macos-26`）で指定しています。GitHub が `-latest` の指す先を変えても、リポジトリを変えないままビルド環境が変わらないようにするためです。新しいイメージに上げるときは、`.github/workflows/` のすべてのワークフロー（今は `ci.yml`・`release.yml`・`security.yml`・`benchmark.yml`。`git grep -n "runs-on:" .github/workflows` で確かめられます）の版をそろえて書き換え、Pull Request で CI とリリースのビルド（`release.yml` の Pull Request での実行）が通ることを確かめてからマージしてください。
 
