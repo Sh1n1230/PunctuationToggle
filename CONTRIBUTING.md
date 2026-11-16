@@ -53,6 +53,8 @@ macOS 版のアプリアイコンの PNG（`macOS/PunctuationToggle/Assets.xcass
 
 ## ビルドとテスト
 
+利用者は [Releases](https://github.com/Sh1n1230/PunctuationToggle/releases) からダウンロードして使うため、README にはビルドの手順を書いていません。リポジトリを取得してビルドする手順は、ここにまとめています。macOS 版（`macOS/`）・Windows 版（`Windows/`）・変換コマンド（`converters/`）は互いに依存していないので、関係するものだけをビルドすれば足ります。
+
 ### macOS 版
 
 Xcode 26 以降が必要です。
@@ -62,7 +64,13 @@ cd macOS
 swift test                                   # Core の単体テスト
 xcodebuild -project PunctuationToggle.xcodeproj -scheme PunctuationToggle build
 ./install.sh                                 # ビルドして ~/Applications にインストール
+./uninstall.sh                               # アプリ・アクセシビリティの許可・設定をまとめて消す
 ```
+
+`install.sh` は、Release ビルドの生成、`~/Applications` への配置、古いビルドに由来するアクセシビリティの許可のリセット、アプリの起動までを行います。起動後は、配布版と同じくアクセシビリティの許可を有効にします。
+
+> [!WARNING]
+> 開発チームを指定せずに手元でビルドしたアプリは、アドホック署名になります。ビルドし直すたびに署名が変わるため、システム設定の一覧では許可がオンのままでも、許可は無効になり、キー入力を検知できなくなります。ビルドし直したら、`./install.sh` を実行し直すか、一覧から古い PunctuationToggle を削除して登録し直してください。一覧に同じ名前の項目が重複している場合も、すべて削除してから `./install.sh` を実行すると解消します。
 
 ### Windows 版
 
@@ -72,6 +80,15 @@ xcodebuild -project PunctuationToggle.xcodeproj -scheme PunctuationToggle build
 dotnet test Windows/PunctuationToggle.sln
 dotnet build Windows/PunctuationToggle.sln
 ```
+
+Windows では、PowerShell から次を実行すると、ビルドから `%LOCALAPPDATA%\Programs\PunctuationToggle` への配置、起動までを行います（`uninstall.ps1` は、配置先のフォルダーとレジストリの設定をまとめて消します）。
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\Windows\install.ps1
+powershell -ExecutionPolicy Bypass -File .\Windows\uninstall.ps1
+```
+
+管理者ではない、ふだんの PowerShell で実行してください（インストール先はユーザーのフォルダーなので、管理者権限は要りません。管理者として実行した場合は、アプリが管理者権限で動かないよう、起動はせずに案内だけを表示します）。手元でビルドしたアプリの実行には、[.NET 10 デスクトップ ランタイム](https://dotnet.microsoft.com/download/dotnet/10.0)（SDK に同梱）が必要です。
 
 CI では、両 OS の Core の単体テストのカバレッジを集計し、Actions の実行結果のサマリーに表示しています（下限は設けていません）。手元では `swift test --enable-code-coverage`（macOS）や `dotnet test Windows/PunctuationToggle.sln --collect:"XPlat Code Coverage"`（Windows）で同じものを作れます。
 

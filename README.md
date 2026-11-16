@@ -11,7 +11,7 @@
 
 本ツールは、入力された文字をフックして差し替える方式ではなく、OS の日本語入力システムが保持する句読点の設定そのものを切り替えます。そのため、変換中の未確定文字列を崩さず、ターミナルやコードエディタなどを含めた任意のアプリケーションで一貫して動作します。
 
-切り替えキーは任意に変更できます（初期設定は macOS が右 Command、Windows が右 Ctrl）。また、既存の文章の句読点を一括変換するコマンドラインツール（[`converters/`](converters/)）も同梱しています。
+切り替えキーは任意に変更できます（初期設定は macOS が右 Command、Windows が右 Ctrl）。また、既存の文章の句読点を一括変換するコマンドラインツール（[句読点の一括変換コマンド](#句読点の一括変換コマンド)）も用意しています。
 
 | 項目 | macOS | Windows |
 |---|---|---|
@@ -51,6 +51,8 @@ macOS の F1〜F12 などは、キーボードの設定（システム設定の�
 > 「英数」「かな」「変換」「無変換」を切り替えキーに割り当てた場合、キー本来の入力モード切り替え動作は無効になります。Windows キーや Alt キーを割り当てた場合、単独で押して切り替えたときは、スタートメニューやメニューバーが開かないようにしています（割り当ての無いキーコード 0xE8 の入力を送り、ほかのキーと一緒に押したように見せます）。Windows＋E や Alt＋Tab などの組み合わせは、これまでどおり使えます。macOS で fn（地球儀）キーを割り当てた場合は、システム設定の「キーボード」→「fnキーを押して」（または「地球儀キーを押して」）で選んだ動作（入力ソースの変更、絵文字と記号の表示など）がそのまま発生するため、「何もしない」に設定してください。
 
 ## インストール
+
+アプリは [Releases](https://github.com/Sh1n1230/PunctuationToggle/releases) からダウンロードして使います。リポジトリを取得（clone）したり、ビルドしたりする必要はありません（ソースからビルドするのは開発するときだけです。手順は [CONTRIBUTING.md](CONTRIBUTING.md#ビルドとテスト) にあります）。
 
 ### ダウンロードしたファイルの確認
 
@@ -113,21 +115,6 @@ Windows 版のリリースには、exe に含まれる .NET ランタイムと�
 
 起動後、アクセシビリティの許可を求めるダイアログが表示されます。「システム設定を開く」を選択し、「プライバシーとセキュリティ」→「アクセシビリティ」で PunctuationToggle を有効にしてください。許可が付与されると、メニューバーの表示が警告アイコン（⚠︎）から現在の句読点（「、。」など）へ切り替わります（システムの再起動は不要です）。
 
-#### ソースからビルドする場合
-
-Xcode 26 以降が必要です。リポジトリを取得後、付属のインストールスクリプトを実行します。
-
-```sh
-git clone https://github.com/Sh1n1230/PunctuationToggle.git
-cd PunctuationToggle
-./macOS/install.sh
-```
-
-このスクリプトは、Release ビルドの生成、`~/Applications` への配置、古いビルドに由来するアクセシビリティ許可のリセット、およびアプリの起動までを一括して処理します。起動後は、配布版と同様にアクセシビリティの許可を有効にします。
-
-> [!WARNING]
-> 開発チームを指定せずにローカルでビルドした場合、バイナリはアドホック署名となります。ビルドし直すたびに署名識別子が変化するため、システム設定の一覧上で許可がオンになっていても内部的には権限が無効化され、キー入力を検知できなくなります。ソースから再ビルドした際は、必ず `./macOS/install.sh` を再実行するか、設定一覧から古い PunctuationToggle を削除したうえで登録し直してください。設定一覧に同名項目が重複している場合も、一度すべて削除してから本スクリプトを実行することで解消します。
-
 ### Windows
 
 [Releases](https://github.com/Sh1n1230/PunctuationToggle/releases) から、利用環境に合致するアーカイブ（64bit 環境は `win-x64`、Arm 版 Windows は `win-arm64`）をダウンロードし、本ツール専用のフォルダー（例: `%LOCALAPPDATA%\Programs\PunctuationToggle`）に展開して `PunctuationToggle.exe` を起動します。自己完結型（Self-Contained）バイナリとして出力しているため、.NET ランタイムの事前導入や管理者権限の付与は不要です。
@@ -137,37 +124,6 @@ cd PunctuationToggle
 
 > [!NOTE]
 > コード署名証明書による署名を行っていないため、初回起動時に Microsoft Defender SmartScreen による警告が表示される場合があります。[ダウンロードしたファイルの確認](#ダウンロードしたファイルの確認)を済ませたうえで、「詳細情報」をクリックし、「実行」を選択してください。
-
-#### ソースからビルドする場合
-
-[.NET 10 SDK](https://dotnet.microsoft.com/download) 以降が必要です。PowerShell からインストールスクリプトを実行すると、ビルドから `%LOCALAPPDATA%\Programs\PunctuationToggle` への配置および起動までを処理します。
-
-```powershell
-git clone https://github.com/Sh1n1230/PunctuationToggle.git
-cd PunctuationToggle
-powershell -ExecutionPolicy Bypass -File .\Windows\install.ps1
-```
-
-管理者ではない、ふだんの PowerShell で実行してください（インストール先はユーザーのフォルダーなので、管理者権限は要りません。管理者として実行した場合は、アプリが管理者権限で動かないよう、起動はせずに案内だけを表示します）。
-
-ソースからビルドして実行する場合、実行環境に [.NET 10 デスクトップ ランタイム](https://dotnet.microsoft.com/download/dotnet/10.0)（SDK に同梱）が導入されている必要があります。
-
-### 使わないフォルダー
-
-本リポジトリには、macOS 版（Swift、`macOS/`）、Windows 版（C#、`Windows/`）、および句読点変換コマンド（Rust・C#・Python、`converters/`）が含まれていますが、各コンポーネントは互いに独立しており依存関係を持ちません。使わない OS のフォルダーや `converters/` は、ビルドの対象にならないため、そのまま残しておいて差し支えありません（ディスクの使用量もわずかです）。
-
-フォルダーを取得したくない場合は、削除ではなく、Git の sparse-checkout で必要なフォルダーだけを取得する方法を勧めます（作業フォルダーを間違えて、無関係な同名のフォルダーを消すおそれがありません）。
-
-```sh
-git clone --filter=blob:none --sparse https://github.com/Sh1n1230/PunctuationToggle.git
-cd PunctuationToggle
-git sparse-checkout set macOS     # Windows では Windows
-```
-
-句読点変換コマンドは、使う言語の実装のファイル1つだけでも動きます（詳しくは [1つの実装だけを使う](converters/README.md#1つの実装だけを使う) を参照してください）。
-
-> [!NOTE]
-> 本リポジトリに対して Pull Request を作成する場合は、手元で削除したファイルをコミットに含めないでください。
 
 ### 新しいバージョンの確認
 
@@ -179,14 +135,14 @@ git sparse-checkout set macOS     # Windows では Windows
 
 設定メニューの「ログイン時に起動」を無効にしてから、以下の手順でファイルを削除します。なお、いずれの OS でも、日本語入力システムの句読点設定は最後に切り替えた状態が維持されます。
 
-- **macOS:** アプリを終了し、`PunctuationToggle.app` をゴミ箱に入れます。ソースから入れた場合は、`./macOS/uninstall.sh` を実行すると、アプリに加えてアクセシビリティの許可と設定もまとめて消せます。リリースの zip から入れた場合は、ターミナルで次を実行すると、`uninstall.sh` と同じく許可と設定を消せます（アクセシビリティの許可は、システム設定の「プライバシーとセキュリティ」→「アクセシビリティ」で項目を選び「−」でも消せます）。
+- **macOS:** アプリを終了し、`PunctuationToggle.app` をゴミ箱に入れます。ターミナルで次を実行すると、アクセシビリティの許可と設定も消せます（アクセシビリティの許可は、システム設定の「プライバシーとセキュリティ」→「アクセシビリティ」で項目を選び「−」でも消せます）。
 
   ```sh
   tccutil reset Accessibility io.github.sh1n1230.PunctuationToggle
   defaults delete io.github.sh1n1230.PunctuationToggle
   ```
 
-- **Windows:** アプリを終了し、展開したフォルダーを削除します。ソースから入れた場合は、`powershell -ExecutionPolicy Bypass -File .\Windows\uninstall.ps1` を実行すると、配置先のフォルダーとレジストリの設定をまとめて消せます。リリースの zip から入れた場合は、PowerShell で次を実行すると、`uninstall.ps1` と同じく「ログイン時に起動」の登録と設定を消せます（「ログイン時に起動」の項目は、タスク マネージャーの「スタートアップ アプリ」からも無効にできます）。
+- **Windows:** アプリを終了し、展開したフォルダーを削除します。PowerShell で次を実行すると、「ログイン時に起動」の登録と設定も消せます（「ログイン時に起動」の項目は、タスク マネージャーの「スタートアップ アプリ」からも無効にできます）。
 
   ```powershell
   Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'PunctuationToggle' -ErrorAction SilentlyContinue
@@ -264,19 +220,21 @@ IME の設定画面で「、．」（2）や「，。」（3）を選んでい�
 
 作成済みのテキストファイルに含まれる句読点を一括して変換するコマンドラインツールを、C#・Python・Rust の3言語で提供しています。正しい UTF-8 の入力に対しては全実装で仕様と出力結果のバイト列が一致しているため、利用環境に合わせていずれか1つを選択すれば動作します。詳しい使い方、および macOS と Windows の双方で実施したベンチマークに基づく言語選定の理由は [converters/README.md](converters/README.md) を参照してください。
 
+変換コマンドは Releases の配布物には含めていません。Python 実装はファイル1つで動くので、[`converters/punctuation_converter.py`](converters/punctuation_converter.py) のページの「Download raw file」でそのファイルだけをダウンロードすれば、リポジトリを取得しなくても使えます（Python 3.10 以降が必要です）。
+
 macOS・Linux では次のように使います。Windows（コマンド プロンプト・PowerShell）での書き方は [converters/README.md の「Windows での使い方」](converters/README.md#windows-での使い方) を参照してください。
 
 ```sh
 # 「、。」を「，．」へ変換
-python3 converters/punctuation_converter.py < 原稿.txt > 提出用.txt
+python3 punctuation_converter.py < 原稿.txt > 提出用.txt
 
 # 「，．」を「、。」へ逆変換
-python3 converters/punctuation_converter.py --reverse < 提出用.txt > 原稿.txt
+python3 punctuation_converter.py --reverse < 提出用.txt > 原稿.txt
 ```
 
 ## 開発
 
-ビルド手順、テストの実行方法、およびコーディング規約は [CONTRIBUTING.md](CONTRIBUTING.md) を参照してください。バージョンの推移と更新内容は [CHANGELOG.md](CHANGELOG.md) に記録されています。
+リポジトリを取得してビルドするのは、開発に参加するときだけです。ビルド手順、テストの実行方法、およびコーディング規約は [CONTRIBUTING.md](CONTRIBUTING.md) を参照してください。バージョンの推移と更新内容は [CHANGELOG.md](CHANGELOG.md) に記録されています。
 
 ## ライセンス
 
