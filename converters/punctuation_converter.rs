@@ -35,7 +35,7 @@ const USAGE: &str = "\
 
 /// 版。リポジトリのアプリと同じ番号（Windows/Directory.Build.props の Version）にする。
 /// リリースのワークフローが一致を確かめる
-const VERSION: &str = "1.3.0";
+const VERSION: &str = "2.0.0";
 
 const EXIT_USAGE_ERROR: u8 = 2;
 

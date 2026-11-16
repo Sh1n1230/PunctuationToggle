@@ -30,7 +30,7 @@ internal static class PunctuationConverter
 
     // 版。リポジトリのアプリと同じ番号（Windows/Directory.Build.props の Version）にする。
     // リリースのワークフローが一致を確かめる
-    private const string Version = "1.3.0";
+    private const string Version = "2.0.0";
 
     private const int ExitSuccess = 0;
     private const int ExitFailure = 1;
