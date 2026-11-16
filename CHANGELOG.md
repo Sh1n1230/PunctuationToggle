@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-11-16
+
+ライセンスを MIT License から Mozilla Public License 2.0（MPL-2.0）に変更しました（v1.3.0 までの版は MIT License のままです）。あわせて、メニューへの「最新版を確認…」の追加、切り替えキーが使えない理由の表示、キーボードやスクリーンリーダーでの操作への対応、メニューバー・タスクトレイの句読点の大きさの統一など、macOS 版・Windows 版・変換コマンドに多くの改善と修正を加えています。README は、Releases からダウンロードして使う利用者向けに書き直しました。
+
 ### 追加
 
 - macOS 版で、メニューを開いたときに、セキュア入力が有効なため切り替えキーが使えないことや、ほかの日本語入力（Google 日本語入力・ATOK など）では句読点が切り替わらないことを表示するようにしました。
@@ -160,7 +164,8 @@ Windows 対応、キー設定のカスタマイズ、既存文書の一括変換
 - 「ログイン時に起動」を設定できます。
 - 再ビルド後もアクセシビリティの許可が有効になるインストールスクリプト（`install.sh`）を用意しました。
 
-[Unreleased]: https://github.com/Sh1n1230/PunctuationToggle/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/Sh1n1230/PunctuationToggle/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/Sh1n1230/PunctuationToggle/compare/v1.3.0...v2.0.0
 [1.3.0]: https://github.com/Sh1n1230/PunctuationToggle/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/Sh1n1230/PunctuationToggle/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/Sh1n1230/PunctuationToggle/compare/v1.1.0...v1.2.0

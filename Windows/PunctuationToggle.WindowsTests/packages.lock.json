@@ -96,7 +96,7 @@
       "punctuationtoggle": {
         "type": "Project",
         "dependencies": {
-          "PunctuationToggle.Core": "[1.3.0, )"
+          "PunctuationToggle.Core": "[2.0.0, )"
         }
       },
       "punctuationtoggle.core": {
